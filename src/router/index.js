@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const routes = [
   {
@@ -21,19 +22,19 @@ const routes = [
         path: 'pets',
         name: 'pets',
         component: () => import('@/pages/PetsPage.vue'),
-        meta: { title: 'Pets' },
+        meta: { title: 'Pets', requiresAuth: true },
       },
       {
         path: 'bookings',
         name: 'my-bookings',
         component: () => import('@/pages/MyBookingsPage.vue'),
-        meta: { title: 'My Bookings' },
+        meta: { title: 'My Bookings', requiresAuth: true },
       },
       {
         path: 'profile',
         name: 'profile',
         component: () => import('@/pages/ProfilePage.vue'),
-        meta: { title: 'Profile' },
+        meta: { title: 'Profile', requiresAuth: true },
       },
     ],
   },
@@ -93,6 +94,23 @@ const router = createRouter({
   scrollBehavior() {
     return { top: 0 }
   },
+})
+
+router.beforeEach((to) => {
+  const authStore = useAuthStore()
+
+  if (to.meta.requiresAuth && !authStore.isLoggedIn) {
+    return {
+      name: 'login',
+      query: { redirect: to.fullPath },
+    }
+  }
+
+  if (authStore.isLoggedIn && (to.name === 'login' || to.name === 'register')) {
+    return { name: 'pets' }
+  }
+
+  return true
 })
 
 router.afterEach((to) => {
