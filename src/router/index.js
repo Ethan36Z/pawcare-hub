@@ -1,5 +1,17 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { getDefaultRouteForRole, useAuthStore } from '@/stores/auth'
+
+function getRoleRedirectPath(to, role) {
+  if (to.path.startsWith('/admin')) {
+    return '/pets'
+  }
+
+  if (role === 'admin') {
+    return '/admin'
+  }
+
+  return getDefaultRouteForRole(role)
+}
 
 const routes = [
   {
@@ -22,19 +34,19 @@ const routes = [
         path: 'pets',
         name: 'pets',
         component: () => import('@/pages/PetsPage.vue'),
-        meta: { title: 'Pets', requiresAuth: true },
+        meta: { title: 'Pets', requiresAuth: true, allowedRoles: ['user'] },
       },
       {
         path: 'bookings',
         name: 'my-bookings',
         component: () => import('@/pages/MyBookingsPage.vue'),
-        meta: { title: 'My Bookings', requiresAuth: true },
+        meta: { title: 'My Bookings', requiresAuth: true, allowedRoles: ['user'] },
       },
       {
         path: 'profile',
         name: 'profile',
         component: () => import('@/pages/ProfilePage.vue'),
-        meta: { title: 'Profile', requiresAuth: true },
+        meta: { title: 'Profile', requiresAuth: true, allowedRoles: ['user'] },
       },
     ],
   },
@@ -59,6 +71,7 @@ const routes = [
   {
     path: '/admin',
     component: () => import('@/layouts/AdminLayout.vue'),
+    meta: { requiresAuth: true, allowedRoles: ['admin'] },
     children: [
       {
         path: '',
@@ -98,8 +111,11 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const authStore = useAuthStore()
+  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
+  const allowedRoles = to.matched.flatMap((record) => record.meta.allowedRoles ?? [])
+  const destinationForRole = getDefaultRouteForRole(authStore.role)
 
-  if (to.meta.requiresAuth && !authStore.isLoggedIn) {
+  if (requiresAuth && !authStore.isLoggedIn) {
     return {
       name: 'login',
       query: { redirect: to.fullPath },
@@ -107,7 +123,11 @@ router.beforeEach((to) => {
   }
 
   if (authStore.isLoggedIn && (to.name === 'login' || to.name === 'register')) {
-    return { name: 'pets' }
+    return destinationForRole
+  }
+
+  if (allowedRoles.length > 0 && !allowedRoles.includes(authStore.role)) {
+    return getRoleRedirectPath(to, authStore.role)
   }
 
   return true

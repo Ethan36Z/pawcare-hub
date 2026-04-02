@@ -1,10 +1,21 @@
 <script setup>
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
 const adminLinks = [
   { label: 'Dashboard', to: '/admin' },
   { label: 'Services', to: '/admin/services' },
   { label: 'Bookings', to: '/admin/bookings' },
   { label: 'Users', to: '/admin/users' },
 ]
+
+const authStore = useAuthStore()
+const router = useRouter()
+
+function handleLogout() {
+  authStore.logout()
+  router.push('/login')
+}
 </script>
 
 <template>
@@ -24,6 +35,8 @@ const adminLinks = [
         {{ item.label }}
       </router-link>
     </nav>
+
+    <button type="button" class="app-sidebar__logout" @click="handleLogout">Logout</button>
   </aside>
 </template>
 
@@ -31,8 +44,8 @@ const adminLinks = [
 .app-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 28px;
-  padding: 28px 20px;
+  gap: 20px;
+  padding: 22px 18px 18px;
   background: #16324f;
   color: white;
 }
@@ -46,25 +59,43 @@ const adminLinks = [
 }
 
 .app-sidebar__title {
-  margin: 8px 0 0;
-  font-size: 1.6rem;
+  margin: 6px 0 0;
+  font-size: 1.45rem;
+  line-height: 1.15;
 }
 
 .app-sidebar__nav {
   display: grid;
-  gap: 10px;
+  gap: 8px;
+  flex: 1;
+  align-content: start;
 }
 
 .app-sidebar__link {
-  padding: 12px 14px;
-  border-radius: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
   color: rgba(255, 255, 255, 0.92);
   background: rgba(255, 255, 255, 0.06);
+  line-height: 1.2;
+}
+
+.app-sidebar__logout {
+  margin-top: auto;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.96);
+  font: inherit;
+  text-align: left;
+  line-height: 1.2;
+  cursor: pointer;
 }
 
 @media (max-width: 900px) {
   .app-sidebar {
-    padding-bottom: 12px;
+    gap: 16px;
+    padding: 18px 16px 12px;
   }
 }
 </style>

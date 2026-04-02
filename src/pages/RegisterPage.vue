@@ -1,7 +1,7 @@
 <script setup>
 import { reactive } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { getDefaultRouteForRole, useAuthStore } from '@/stores/auth'
 
 const form = reactive({
   fullName: '',
@@ -19,7 +19,7 @@ function handleRegister() {
     email: form.email,
   })
 
-  router.push('/pets')
+  router.push(getDefaultRouteForRole(authStore.role))
 }
 </script>
 

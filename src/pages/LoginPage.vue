@@ -1,7 +1,7 @@
 <script setup>
 import { reactive } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { getDefaultRouteForRole, useAuthStore } from '@/stores/auth'
 
 const form = reactive({
   email: '',
@@ -19,7 +19,9 @@ function handleLogin() {
   })
 
   const redirectTarget =
-    typeof route.query.redirect === 'string' ? route.query.redirect : '/pets'
+    typeof route.query.redirect === 'string'
+      ? route.query.redirect
+      : getDefaultRouteForRole(authStore.role)
 
   router.push(redirectTarget)
 }

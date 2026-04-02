@@ -1,4 +1,8 @@
 <script setup>
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { getDefaultRouteForRole, useAuthStore } from '@/stores/auth'
+
 const navItems = [
   { label: 'Home', to: '/' },
   { label: 'Services', to: '/services' },
@@ -6,6 +10,20 @@ const navItems = [
   { label: 'My Bookings', to: '/bookings' },
   { label: 'Profile', to: '/profile' },
 ]
+
+const authStore = useAuthStore()
+const router = useRouter()
+
+const accountLink = computed(() =>
+  authStore.isAdmin
+    ? { label: 'Admin', to: '/admin' }
+    : { label: 'My Account', to: getDefaultRouteForRole(authStore.role) },
+)
+
+function handleLogout() {
+  authStore.logout()
+  router.push('/login')
+}
 </script>
 
 <template>
@@ -26,8 +44,16 @@ const navItems = [
     </nav>
 
     <div class="app-header__actions">
-      <router-link to="/login">Login</router-link>
-      <router-link to="/register" class="app-header__button">Register</router-link>
+      <template v-if="authStore.isLoggedIn">
+        <router-link :to="accountLink.to">{{ accountLink.label }}</router-link>
+        <button type="button" class="app-header__button app-header__button--logout" @click="handleLogout">
+          Logout
+        </button>
+      </template>
+      <template v-else>
+        <router-link to="/login">Login</router-link>
+        <router-link to="/register" class="app-header__button">Register</router-link>
+      </template>
     </div>
   </header>
 </template>
@@ -60,7 +86,8 @@ const navItems = [
 }
 
 .app-header__link,
-.app-header__actions a {
+.app-header__actions a,
+.app-header__actions button {
   color: var(--pc-muted);
   font-weight: 500;
 }
@@ -75,7 +102,13 @@ const navItems = [
   padding: 10px 16px;
   border-radius: 999px;
   background: var(--pc-primary);
+  border: 0;
   color: white !important;
+  cursor: pointer;
+}
+
+.app-header__button--logout {
+  font: inherit;
 }
 
 @media (max-width: 900px) {
