@@ -11,6 +11,7 @@ const errorMessage = ref('')
 const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
 const createErrorMessage = ref('')
+const isCancellingBookingId = ref(null)
 const createForm = ref({
   petName: '',
   service: '',
@@ -24,6 +25,22 @@ const ownerName = computed(() => authStore.user?.fullName || 'your account')
 
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
+}
+
+function getStatusTagType(status) {
+  if (status === 'Confirmed') {
+    return 'success'
+  }
+
+  if (status === 'Upcoming') {
+    return 'primary'
+  }
+
+  if (status === 'Cancelled') {
+    return 'danger'
+  }
+
+  return 'info'
 }
 
 async function loadBookings() {
@@ -86,6 +103,29 @@ async function handleCreateBooking() {
     isCreating.value = false
   }
 }
+
+async function handleCancelBooking(booking) {
+  if (!authStore.user?.email || !booking?.id) {
+    return
+  }
+
+  const confirmed = window.confirm(`Cancel the booking for ${booking.petName}?`)
+  if (!confirmed) {
+    return
+  }
+
+  isCancellingBookingId.value = booking.id
+  errorMessage.value = ''
+
+  try {
+    await bookingsApi.cancel(authStore.user.email, booking.id)
+    await loadBookings()
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, 'Unable to cancel this booking right now.')
+  } finally {
+    isCancellingBookingId.value = null
+  }
+}
 </script>
 
 <template>
@@ -118,7 +158,7 @@ async function handleCreateBooking() {
       <section v-else-if="bookings.length" class="bookings-list">
         <el-card
           v-for="booking in bookings"
-          :key="`${booking.petName}-${booking.service}-${booking.date}`"
+          :key="booking.id ?? `${booking.petName}-${booking.service}-${booking.date}`"
           class="booking-card"
           shadow="hover"
         >
@@ -127,7 +167,9 @@ async function handleCreateBooking() {
               <h2>{{ booking.service }}</h2>
               <p class="booking-subtitle">{{ booking.petName }} | {{ booking.date }} at {{ booking.time }}</p>
             </div>
-            <el-tag effect="plain">{{ booking.status }}</el-tag>
+            <el-tag :type="getStatusTagType(booking.status)" effect="plain">
+              {{ booking.status }}
+            </el-tag>
           </div>
 
           <div class="booking-meta">
@@ -148,7 +190,13 @@ async function handleCreateBooking() {
           <div class="booking-actions">
             <el-button type="primary">View Details</el-button>
             <el-button plain>Reschedule</el-button>
-            <el-button plain>Cancel</el-button>
+            <el-button
+              plain
+              :loading="isCancellingBookingId === booking.id"
+              @click="handleCancelBooking(booking)"
+            >
+              Cancel
+            </el-button>
           </div>
         </el-card>
       </section>

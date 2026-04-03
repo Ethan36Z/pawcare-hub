@@ -47,8 +47,23 @@ public class BookingService {
         return toBookingResponse(savedBooking, owner.getEmail());
     }
 
+    public BookingResponse cancelBooking(String userEmailHeader, Long bookingId) {
+        AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
+        Booking booking = bookingRepository.findByIdAndOwnerEmail(bookingId, user.email())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
+
+        if ("Cancelled".equalsIgnoreCase(booking.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Booking is already cancelled");
+        }
+
+        booking.setStatus("Cancelled");
+        Booking savedBooking = bookingRepository.save(booking);
+        return toBookingResponse(savedBooking, user.email());
+    }
+
     private BookingResponse toBookingResponse(Booking booking, String ownerEmail) {
         return new BookingResponse(
+            booking.getId(),
             booking.getPetName(),
             booking.getService(),
             booking.getDate(),

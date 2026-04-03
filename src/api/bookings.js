@@ -18,4 +18,11 @@ export const bookingsApi = {
       },
     })
   },
+  cancel(email, id) {
+    return http.patch(`/bookings/${id}/cancel`, null, {
+      headers: {
+        'X-User-Email': email,
+      },
+    })
+  },
 }
