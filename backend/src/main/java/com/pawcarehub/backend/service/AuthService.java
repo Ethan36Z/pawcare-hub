@@ -4,8 +4,8 @@ import com.pawcarehub.backend.dto.auth.AuthenticatedUser;
 import com.pawcarehub.backend.dto.auth.AuthResponse;
 import com.pawcarehub.backend.dto.auth.LoginRequest;
 import com.pawcarehub.backend.dto.auth.RegisterRequest;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import com.pawcarehub.backend.entity.User;
+import com.pawcarehub.backend.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -14,42 +14,45 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class AuthService {
 
-    private final Map<String, InMemoryAuthUser> usersByEmail = new ConcurrentHashMap<>();
+    private final UserRepository userRepository;
+
+    public AuthService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
 
     public AuthResponse register(RegisterRequest request) {
         String name = normalizeRequiredField(request.name(), "name");
         String email = normalizeEmail(request.email());
         String password = normalizeRequiredField(request.password(), "password");
 
-        InMemoryAuthUser newUser = new InMemoryAuthUser(name, email, password);
-        InMemoryAuthUser existingUser = usersByEmail.putIfAbsent(email, newUser);
-        if (existingUser != null) {
+        if (userRepository.existsByEmail(email)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User already exists");
         }
 
-        return new AuthResponse("Registration successful", newUser.email(), newUser.name());
+        User savedUser = userRepository.save(new User(name, email, password));
+        return new AuthResponse("Registration successful", savedUser.getEmail(), savedUser.getName());
     }
 
     public AuthResponse login(LoginRequest request) {
         String email = normalizeEmail(request.email());
         String password = normalizeRequiredField(request.password(), "password");
 
-        InMemoryAuthUser user = usersByEmail.get(email);
-        if (user == null || !user.password().equals(password)) {
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password"));
+
+        if (!user.getPassword().equals(password)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
         }
 
-        return new AuthResponse("Login successful", user.email(), user.name());
+        return new AuthResponse("Login successful", user.getEmail(), user.getName());
     }
 
     public AuthenticatedUser getAuthenticatedUser(String email) {
         String normalizedEmail = normalizeEmail(email);
-        InMemoryAuthUser user = usersByEmail.get(normalizedEmail);
-        if (user == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User session is not recognized");
-        }
+        User user = userRepository.findByEmail(normalizedEmail)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User session is not recognized"));
 
-        return new AuthenticatedUser(user.name(), user.email());
+        return new AuthenticatedUser(user.getName(), user.getEmail());
     }
 
     private String normalizeEmail(String email) {
@@ -68,8 +71,5 @@ public class AuthService {
             );
         }
         return value.trim();
-    }
-
-    private record InMemoryAuthUser(String name, String email, String password) {
     }
 }
