@@ -1,35 +1,47 @@
 <script setup>
+import { computed } from 'vue'
 import PageContainer from '@/components/common/PageContainer.vue'
+import { useAuthStore } from '@/stores/auth'
 
-const bookings = [
-  {
-    petName: 'Charlie',
-    service: 'Annual wellness exam',
-    date: 'April 18, 2026',
-    time: '10:30 AM',
-    status: 'Confirmed',
+const authStore = useAuthStore()
+
+function createUserSpecificBookings(user) {
+  if (!user?.email) {
+    return []
+  }
+
+  const ownerName = user.fullName?.trim() || 'Pet Owner'
+  const ownerSlug = user.email.split('@')[0]?.toLowerCase() ?? 'petowner'
+  const seed = ownerSlug.split('').reduce((total, char) => total + char.charCodeAt(0), 0)
+  const petNames = [
+    `${ownerName.split(' ')[0]}'s Companion`,
+    `${ownerSlug.charAt(0).toUpperCase()}${ownerSlug.slice(1, 6) || 'Buddy'}`,
+    'Maple',
+  ]
+  const staffRotation = ['Dr. Rivera', 'Nurse Patel', 'Dr. Chen']
+  const services = [
+    'Annual wellness exam',
+    'Vaccination follow-up',
+    'Dental evaluation',
+  ]
+  const statuses = ['Confirmed', 'Upcoming', 'Completed']
+  const dates = ['April 18, 2026', 'April 24, 2026', 'March 12, 2026']
+  const times = ['10:30 AM', '2:15 PM', '9:00 AM']
+
+  return services.map((service, index) => ({
+    petName: petNames[index],
+    service,
+    date: dates[index],
+    time: times[index],
+    status: statuses[index],
     clinic: 'PawCare Hub Clinic',
-    staff: 'Dr. Rivera',
-  },
-  {
-    petName: 'Mochi',
-    service: 'Puppy vaccine visit',
-    date: 'April 22, 2026',
-    time: '2:15 PM',
-    status: 'Upcoming',
-    clinic: 'PawCare Hub Clinic',
-    staff: 'Nurse Patel',
-  },
-  {
-    petName: 'Luna',
-    service: 'Dental evaluation',
-    date: 'March 12, 2026',
-    time: '9:00 AM',
-    status: 'Completed',
-    clinic: 'PawCare Hub Clinic',
-    staff: 'Dr. Rivera',
-  },
-]
+    staff: staffRotation[(seed + index) % staffRotation.length],
+    ownerEmail: user.email,
+  }))
+}
+
+const bookings = computed(() => createUserSpecificBookings(authStore.user))
+const ownerName = computed(() => authStore.user?.fullName || 'your account')
 </script>
 
 <template>
@@ -40,8 +52,8 @@ const bookings = [
           <span class="eyebrow">My bookings</span>
           <h1>Review upcoming visits and past appointments in one place.</h1>
           <p>
-            Keep track of your pet's scheduled care, check visit details, and manage appointments
-            when plans change.
+            Keep track of {{ ownerName }}'s scheduled care, check visit details, and manage
+            appointments when plans change.
           </p>
         </div>
 
@@ -71,6 +83,10 @@ const bookings = [
             <div>
               <span>Staff</span>
               <strong>{{ booking.staff }}</strong>
+            </div>
+            <div>
+              <span>Account</span>
+              <strong>{{ booking.ownerEmail }}</strong>
             </div>
           </div>
 
@@ -204,7 +220,7 @@ const bookings = [
 
 .booking-meta {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin-top: 20px;
   padding: 16px 0;
