@@ -8,6 +8,18 @@ const authStore = useAuthStore()
 const bookings = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
+const isCreateDialogOpen = ref(false)
+const isCreating = ref(false)
+const createErrorMessage = ref('')
+const createForm = ref({
+  petName: '',
+  service: '',
+  date: '',
+  time: '',
+  status: 'Upcoming',
+  clinic: 'PawCare Hub Clinic',
+  staff: '',
+})
 const ownerName = computed(() => authStore.user?.fullName || 'your account')
 
 function getApiErrorMessage(error, fallbackMessage) {
@@ -37,6 +49,43 @@ async function loadBookings() {
 onMounted(() => {
   loadBookings()
 })
+
+function openCreateDialog() {
+  createErrorMessage.value = ''
+  isCreateDialogOpen.value = true
+}
+
+function resetCreateForm() {
+  createForm.value = {
+    petName: '',
+    service: '',
+    date: '',
+    time: '',
+    status: 'Upcoming',
+    clinic: 'PawCare Hub Clinic',
+    staff: '',
+  }
+}
+
+async function handleCreateBooking() {
+  if (!authStore.user?.email) {
+    return
+  }
+
+  isCreating.value = true
+  createErrorMessage.value = ''
+
+  try {
+    await bookingsApi.create(authStore.user.email, createForm.value)
+    isCreateDialogOpen.value = false
+    resetCreateForm()
+    await loadBookings()
+  } catch (error) {
+    createErrorMessage.value = getApiErrorMessage(error, 'Unable to create a booking right now.')
+  } finally {
+    isCreating.value = false
+  }
+}
 </script>
 
 <template>
@@ -52,7 +101,7 @@ onMounted(() => {
           </p>
         </div>
 
-        <el-button type="primary" size="large">Book New Visit</el-button>
+        <el-button type="primary" size="large" @click="openCreateDialog">Book New Visit</el-button>
       </section>
 
       <el-alert
@@ -106,9 +155,55 @@ onMounted(() => {
 
       <section v-else class="empty-state">
         <el-empty description="No visits booked yet. Schedule your first appointment when you're ready.">
-          <el-button type="primary">Book New Visit</el-button>
+          <el-button type="primary" @click="openCreateDialog">Book New Visit</el-button>
         </el-empty>
       </section>
+
+      <el-dialog
+        v-model="isCreateDialogOpen"
+        title="Book New Visit"
+        width="min(560px, 92vw)"
+        @closed="resetCreateForm"
+      >
+        <el-alert
+          v-if="createErrorMessage"
+          :title="createErrorMessage"
+          type="error"
+          :closable="false"
+          class="create-alert"
+        />
+
+        <el-form :model="createForm" label-position="top">
+          <el-form-item label="Pet name">
+            <el-input v-model="createForm.petName" placeholder="Pet name" />
+          </el-form-item>
+          <el-form-item label="Service">
+            <el-input v-model="createForm.service" placeholder="Service" />
+          </el-form-item>
+          <el-form-item label="Date">
+            <el-input v-model="createForm.date" placeholder="e.g. May 10, 2026" />
+          </el-form-item>
+          <el-form-item label="Time">
+            <el-input v-model="createForm.time" placeholder="e.g. 10:30 AM" />
+          </el-form-item>
+          <el-form-item label="Status">
+            <el-input v-model="createForm.status" placeholder="Upcoming" />
+          </el-form-item>
+          <el-form-item label="Clinic">
+            <el-input v-model="createForm.clinic" placeholder="Clinic name" />
+          </el-form-item>
+          <el-form-item label="Staff">
+            <el-input v-model="createForm.staff" placeholder="Assigned staff" />
+          </el-form-item>
+        </el-form>
+
+        <template #footer>
+          <el-button @click="isCreateDialogOpen = false">Cancel</el-button>
+          <el-button type="primary" :loading="isCreating" @click="handleCreateBooking">
+            Save Booking
+          </el-button>
+        </template>
+      </el-dialog>
     </div>
   </PageContainer>
 </template>
@@ -261,6 +356,10 @@ onMounted(() => {
   border: 1px dashed rgba(63, 114, 93, 0.24);
   border-radius: 28px;
   background: rgba(255, 251, 244, 0.72);
+}
+
+.create-alert {
+  margin-bottom: 16px;
 }
 
 @media (max-width: 760px) {

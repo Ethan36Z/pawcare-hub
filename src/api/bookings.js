@@ -11,7 +11,11 @@ export const bookingsApi = {
   list() {
     return http.get('/bookings')
   },
-  create(payload) {
-    return http.post('/bookings', payload)
+  create(email, payload) {
+    return http.post('/bookings', payload, {
+      headers: {
+        'X-User-Email': email,
+      },
+    })
   },
 }
