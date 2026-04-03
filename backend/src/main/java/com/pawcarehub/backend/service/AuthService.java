@@ -15,9 +15,14 @@ import org.springframework.web.server.ResponseStatusException;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final PetInitializationService petInitializationService;
 
-    public AuthService(UserRepository userRepository) {
+    public AuthService(
+        UserRepository userRepository,
+        PetInitializationService petInitializationService
+    ) {
         this.userRepository = userRepository;
+        this.petInitializationService = petInitializationService;
     }
 
     public AuthResponse register(RegisterRequest request) {
@@ -30,6 +35,7 @@ public class AuthService {
         }
 
         User savedUser = userRepository.save(new User(name, email, password));
+        petInitializationService.createDefaultPetsForUser(savedUser);
         return new AuthResponse("Registration successful", savedUser.getEmail(), savedUser.getName());
     }
 
