@@ -16,13 +16,16 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PetInitializationService petInitializationService;
+    private final BookingInitializationService bookingInitializationService;
 
     public AuthService(
         UserRepository userRepository,
-        PetInitializationService petInitializationService
+        PetInitializationService petInitializationService,
+        BookingInitializationService bookingInitializationService
     ) {
         this.userRepository = userRepository;
         this.petInitializationService = petInitializationService;
+        this.bookingInitializationService = bookingInitializationService;
     }
 
     public AuthResponse register(RegisterRequest request) {
@@ -36,6 +39,7 @@ public class AuthService {
 
         User savedUser = userRepository.save(new User(name, email, password));
         petInitializationService.createDefaultPetsForUser(savedUser);
+        bookingInitializationService.createDefaultBookingsForUser(savedUser);
         return new AuthResponse("Registration successful", savedUser.getEmail(), savedUser.getName());
     }
 
