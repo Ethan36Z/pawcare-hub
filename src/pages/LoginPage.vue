@@ -1,29 +1,56 @@
 <script setup>
-import { reactive } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { authApi } from '@/api/auth'
 import { getDefaultRouteForRole, useAuthStore } from '@/stores/auth'
-
-const form = reactive({
-  email: '',
-  password: '',
-  remember: true,
-})
 
 const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
-function handleLogin() {
-  authStore.login({
-    email: form.email,
-  })
+const form = reactive({
+  email: typeof route.query.email === 'string' ? route.query.email : '',
+  password: '',
+  remember: true,
+})
 
-  const redirectTarget =
-    typeof route.query.redirect === 'string'
-      ? route.query.redirect
-      : getDefaultRouteForRole(authStore.role)
+const isSubmitting = ref(false)
+const errorMessage = ref('')
 
-  router.push(redirectTarget)
+const registerSuccessMessage = computed(() =>
+  route.query.registered === '1' ? 'Account created successfully. Please sign in.' : '',
+)
+
+function getApiErrorMessage(error, fallbackMessage) {
+  return error?.response?.data?.message || fallbackMessage
+}
+
+async function handleLogin() {
+  errorMessage.value = ''
+  isSubmitting.value = true
+
+  try {
+    const { data } = await authApi.login({
+      email: form.email,
+      password: form.password,
+    })
+
+    authStore.setAuthenticatedUser({
+      email: data.email,
+      name: data.name,
+    })
+
+    const redirectTarget =
+      typeof route.query.redirect === 'string'
+        ? route.query.redirect
+        : getDefaultRouteForRole(authStore.role)
+
+    router.push(redirectTarget)
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, 'Unable to sign in right now.')
+  } finally {
+    isSubmitting.value = false
+  }
 }
 </script>
 
@@ -46,6 +73,22 @@ function handleLogin() {
           appointment.
         </p>
       </div>
+
+      <el-alert
+        v-if="registerSuccessMessage"
+        :title="registerSuccessMessage"
+        type="success"
+        :closable="false"
+        class="feedback-alert"
+      />
+
+      <el-alert
+        v-if="errorMessage"
+        :title="errorMessage"
+        type="error"
+        :closable="false"
+        class="feedback-alert"
+      />
 
       <el-form :model="form" label-position="top" class="login-form" @submit.prevent="handleLogin">
         <el-form-item label="Email">
@@ -77,6 +120,7 @@ function handleLogin() {
           size="large"
           native-type="submit"
           class="sign-in-button"
+          :loading="isSubmitting"
         >
           Sign In
         </el-button>
@@ -173,6 +217,10 @@ function handleLogin() {
 
 .login-form {
   margin-top: 26px;
+}
+
+.feedback-alert {
+  margin-top: 22px;
 }
 
 .login-form :deep(.el-form-item) {

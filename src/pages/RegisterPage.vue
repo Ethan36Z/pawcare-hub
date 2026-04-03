@@ -1,7 +1,7 @@
 <script setup>
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { getDefaultRouteForRole, useAuthStore } from '@/stores/auth'
+import { authApi } from '@/api/auth'
 
 const form = reactive({
   fullName: '',
@@ -10,16 +10,47 @@ const form = reactive({
   confirmPassword: '',
 })
 
-const authStore = useAuthStore()
 const router = useRouter()
+const isSubmitting = ref(false)
+const errorMessage = ref('')
+const successMessage = ref('')
 
-function handleRegister() {
-  authStore.login({
-    fullName: form.fullName,
-    email: form.email,
-  })
+function getApiErrorMessage(error, fallbackMessage) {
+  return error?.response?.data?.message || fallbackMessage
+}
 
-  router.push(getDefaultRouteForRole(authStore.role))
+async function handleRegister() {
+  errorMessage.value = ''
+  successMessage.value = ''
+
+  if (form.password !== form.confirmPassword) {
+    errorMessage.value = 'Passwords do not match.'
+    return
+  }
+
+  isSubmitting.value = true
+
+  try {
+    await authApi.register({
+      name: form.fullName,
+      email: form.email,
+      password: form.password,
+    })
+
+    successMessage.value = 'Account created successfully. Redirecting to sign in...'
+
+    router.push({
+      path: '/login',
+      query: {
+        registered: '1',
+        email: form.email,
+      },
+    })
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, 'Unable to create your account right now.')
+  } finally {
+    isSubmitting.value = false
+  }
 }
 </script>
 
@@ -42,6 +73,22 @@ function handleRegister() {
           your pet profiles in one place.
         </p>
       </div>
+
+      <el-alert
+        v-if="successMessage"
+        :title="successMessage"
+        type="success"
+        :closable="false"
+        class="feedback-alert"
+      />
+
+      <el-alert
+        v-if="errorMessage"
+        :title="errorMessage"
+        type="error"
+        :closable="false"
+        class="feedback-alert"
+      />
 
       <el-form
         :model="form"
@@ -91,6 +138,7 @@ function handleRegister() {
           size="large"
           native-type="submit"
           class="create-account-button"
+          :loading="isSubmitting"
         >
           Create Account
         </el-button>
@@ -187,6 +235,10 @@ function handleRegister() {
 
 .register-form {
   margin-top: 26px;
+}
+
+.feedback-alert {
+  margin-top: 22px;
 }
 
 .register-form :deep(.el-form-item) {

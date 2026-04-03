@@ -71,28 +71,7 @@ export const useAuthStore = defineStore('auth', {
   },
   actions: {
     login(payload) {
-      const role = resolveMockRole(payload.email)
-      const nameFromEmail = payload.email?.split('@')[0]?.replace(/[._-]+/g, ' ') ?? 'Pet Owner'
-      const normalizedName =
-        payload.fullName?.trim() ||
-        nameFromEmail.replace(/\b\w/g, (char) => char.toUpperCase()) ||
-        'Pet Owner'
-
-      this.user = {
-        id: role === 'admin' ? 'mock-admin-1' : 'mock-user-1',
-        fullName: normalizedName,
-        email: payload.email,
-      }
-      this.token = `mock-token-${role}-pawcarehub`
-      this.role = normalizeRole(role)
-      this.isLoggedIn = true
-
-      persistSession({
-        isLoggedIn: this.isLoggedIn,
-        user: this.user,
-        token: this.token,
-        role: this.role,
-      })
+      this.setAuthenticatedUser(payload)
     },
     logout() {
       this.user = null
@@ -116,6 +95,31 @@ export const useAuthStore = defineStore('auth', {
     },
     clearSession() {
       this.logout()
+    },
+    setAuthenticatedUser(payload) {
+      const role = resolveMockRole(payload.email)
+      const nameFromEmail = payload.email?.split('@')[0]?.replace(/[._-]+/g, ' ') ?? 'Pet Owner'
+      const normalizedName =
+        payload.fullName?.trim() ||
+        payload.name?.trim() ||
+        nameFromEmail.replace(/\b\w/g, (char) => char.toUpperCase()) ||
+        'Pet Owner'
+
+      this.user = {
+        id: role === 'admin' ? 'mock-admin-1' : 'mock-user-1',
+        fullName: normalizedName,
+        email: payload.email,
+      }
+      this.token = payload.token ?? `session-${payload.email}`
+      this.role = normalizeRole(payload.role ?? role)
+      this.isLoggedIn = true
+
+      persistSession({
+        isLoggedIn: this.isLoggedIn,
+        user: this.user,
+        token: this.token,
+        role: this.role,
+      })
     },
   },
 })
