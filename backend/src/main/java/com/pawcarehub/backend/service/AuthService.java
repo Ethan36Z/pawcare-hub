@@ -7,6 +7,7 @@ import com.pawcarehub.backend.dto.auth.RegisterRequest;
 import com.pawcarehub.backend.entity.User;
 import com.pawcarehub.backend.repository.UserRepository;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
@@ -14,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class AuthService {
 
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     private final UserRepository userRepository;
     private final PetInitializationService petInitializationService;
     private final BookingInitializationService bookingInitializationService;
@@ -37,7 +39,7 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User already exists");
         }
 
-        User savedUser = userRepository.save(new User(name, email, password));
+        User savedUser = userRepository.save(new User(name, email, passwordEncoder.encode(password)));
         petInitializationService.createDefaultPetsForUser(savedUser);
         bookingInitializationService.createDefaultBookingsForUser(savedUser);
         return new AuthResponse("Registration successful", savedUser.getEmail(), savedUser.getName());
@@ -50,7 +52,7 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password"));
 
-        if (!user.getPassword().equals(password)) {
+        if (!passwordMatches(user, password)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
         }
 
@@ -81,5 +83,26 @@ public class AuthService {
             );
         }
         return value.trim();
+    }
+
+    private boolean passwordMatches(User user, String rawPassword) {
+        String storedPassword = user.getPassword();
+
+        if (isBcryptHash(storedPassword)) {
+            return passwordEncoder.matches(rawPassword, storedPassword);
+        }
+
+        if (!storedPassword.equals(rawPassword)) {
+            return false;
+        }
+
+        user.setPassword(passwordEncoder.encode(rawPassword));
+        userRepository.save(user);
+        return true;
+    }
+
+    private boolean isBcryptHash(String password) {
+        return password != null
+            && (password.startsWith("$2a$") || password.startsWith("$2b$") || password.startsWith("$2y$"));
     }
 }
