@@ -1,47 +1,42 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { bookingsApi } from '@/api/bookings'
 import PageContainer from '@/components/common/PageContainer.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
+const bookings = ref([])
+const isLoading = ref(false)
+const errorMessage = ref('')
+const ownerName = computed(() => authStore.user?.fullName || 'your account')
 
-function createUserSpecificBookings(user) {
-  if (!user?.email) {
-    return []
-  }
-
-  const ownerName = user.fullName?.trim() || 'Pet Owner'
-  const ownerSlug = user.email.split('@')[0]?.toLowerCase() ?? 'petowner'
-  const seed = ownerSlug.split('').reduce((total, char) => total + char.charCodeAt(0), 0)
-  const petNames = [
-    `${ownerName.split(' ')[0]}'s Companion`,
-    `${ownerSlug.charAt(0).toUpperCase()}${ownerSlug.slice(1, 6) || 'Buddy'}`,
-    'Maple',
-  ]
-  const staffRotation = ['Dr. Rivera', 'Nurse Patel', 'Dr. Chen']
-  const services = [
-    'Annual wellness exam',
-    'Vaccination follow-up',
-    'Dental evaluation',
-  ]
-  const statuses = ['Confirmed', 'Upcoming', 'Completed']
-  const dates = ['April 18, 2026', 'April 24, 2026', 'March 12, 2026']
-  const times = ['10:30 AM', '2:15 PM', '9:00 AM']
-
-  return services.map((service, index) => ({
-    petName: petNames[index],
-    service,
-    date: dates[index],
-    time: times[index],
-    status: statuses[index],
-    clinic: 'PawCare Hub Clinic',
-    staff: staffRotation[(seed + index) % staffRotation.length],
-    ownerEmail: user.email,
-  }))
+function getApiErrorMessage(error, fallbackMessage) {
+  return error?.response?.data?.message || fallbackMessage
 }
 
-const bookings = computed(() => createUserSpecificBookings(authStore.user))
-const ownerName = computed(() => authStore.user?.fullName || 'your account')
+async function loadBookings() {
+  if (!authStore.user?.email) {
+    bookings.value = []
+    return
+  }
+
+  isLoading.value = true
+  errorMessage.value = ''
+
+  try {
+    const { data } = await bookingsApi.me(authStore.user.email)
+    bookings.value = data
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, 'Unable to load bookings right now.')
+    bookings.value = []
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(() => {
+  loadBookings()
+})
 </script>
 
 <template>
@@ -60,7 +55,18 @@ const ownerName = computed(() => authStore.user?.fullName || 'your account')
         <el-button type="primary" size="large">Book New Visit</el-button>
       </section>
 
-      <section v-if="bookings.length" class="bookings-list">
+      <el-alert
+        v-if="errorMessage"
+        :title="errorMessage"
+        type="error"
+        :closable="false"
+      />
+
+      <section v-if="isLoading" class="empty-state">
+        <el-skeleton :rows="4" animated />
+      </section>
+
+      <section v-else-if="bookings.length" class="bookings-list">
         <el-card
           v-for="booking in bookings"
           :key="`${booking.petName}-${booking.service}-${booking.date}`"
