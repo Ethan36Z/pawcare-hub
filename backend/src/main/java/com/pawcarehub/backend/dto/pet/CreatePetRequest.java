@@ -1,7 +1,6 @@
 package com.pawcarehub.backend.dto.pet;
 
-public record PetResponse(
-    Long id,
+public record CreatePetRequest(
     String name,
     String species,
     String breed,

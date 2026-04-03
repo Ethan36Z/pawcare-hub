@@ -11,7 +11,18 @@ export const petsApi = {
   list() {
     return http.get('/pets')
   },
-  create(payload) {
-    return http.post('/pets', payload)
+  create(email, payload) {
+    return http.post('/pets', payload, {
+      headers: {
+        'X-User-Email': email,
+      },
+    })
+  },
+  remove(email, id) {
+    return http.delete(`/pets/${id}`, {
+      headers: {
+        'X-User-Email': email,
+      },
+    })
   },
 }

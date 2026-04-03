@@ -61,10 +61,15 @@ public class AuthService {
 
     public AuthenticatedUser getAuthenticatedUser(String email) {
         String normalizedEmail = normalizeEmail(email);
-        User user = userRepository.findByEmail(normalizedEmail)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User session is not recognized"));
+        User user = getAuthenticatedUserEntity(normalizedEmail);
 
         return new AuthenticatedUser(user.getName(), user.getEmail());
+    }
+
+    public User getAuthenticatedUserEntity(String email) {
+        String normalizedEmail = normalizeEmail(email);
+        return userRepository.findByEmail(normalizedEmail)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User session is not recognized"));
     }
 
     private String normalizeEmail(String email) {

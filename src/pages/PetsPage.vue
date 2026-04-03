@@ -9,6 +9,19 @@ const authStore = useAuthStore()
 const pets = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
+const isCreateDialogOpen = ref(false)
+const isCreating = ref(false)
+const createErrorMessage = ref('')
+const isDeletingPetId = ref(null)
+const createForm = ref({
+  name: '',
+  species: '',
+  breed: '',
+  age: '',
+  weight: '',
+  note: '',
+  status: 'Healthy',
+})
 
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
@@ -39,6 +52,69 @@ async function loadPets() {
 onMounted(() => {
   loadPets()
 })
+
+function openCreateDialog() {
+  createErrorMessage.value = ''
+  isCreateDialogOpen.value = true
+}
+
+function resetCreateForm() {
+  createForm.value = {
+    name: '',
+    species: '',
+    breed: '',
+    age: '',
+    weight: '',
+    note: '',
+    status: 'Healthy',
+  }
+}
+
+async function handleCreatePet() {
+  if (!authStore.user?.email) {
+    return
+  }
+
+  isCreating.value = true
+  createErrorMessage.value = ''
+
+  try {
+    await petsApi.create(authStore.user.email, createForm.value)
+    isCreateDialogOpen.value = false
+    resetCreateForm()
+    await loadPets()
+  } catch (error) {
+    createErrorMessage.value = getApiErrorMessage(error, 'Unable to add pet right now.')
+  } finally {
+    isCreating.value = false
+  }
+}
+
+async function handleDeletePet(pet) {
+  if (!authStore.user?.email || !pet?.id) {
+    return
+  }
+
+  const confirmed = window.confirm(`Delete ${pet.name}?`)
+  if (!confirmed) {
+    return
+  }
+
+  isDeletingPetId.value = pet.id
+  errorMessage.value = ''
+
+  try {
+    await petsApi.remove(authStore.user.email, pet.id)
+    await loadPets()
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(
+      error,
+      'Unable to delete this pet right now.'
+    )
+  } finally {
+    isDeletingPetId.value = null
+  }
+}
 </script>
 
 <template>
@@ -54,7 +130,7 @@ onMounted(() => {
           </p>
         </div>
 
-        <el-button type="primary" size="large">Add Pet</el-button>
+        <el-button type="primary" size="large" @click="openCreateDialog">Add Pet</el-button>
       </section>
 
       <el-alert
@@ -71,7 +147,7 @@ onMounted(() => {
       <section v-else-if="pets.length" class="pets-grid">
         <el-card
           v-for="pet in pets"
-          :key="pet.name"
+          :key="pet.id ?? pet.name"
           class="pet-card"
           shadow="hover"
         >
@@ -102,15 +178,73 @@ onMounted(() => {
           <div class="pet-actions">
             <el-button type="primary">View Profile</el-button>
             <el-button plain>Edit</el-button>
+            <el-button
+              plain
+              :loading="isDeletingPetId === pet.id"
+              @click="handleDeletePet(pet)"
+            >
+              Delete
+            </el-button>
           </div>
         </el-card>
       </section>
 
       <section v-else class="empty-state">
         <el-empty description="No pet profiles yet. Add your first pet to get started.">
-          <el-button type="primary">Add Pet</el-button>
+          <el-button type="primary" @click="openCreateDialog">Add Pet</el-button>
         </el-empty>
       </section>
+
+      <el-dialog
+        v-model="isCreateDialogOpen"
+        title="Add Pet"
+        width="min(560px, 92vw)"
+        @closed="resetCreateForm"
+      >
+        <el-alert
+          v-if="createErrorMessage"
+          :title="createErrorMessage"
+          type="error"
+          :closable="false"
+          class="create-alert"
+        />
+
+        <el-form :model="createForm" label-position="top">
+          <el-form-item label="Name">
+            <el-input v-model="createForm.name" placeholder="Pet name" />
+          </el-form-item>
+          <el-form-item label="Species">
+            <el-input v-model="createForm.species" placeholder="Dog, Cat, etc." />
+          </el-form-item>
+          <el-form-item label="Breed">
+            <el-input v-model="createForm.breed" placeholder="Breed" />
+          </el-form-item>
+          <el-form-item label="Age">
+            <el-input v-model="createForm.age" placeholder="e.g. 2 years" />
+          </el-form-item>
+          <el-form-item label="Weight">
+            <el-input v-model="createForm.weight" placeholder="e.g. 10 lb" />
+          </el-form-item>
+          <el-form-item label="Status">
+            <el-input v-model="createForm.status" placeholder="Healthy" />
+          </el-form-item>
+          <el-form-item label="Care note">
+            <el-input
+              v-model="createForm.note"
+              type="textarea"
+              :rows="4"
+              placeholder="Add a short care note"
+            />
+          </el-form-item>
+        </el-form>
+
+        <template #footer>
+          <el-button @click="isCreateDialogOpen = false">Cancel</el-button>
+          <el-button type="primary" :loading="isCreating" @click="handleCreatePet">
+            Save Pet
+          </el-button>
+        </template>
+      </el-dialog>
     </div>
   </PageContainer>
 </template>
@@ -274,6 +408,10 @@ onMounted(() => {
   border: 1px dashed rgba(63, 114, 93, 0.24);
   border-radius: 28px;
   background: rgba(255, 251, 244, 0.72);
+}
+
+.create-alert {
+  margin-bottom: 16px;
 }
 
 @media (max-width: 760px) {

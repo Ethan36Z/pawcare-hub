@@ -1,9 +1,16 @@
 package com.pawcarehub.backend.controller;
 
+import com.pawcarehub.backend.dto.pet.CreatePetRequest;
 import com.pawcarehub.backend.dto.pet.PetResponse;
 import com.pawcarehub.backend.service.PetService;
 import java.util.List;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,5 +30,23 @@ public class PetController {
         @RequestHeader("X-User-Email") String userEmailHeader
     ) {
         return petService.getCurrentUserPets(userEmailHeader);
+    }
+
+    @PostMapping
+    public ResponseEntity<PetResponse> createPet(
+        @RequestHeader("X-User-Email") String userEmailHeader,
+        @RequestBody CreatePetRequest request
+    ) {
+        PetResponse response = petService.createPet(userEmailHeader, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletePet(
+        @RequestHeader("X-User-Email") String userEmailHeader,
+        @PathVariable Long id
+    ) {
+        petService.deletePet(userEmailHeader, id);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -1,21 +1,33 @@
 package com.pawcarehub.backend.service;
 
 import com.pawcarehub.backend.dto.auth.AuthenticatedUser;
+import com.pawcarehub.backend.dto.pet.CreatePetRequest;
 import com.pawcarehub.backend.dto.pet.PetResponse;
 import com.pawcarehub.backend.entity.Pet;
+import com.pawcarehub.backend.entity.User;
+import com.pawcarehub.backend.repository.BookingRepository;
 import com.pawcarehub.backend.repository.PetRepository;
 import java.util.List;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class PetService {
 
     private final AuthService authService;
     private final PetRepository petRepository;
+    private final BookingRepository bookingRepository;
 
-    public PetService(AuthService authService, PetRepository petRepository) {
+    public PetService(
+        AuthService authService,
+        PetRepository petRepository,
+        BookingRepository bookingRepository
+    ) {
         this.authService = authService;
         this.petRepository = petRepository;
+        this.bookingRepository = bookingRepository;
     }
 
     public List<PetResponse> getCurrentUserPets(String userEmailHeader) {
@@ -25,8 +37,41 @@ public class PetService {
             .toList();
     }
 
+    public PetResponse createPet(String userEmailHeader, CreatePetRequest request) {
+        User owner = authService.getAuthenticatedUserEntity(userEmailHeader);
+
+        Pet savedPet = petRepository.save(new Pet(
+            normalizeRequiredField(request.name(), "name"),
+            normalizeRequiredField(request.species(), "species"),
+            normalizeRequiredField(request.breed(), "breed"),
+            normalizeRequiredField(request.age(), "age"),
+            normalizeRequiredField(request.weight(), "weight"),
+            normalizeRequiredField(request.note(), "note"),
+            normalizeRequiredField(request.status(), "status"),
+            owner
+        ));
+
+        return toPetResponse(savedPet);
+    }
+
+    public void deletePet(String userEmailHeader, Long petId) {
+        AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
+        Pet pet = petRepository.findByIdAndOwnerEmail(petId, user.email())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pet not found"));
+
+        if (bookingRepository.existsByOwnerEmailAndPetName(user.email(), pet.getName())) {
+            throw new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "This pet cannot be deleted because it is referenced by existing bookings"
+            );
+        }
+
+        petRepository.delete(pet);
+    }
+
     private PetResponse toPetResponse(Pet pet) {
         return new PetResponse(
+            pet.getId(),
             pet.getName(),
             pet.getSpecies(),
             pet.getBreed(),
@@ -35,5 +80,13 @@ public class PetService {
             pet.getNote(),
             pet.getStatus()
         );
+    }
+
+    private String normalizeRequiredField(String value, String fieldName) {
+        if (!StringUtils.hasText(value)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " is required");
+        }
+
+        return value.trim();
     }
 }
