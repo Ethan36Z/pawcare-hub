@@ -1,35 +1,44 @@
 <script setup>
+import { computed, onMounted, ref } from 'vue'
 import PageContainer from '@/components/common/PageContainer.vue'
+import { petsApi } from '@/api/pets'
+import { useAuthStore } from '@/stores/auth'
 
-const pets = [
-  {
-    name: 'Charlie',
-    species: 'Dog',
-    breed: 'Golden Retriever',
-    age: '4 years',
-    weight: '62 lb',
-    note: 'Due for annual wellness exam next month. Sensitive stomach noted in prior visits.',
-    status: 'Upcoming visit',
-  },
-  {
-    name: 'Luna',
-    species: 'Cat',
-    breed: 'Domestic Shorthair',
-    age: '2 years',
-    weight: '9 lb',
-    note: 'Indoor cat. Vaccines are current and no active health concerns were noted at last checkup.',
-    status: 'Healthy',
-  },
-  {
-    name: 'Mochi',
-    species: 'Dog',
-    breed: 'Cavapoo',
-    age: '7 months',
-    weight: '14 lb',
-    note: 'Puppy vaccine series in progress. Family asked about teething and feeding guidance.',
-    status: 'Vaccine plan',
-  },
-]
+const authStore = useAuthStore()
+
+const pets = ref([])
+const isLoading = ref(false)
+const errorMessage = ref('')
+
+function getApiErrorMessage(error, fallbackMessage) {
+  return error?.response?.data?.message || fallbackMessage
+}
+
+const ownerName = computed(() => authStore.user?.fullName || 'your pets')
+
+async function loadPets() {
+  if (!authStore.user?.email) {
+    pets.value = []
+    return
+  }
+
+  isLoading.value = true
+  errorMessage.value = ''
+
+  try {
+    const { data } = await petsApi.me(authStore.user.email)
+    pets.value = data
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, 'Unable to load pet profiles right now.')
+    pets.value = []
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(() => {
+  loadPets()
+})
 </script>
 
 <template>
@@ -40,7 +49,7 @@ const pets = [
           <span class="eyebrow">My pets</span>
           <h1>Keep each pet's profile, notes, and visit details in one place.</h1>
           <p>
-            Review your pets' basic information, keep track of care notes, and stay ready for
+            Review {{ ownerName }}'s pet profiles, keep track of care notes, and stay ready for
             upcoming clinic visits.
           </p>
         </div>
@@ -48,7 +57,18 @@ const pets = [
         <el-button type="primary" size="large">Add Pet</el-button>
       </section>
 
-      <section v-if="pets.length" class="pets-grid">
+      <el-alert
+        v-if="errorMessage"
+        :title="errorMessage"
+        type="error"
+        :closable="false"
+      />
+
+      <section v-if="isLoading" class="empty-state">
+        <el-skeleton :rows="4" animated />
+      </section>
+
+      <section v-else-if="pets.length" class="pets-grid">
         <el-card
           v-for="pet in pets"
           :key="pet.name"

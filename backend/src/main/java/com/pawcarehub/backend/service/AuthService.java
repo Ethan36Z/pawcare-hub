@@ -1,5 +1,6 @@
 package com.pawcarehub.backend.service;
 
+import com.pawcarehub.backend.dto.auth.AuthenticatedUser;
 import com.pawcarehub.backend.dto.auth.AuthResponse;
 import com.pawcarehub.backend.dto.auth.LoginRequest;
 import com.pawcarehub.backend.dto.auth.RegisterRequest;
@@ -39,6 +40,16 @@ public class AuthService {
         }
 
         return new AuthResponse("Login successful", user.email(), user.name());
+    }
+
+    public AuthenticatedUser getAuthenticatedUser(String email) {
+        String normalizedEmail = normalizeEmail(email);
+        InMemoryAuthUser user = usersByEmail.get(normalizedEmail);
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User session is not recognized");
+        }
+
+        return new AuthenticatedUser(user.name(), user.email());
     }
 
     private String normalizeEmail(String email) {
