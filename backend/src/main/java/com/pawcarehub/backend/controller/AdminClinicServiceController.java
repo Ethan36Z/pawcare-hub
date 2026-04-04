@@ -32,6 +32,14 @@ public class AdminClinicServiceController {
         return adminClinicServiceService.createService(request);
     }
 
+    @PatchMapping("/{id}")
+    public AdminClinicServiceResponse updateService(
+        @PathVariable Long id,
+        @RequestBody CreateClinicServiceRequest request
+    ) {
+        return adminClinicServiceService.updateService(id, request);
+    }
+
     @PatchMapping("/{id}/toggle")
     public AdminClinicServiceResponse toggleService(@PathVariable Long id) {
         return adminClinicServiceService.toggleServiceAvailability(id);

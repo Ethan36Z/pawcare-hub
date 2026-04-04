@@ -9,7 +9,19 @@ const togglingServiceId = ref(null)
 const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
 const createErrorMessage = ref('')
+const isEditDialogOpen = ref(false)
+const isEditing = ref(false)
+const editErrorMessage = ref('')
+const editingServiceId = ref(null)
 const createForm = ref({
+  name: '',
+  category: '',
+  description: '',
+  duration: '',
+  price: '',
+  active: true,
+})
+const editForm = ref({
   name: '',
   category: '',
   description: '',
@@ -42,8 +54,35 @@ function openCreateDialog() {
   isCreateDialogOpen.value = true
 }
 
+function openEditDialog(service) {
+  editErrorMessage.value = ''
+  editingServiceId.value = service.id
+  editForm.value = {
+    name: service.name,
+    category: service.category,
+    description: service.description,
+    duration: service.duration,
+    price: service.price,
+    active: service.active,
+  }
+  isEditDialogOpen.value = true
+}
+
 function resetCreateForm() {
   createForm.value = {
+    name: '',
+    category: '',
+    description: '',
+    duration: '',
+    price: '',
+    active: true,
+  }
+}
+
+function resetEditForm() {
+  editingServiceId.value = null
+  editErrorMessage.value = ''
+  editForm.value = {
     name: '',
     category: '',
     description: '',
@@ -66,6 +105,26 @@ async function handleCreateService() {
     createErrorMessage.value = getApiErrorMessage(error, 'Unable to create this service right now.')
   } finally {
     isCreating.value = false
+  }
+}
+
+async function handleEditService() {
+  if (!editingServiceId.value) {
+    return
+  }
+
+  isEditing.value = true
+  editErrorMessage.value = ''
+
+  try {
+    await adminServicesApi.update(editingServiceId.value, editForm.value)
+    isEditDialogOpen.value = false
+    resetEditForm()
+    await loadServices()
+  } catch (error) {
+    editErrorMessage.value = getApiErrorMessage(error, 'Unable to update this service right now.')
+  } finally {
+    isEditing.value = false
   }
 }
 
@@ -131,16 +190,25 @@ onMounted(() => {
         </template>
       </el-table-column>
       <el-table-column prop="description" label="Description" min-width="320" show-overflow-tooltip />
-      <el-table-column label="Actions" min-width="160" fixed="right">
+      <el-table-column label="Actions" min-width="220" fixed="right">
         <template #default="{ row }">
-          <el-button
-            plain
-            size="small"
-            :loading="togglingServiceId === row.id"
-            @click="handleToggleService(row)"
-          >
-            {{ row.active ? 'Disable' : 'Enable' }}
-          </el-button>
+          <div class="actions-cell">
+            <el-button
+              plain
+              size="small"
+              @click="openEditDialog(row)"
+            >
+              Edit
+            </el-button>
+            <el-button
+              plain
+              size="small"
+              :loading="togglingServiceId === row.id"
+              @click="handleToggleService(row)"
+            >
+              {{ row.active ? 'Disable' : 'Enable' }}
+            </el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -192,6 +260,54 @@ onMounted(() => {
         </el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="isEditDialogOpen"
+      title="Edit Service"
+      width="min(560px, 92vw)"
+      @closed="resetEditForm"
+    >
+      <el-alert
+        v-if="editErrorMessage"
+        :title="editErrorMessage"
+        type="error"
+        :closable="false"
+        class="admin-page__alert"
+      />
+
+      <el-form :model="editForm" label-position="top">
+        <el-form-item label="Name">
+          <el-input v-model="editForm.name" placeholder="Service name" />
+        </el-form-item>
+        <el-form-item label="Category">
+          <el-input v-model="editForm.category" placeholder="Wellness, Dental, Vaccines..." />
+        </el-form-item>
+        <el-form-item label="Duration">
+          <el-input v-model="editForm.duration" placeholder="e.g. 30 min" />
+        </el-form-item>
+        <el-form-item label="Price">
+          <el-input v-model="editForm.price" placeholder="e.g. $85 or From $35" />
+        </el-form-item>
+        <el-form-item label="Description">
+          <el-input
+            v-model="editForm.description"
+            type="textarea"
+            :rows="4"
+            placeholder="Short service description"
+          />
+        </el-form-item>
+        <el-form-item label="Available for users">
+          <el-switch v-model="editForm.active" />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="isEditDialogOpen = false">Cancel</el-button>
+        <el-button type="primary" :loading="isEditing" @click="handleEditService">
+          Save Changes
+        </el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
@@ -223,6 +339,12 @@ onMounted(() => {
 .admin-page p {
   margin-bottom: 0;
   color: var(--pc-muted);
+}
+
+.actions-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .admin-page :deep(.el-button--primary) {

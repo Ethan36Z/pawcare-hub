@@ -8,6 +8,8 @@ public interface ClinicServiceRepository extends JpaRepository<ClinicService, Lo
 
     boolean existsByName(String name);
 
+    boolean existsByNameAndIdNot(String name, Long id);
+
     List<ClinicService> findByActiveTrueOrderByCategoryAscNameAsc();
 
     List<ClinicService> findAllByOrderByCategoryAscNameAsc();

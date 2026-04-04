@@ -44,6 +44,26 @@ public class AdminClinicServiceService {
         return toResponse(savedService);
     }
 
+    public AdminClinicServiceResponse updateService(Long serviceId, CreateClinicServiceRequest request) {
+        ClinicService service = clinicServiceRepository.findById(serviceId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
+
+        String name = normalizeRequiredField(request.name(), "name");
+        if (clinicServiceRepository.existsByNameAndIdNot(name, serviceId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A service with this name already exists");
+        }
+
+        service.setName(name);
+        service.setCategory(normalizeRequiredField(request.category(), "category"));
+        service.setDescription(normalizeRequiredField(request.description(), "description"));
+        service.setDuration(normalizeRequiredField(request.duration(), "duration"));
+        service.setPrice(normalizeRequiredField(request.price(), "price"));
+        service.setActive(request.active() == null || request.active());
+
+        ClinicService savedService = clinicServiceRepository.save(service);
+        return toResponse(savedService);
+    }
+
     public AdminClinicServiceResponse toggleServiceAvailability(Long serviceId) {
         ClinicService service = clinicServiceRepository.findById(serviceId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Service not found"));
