@@ -9,6 +9,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     List<Booking> findAllByOrderByIdDesc();
 
+    long countByStatusIgnoreCase(String status);
+
     List<Booking> findByOwnerEmailOrderByIdAsc(String ownerEmail);
 
     boolean existsByOwnerEmailAndPetName(String ownerEmail, String petName);
