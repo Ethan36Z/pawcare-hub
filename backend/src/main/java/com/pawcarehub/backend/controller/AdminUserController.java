@@ -1,9 +1,11 @@
 package com.pawcarehub.backend.controller;
 
+import com.pawcarehub.backend.dto.admin.AdminUserDetailResponse;
 import com.pawcarehub.backend.dto.admin.AdminUserResponse;
 import com.pawcarehub.backend.service.AdminUserService;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -20,5 +22,10 @@ public class AdminUserController {
     @GetMapping
     public List<AdminUserResponse> getUsers() {
         return adminUserService.getAllUsers();
+    }
+
+    @GetMapping("/{id}")
+    public AdminUserDetailResponse getUser(@PathVariable Long id) {
+        return adminUserService.getUserById(id);
     }
 }

@@ -97,6 +97,12 @@ const routes = [
         component: () => import('@/pages/admin/AdminUsersPage.vue'),
         meta: { title: 'Admin Users' },
       },
+      {
+        path: 'users/:id',
+        name: 'admin-user-details',
+        component: () => import('@/pages/admin/AdminUserDetailsPage.vue'),
+        meta: { title: 'Admin User Details' },
+      },
     ],
   },
 ]

@@ -1,10 +1,12 @@
 <script setup>
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { usersApi } from '@/api/users'
 
 const users = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
+const router = useRouter()
 
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
@@ -59,6 +61,17 @@ onMounted(() => {
       <el-table-column prop="name" label="Name" min-width="180" />
       <el-table-column prop="email" label="Email" min-width="240" />
       <el-table-column prop="role" label="Role" min-width="120" />
+      <el-table-column label="Actions" min-width="160" fixed="right">
+        <template #default="{ row }">
+          <el-button
+            plain
+            size="small"
+            @click="router.push({ name: 'admin-user-details', params: { id: row.id } })"
+          >
+            View details
+          </el-button>
+        </template>
+      </el-table-column>
     </el-table>
   </section>
 </template>
