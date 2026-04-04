@@ -4,4 +4,7 @@ export const adminBookingsApi = {
   list() {
     return http.get('/admin/bookings')
   },
+  confirm(id) {
+    return http.patch(`/admin/bookings/${id}/confirm`)
+  },
 }

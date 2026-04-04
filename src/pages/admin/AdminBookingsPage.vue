@@ -5,6 +5,7 @@ import { adminBookingsApi } from '@/api/adminBookings'
 const bookings = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
+const confirmingBookingId = ref(null)
 
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
@@ -38,6 +39,24 @@ async function loadBookings() {
     bookings.value = []
   } finally {
     isLoading.value = false
+  }
+}
+
+async function handleConfirmBooking(booking) {
+  if (!booking?.id) {
+    return
+  }
+
+  confirmingBookingId.value = booking.id
+  errorMessage.value = ''
+
+  try {
+    await adminBookingsApi.confirm(booking.id)
+    await loadBookings()
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, 'Unable to confirm this booking right now.')
+  } finally {
+    confirmingBookingId.value = null
   }
 }
 
@@ -94,6 +113,19 @@ onMounted(() => {
             <strong>{{ row.ownerName }}</strong>
             <span>{{ row.ownerEmail }}</span>
           </div>
+        </template>
+      </el-table-column>
+      <el-table-column label="Actions" min-width="150" fixed="right">
+        <template #default="{ row }">
+          <el-button
+            v-if="row.status !== 'Confirmed' && row.status !== 'Cancelled'"
+            plain
+            size="small"
+            :loading="confirmingBookingId === row.id"
+            @click="handleConfirmBooking(row)"
+          >
+            Confirm
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
