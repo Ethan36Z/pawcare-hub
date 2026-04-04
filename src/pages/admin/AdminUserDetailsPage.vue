@@ -31,7 +31,7 @@ function getStatusTagType(status) {
 }
 
 function getAccountStatusTagType(isActive) {
-  return isActive ? 'success' : 'info'
+  return isActive ? 'success' : 'danger'
 }
 
 const reminderItems = computed(() => {
@@ -123,7 +123,10 @@ onMounted(() => {
     />
 
     <div v-else class="details-layout">
-      <section class="details-card details-card--hero">
+      <section
+        class="details-card details-card--hero"
+        :class="{ 'details-card--hero-inactive': !user.active }"
+      >
         <p class="details-card__eyebrow">User #{{ user.id }}</p>
         <h2>{{ user.name }}</h2>
         <span>{{ user.email }}</span>
@@ -132,6 +135,9 @@ onMounted(() => {
             {{ user.active ? 'Active account' : 'Deactivated account' }}
           </el-tag>
         </div>
+        <p v-if="!user.active" class="hero-status-message">
+          This user has deactivated their account and can no longer sign in.
+        </p>
       </section>
 
       <section class="details-grid">
@@ -279,6 +285,10 @@ onMounted(() => {
   color: white;
 }
 
+.details-card--hero-inactive {
+  background: linear-gradient(135deg, #6b3a3a 0%, #8b4a4a 100%);
+}
+
 .details-card--hero h2,
 .details-card--hero p,
 .details-card--hero span {
@@ -299,6 +309,13 @@ onMounted(() => {
 
 .hero-status {
   margin-top: 14px;
+}
+
+.hero-status-message {
+  margin-top: 12px;
+  max-width: 560px;
+  color: rgba(255, 255, 255, 0.86);
+  line-height: 1.5;
 }
 
 .details-card h3 {

@@ -18,7 +18,11 @@ function getApiErrorMessage(error, fallbackMessage) {
 }
 
 function getStatusTagType(isActive) {
-  return isActive ? 'success' : 'info'
+  return isActive ? 'success' : 'danger'
+}
+
+function getUserRowClassName({ row }) {
+  return row?.active ? '' : 'admin-users__row--inactive'
 }
 
 async function loadUsers() {
@@ -120,9 +124,21 @@ onMounted(() => {
       description="No users match the current filters."
     />
 
-    <el-table v-else :data="users" stripe>
+    <el-table
+      v-else
+      :data="users"
+      stripe
+      :row-class-name="getUserRowClassName"
+    >
       <el-table-column prop="id" label="ID" min-width="80" />
-      <el-table-column prop="name" label="Name" min-width="180" />
+      <el-table-column label="Name" min-width="200">
+        <template #default="{ row }">
+          <div class="user-name-cell">
+            <strong>{{ row.name }}</strong>
+            <span v-if="!row.active">Inactive account</span>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column prop="email" label="Email" min-width="240" />
       <el-table-column prop="role" label="Role" min-width="120" />
       <el-table-column label="Status" min-width="140">
@@ -189,6 +205,31 @@ onMounted(() => {
 .admin-page p {
   margin-bottom: 0;
   color: var(--pc-muted);
+}
+
+.user-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.35;
+}
+
+.user-name-cell strong {
+  color: var(--pc-text);
+}
+
+.user-name-cell span {
+  color: #b42318;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.admin-page :deep(.admin-users__row--inactive) {
+  --el-table-tr-bg-color: #fff7f7;
+}
+
+.admin-page :deep(.admin-users__row--inactive td) {
+  color: #7a5a5a;
 }
 
 @media (max-width: 960px) {
