@@ -24,6 +24,16 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+    private String phone;
+
+    private String address;
+
+    private String preferredContactMethod;
+
+    private Boolean emailReminders;
+
+    private Boolean textReminders;
+
     protected User() {
     }
 
@@ -51,5 +61,45 @@ public class User {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
+    }
+
+    public String getPreferredContactMethod() {
+        return preferredContactMethod;
+    }
+
+    public void setPreferredContactMethod(String preferredContactMethod) {
+        this.preferredContactMethod = preferredContactMethod;
+    }
+
+    public boolean isEmailRemindersEnabled() {
+        return Boolean.TRUE.equals(emailReminders);
+    }
+
+    public void setEmailReminders(Boolean emailReminders) {
+        this.emailReminders = emailReminders;
+    }
+
+    public boolean isTextRemindersEnabled() {
+        return Boolean.TRUE.equals(textReminders);
+    }
+
+    public void setTextReminders(Boolean textReminders) {
+        this.textReminders = textReminders;
     }
 }

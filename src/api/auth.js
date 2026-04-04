@@ -7,7 +7,18 @@ export const authApi = {
   register(payload) {
     return http.post('/auth/register', payload)
   },
-  profile() {
-    return http.get('/auth/profile')
+  profile(email) {
+    return http.get('/auth/profile', {
+      headers: {
+        'X-User-Email': email,
+      },
+    })
+  },
+  updateProfile(email, payload) {
+    return http.patch('/auth/profile', payload, {
+      headers: {
+        'X-User-Email': email,
+      },
+    })
   },
 }

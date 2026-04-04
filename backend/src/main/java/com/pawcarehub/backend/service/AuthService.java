@@ -4,6 +4,8 @@ import com.pawcarehub.backend.dto.auth.AuthenticatedUser;
 import com.pawcarehub.backend.dto.auth.AuthResponse;
 import com.pawcarehub.backend.dto.auth.LoginRequest;
 import com.pawcarehub.backend.dto.auth.RegisterRequest;
+import com.pawcarehub.backend.dto.auth.UpdateUserProfileRequest;
+import com.pawcarehub.backend.dto.auth.UserProfileResponse;
 import com.pawcarehub.backend.entity.User;
 import com.pawcarehub.backend.repository.UserRepository;
 import org.springframework.http.HttpStatus;
@@ -66,6 +68,24 @@ public class AuthService {
         return new AuthenticatedUser(user.getName(), user.getEmail());
     }
 
+    public UserProfileResponse getProfile(String userEmailHeader) {
+        User user = getAuthenticatedUserEntity(userEmailHeader);
+        return toUserProfileResponse(user);
+    }
+
+    public UserProfileResponse updateProfile(String userEmailHeader, UpdateUserProfileRequest request) {
+        User user = getAuthenticatedUserEntity(userEmailHeader);
+
+        user.setPhone(normalizeOptionalField(request.phone()));
+        user.setAddress(normalizeOptionalField(request.address()));
+        user.setPreferredContactMethod(normalizeOptionalField(request.preferredContactMethod()));
+        user.setEmailReminders(Boolean.TRUE.equals(request.emailReminders()));
+        user.setTextReminders(Boolean.TRUE.equals(request.textReminders()));
+
+        User savedUser = userRepository.save(user);
+        return toUserProfileResponse(savedUser);
+    }
+
     public User getAuthenticatedUserEntity(String email) {
         String normalizedEmail = normalizeEmail(email);
         return userRepository.findByEmail(normalizedEmail)
@@ -88,6 +108,22 @@ public class AuthService {
             );
         }
         return value.trim();
+    }
+
+    private String normalizeOptionalField(String value) {
+        return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    private UserProfileResponse toUserProfileResponse(User user) {
+        return new UserProfileResponse(
+            user.getName(),
+            user.getEmail(),
+            user.getPhone(),
+            user.getAddress(),
+            user.getPreferredContactMethod(),
+            user.isEmailRemindersEnabled(),
+            user.isTextRemindersEnabled()
+        );
     }
 
     private boolean passwordMatches(User user, String rawPassword) {

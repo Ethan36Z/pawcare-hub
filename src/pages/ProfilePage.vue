@@ -1,26 +1,146 @@
 <script setup>
-import { computed, reactive } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { authApi } from '@/api/auth'
 import PageContainer from '@/components/common/PageContainer.vue'
 import { useAuthStore } from '@/stores/auth'
-
-const profile = reactive({
-  fullName: 'Megan Rivera',
-  email: 'megan.rivera@example.com',
-  phone: '(415) 555-0184',
-  address: '1842 Juniper Lane, San Mateo, CA 94403',
-  emailReminders: true,
-  textReminders: false,
-  contactMethod: 'Email',
-})
-
-const contactOptions = ['Email', 'Text message', 'Phone call']
 
 const authStore = useAuthStore()
 const router = useRouter()
 
-const displayName = computed(() => authStore.user?.fullName || profile.fullName)
-const displayEmail = computed(() => authStore.user?.email || profile.email)
+const profile = reactive({
+  fullName: '',
+  email: '',
+  phone: '',
+  address: '',
+  emailReminders: false,
+  textReminders: false,
+  contactMethod: '',
+})
+
+const editForm = reactive({
+  phone: '',
+  address: '',
+  contactMethod: '',
+})
+
+const contactOptions = ['Email', 'Text message', 'Phone call']
+
+const isLoading = ref(false)
+const isSavingProfile = ref(false)
+const isSavingPreferences = ref(false)
+const isEditDialogOpen = ref(false)
+const errorMessage = ref('')
+const successMessage = ref('')
+
+const displayName = computed(() => authStore.user?.fullName || profile.fullName || 'Pet Owner')
+const displayEmail = computed(() => authStore.user?.email || profile.email || '')
+const displayPhone = computed(() => profile.phone || 'Not added yet')
+const displayAddress = computed(() => profile.address || 'Not added yet')
+const displayContactMethod = computed(() => profile.contactMethod || 'Not set')
+
+function getApiErrorMessage(error, fallbackMessage) {
+  return error?.response?.data?.message || fallbackMessage
+}
+
+function applyProfileData(data) {
+  profile.fullName = data?.name || ''
+  profile.email = data?.email || ''
+  profile.phone = data?.phone || ''
+  profile.address = data?.address || ''
+  profile.emailReminders = Boolean(data?.emailReminders)
+  profile.textReminders = Boolean(data?.textReminders)
+  profile.contactMethod = data?.preferredContactMethod || ''
+}
+
+function resetEditForm() {
+  editForm.phone = profile.phone
+  editForm.address = profile.address
+  editForm.contactMethod = profile.contactMethod
+}
+
+async function loadProfile() {
+  if (!authStore.user?.email) {
+    return
+  }
+
+  isLoading.value = true
+  errorMessage.value = ''
+
+  try {
+    const { data } = await authApi.profile(authStore.user.email)
+    applyProfileData(data)
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, 'Unable to load your profile right now.')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(() => {
+  loadProfile()
+})
+
+function openEditDialog() {
+  successMessage.value = ''
+  resetEditForm()
+  isEditDialogOpen.value = true
+}
+
+async function handleSaveProfile() {
+  if (!authStore.user?.email) {
+    return
+  }
+
+  isSavingProfile.value = true
+  errorMessage.value = ''
+  successMessage.value = ''
+
+  try {
+    const { data } = await authApi.updateProfile(authStore.user.email, {
+      phone: editForm.phone,
+      address: editForm.address,
+      preferredContactMethod: editForm.contactMethod,
+      emailReminders: profile.emailReminders,
+      textReminders: profile.textReminders,
+    })
+
+    applyProfileData(data)
+    isEditDialogOpen.value = false
+    successMessage.value = 'Profile details updated.'
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, 'Unable to save your profile right now.')
+  } finally {
+    isSavingProfile.value = false
+  }
+}
+
+async function handleSavePreferences() {
+  if (!authStore.user?.email) {
+    return
+  }
+
+  isSavingPreferences.value = true
+  errorMessage.value = ''
+  successMessage.value = ''
+
+  try {
+    const { data } = await authApi.updateProfile(authStore.user.email, {
+      phone: profile.phone,
+      address: profile.address,
+      preferredContactMethod: profile.contactMethod,
+      emailReminders: profile.emailReminders,
+      textReminders: profile.textReminders,
+    })
+
+    applyProfileData(data)
+    successMessage.value = 'Preferences updated.'
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, 'Unable to save your preferences right now.')
+  } finally {
+    isSavingPreferences.value = false
+  }
+}
 
 function handleLogout() {
   authStore.logout()
@@ -42,14 +162,34 @@ function handleLogout() {
         </div>
       </section>
 
-      <section class="profile-grid">
+      <el-alert
+        v-if="errorMessage"
+        :title="errorMessage"
+        type="error"
+        :closable="false"
+      />
+
+      <el-alert
+        v-if="successMessage"
+        :title="successMessage"
+        type="success"
+        :closable="false"
+      />
+
+      <section v-if="isLoading" class="profile-grid">
+        <el-card class="settings-card">
+          <el-skeleton :rows="5" animated />
+        </el-card>
+      </section>
+
+      <section v-else class="profile-grid">
         <el-card class="settings-card" shadow="hover">
           <div class="card-header">
             <div>
               <h2>Account information</h2>
               <p>Your basic details used for visits, booking updates, and clinic communication.</p>
             </div>
-            <el-button type="primary">Edit Profile</el-button>
+            <el-button type="primary" @click="openEditDialog">Edit Profile</el-button>
           </div>
 
           <div class="details-grid">
@@ -63,11 +203,11 @@ function handleLogout() {
             </div>
             <div>
               <span>Phone number</span>
-              <strong>{{ profile.phone }}</strong>
+              <strong>{{ displayPhone }}</strong>
             </div>
             <div>
               <span>Address</span>
-              <strong>{{ profile.address }}</strong>
+              <strong>{{ displayAddress }}</strong>
             </div>
           </div>
         </el-card>
@@ -107,6 +247,13 @@ function handleLogout() {
                   :value="option"
                 />
               </el-select>
+              <p class="preference-contact__current">Current: {{ displayContactMethod }}</p>
+            </div>
+
+            <div class="preferences-actions">
+              <el-button type="primary" :loading="isSavingPreferences" @click="handleSavePreferences">
+                Save Preferences
+              </el-button>
             </div>
           </div>
         </el-card>
@@ -146,6 +293,39 @@ function handleLogout() {
           </div>
         </el-card>
       </section>
+
+      <el-dialog
+        v-model="isEditDialogOpen"
+        title="Edit Profile"
+        width="min(560px, 92vw)"
+        @closed="resetEditForm"
+      >
+        <el-form label-position="top">
+          <el-form-item label="Phone number">
+            <el-input v-model="editForm.phone" placeholder="Phone number" />
+          </el-form-item>
+          <el-form-item label="Address">
+            <el-input v-model="editForm.address" type="textarea" :rows="3" placeholder="Address" />
+          </el-form-item>
+          <el-form-item label="Preferred contact method">
+            <el-select v-model="editForm.contactMethod" placeholder="Select a contact method">
+              <el-option
+                v-for="option in contactOptions"
+                :key="option"
+                :label="option"
+                :value="option"
+              />
+            </el-select>
+          </el-form-item>
+        </el-form>
+
+        <template #footer>
+          <el-button @click="isEditDialogOpen = false">Cancel</el-button>
+          <el-button type="primary" :loading="isSavingProfile" @click="handleSaveProfile">
+            Save Changes
+          </el-button>
+        </template>
+      </el-dialog>
     </div>
   </PageContainer>
 </template>
@@ -294,7 +474,8 @@ function handleLogout() {
 }
 
 .preference-row p,
-.action-row p {
+.action-row p,
+.preference-contact__current {
   margin: 6px 0 0;
   color: #6b7480;
   line-height: 1.68;
@@ -309,12 +490,18 @@ function handleLogout() {
   margin-top: 10px;
 }
 
-.preference-contact :deep(.el-input__wrapper) {
+.preference-contact :deep(.el-input__wrapper),
+:deep(.el-dialog .el-input__wrapper),
+:deep(.el-dialog .el-textarea__inner) {
   min-height: 46px;
   border-radius: 14px;
   box-shadow: none;
   border: 1px solid rgba(132, 125, 104, 0.16);
   background: rgba(255, 255, 255, 0.88);
+}
+
+.preferences-actions {
+  padding-top: 8px;
 }
 
 .settings-card :deep(.el-button--primary) {
@@ -361,7 +548,8 @@ function handleLogout() {
   }
 
   .card-header :deep(.el-button),
-  .action-row :deep(.el-button) {
+  .action-row :deep(.el-button),
+  .preferences-actions :deep(.el-button) {
     width: 100%;
   }
 
