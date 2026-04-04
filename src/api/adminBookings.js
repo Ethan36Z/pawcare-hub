@@ -1,8 +1,8 @@
 import http from './http'
 
 export const adminBookingsApi = {
-  list() {
-    return http.get('/admin/bookings')
+  list(params = {}) {
+    return http.get('/admin/bookings', { params })
   },
   confirm(id) {
     return http.patch(`/admin/bookings/${id}/confirm`)

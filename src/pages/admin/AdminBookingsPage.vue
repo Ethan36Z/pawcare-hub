@@ -7,6 +7,12 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 const confirmingBookingId = ref(null)
 const cancellingBookingId = ref(null)
+const filters = ref({
+  status: '',
+  service: '',
+  owner: '',
+  sort: 'latest',
+})
 
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
@@ -33,7 +39,12 @@ async function loadBookings() {
   errorMessage.value = ''
 
   try {
-    const { data } = await adminBookingsApi.list()
+    const { data } = await adminBookingsApi.list({
+      status: filters.value.status || undefined,
+      service: filters.value.service || undefined,
+      owner: filters.value.owner || undefined,
+      sort: filters.value.sort,
+    })
     bookings.value = data
   } catch (error) {
     errorMessage.value = getApiErrorMessage(error, 'Unable to load admin bookings right now.')
@@ -79,6 +90,20 @@ async function handleCancelBooking(booking) {
   }
 }
 
+function handleApplyFilters() {
+  loadBookings()
+}
+
+function handleResetFilters() {
+  filters.value = {
+    status: '',
+    service: '',
+    owner: '',
+    sort: 'latest',
+  }
+  loadBookings()
+}
+
 onMounted(() => {
   loadBookings()
 })
@@ -101,11 +126,55 @@ onMounted(() => {
       class="admin-page__alert"
     />
 
+    <div class="admin-filters">
+      <el-select
+        v-model="filters.status"
+        placeholder="Status"
+        clearable
+        class="admin-filters__control"
+      >
+        <el-option label="Upcoming" value="Upcoming" />
+        <el-option label="Confirmed" value="Confirmed" />
+        <el-option label="Cancelled" value="Cancelled" />
+      </el-select>
+
+      <el-input
+        v-model="filters.service"
+        placeholder="Filter by service"
+        clearable
+        class="admin-filters__control"
+      />
+
+      <el-input
+        v-model="filters.owner"
+        placeholder="Filter by owner"
+        clearable
+        class="admin-filters__control"
+      />
+
+      <el-select
+        v-model="filters.sort"
+        class="admin-filters__control"
+      >
+        <el-option label="Latest first" value="latest" />
+        <el-option label="Oldest first" value="oldest" />
+      </el-select>
+
+      <div class="admin-filters__actions">
+        <el-button plain @click="handleApplyFilters">
+          Apply
+        </el-button>
+        <el-button @click="handleResetFilters">
+          Reset
+        </el-button>
+      </div>
+    </div>
+
     <el-skeleton v-if="isLoading" :rows="6" animated />
 
     <el-empty
       v-else-if="!bookings.length"
-      description="No bookings found yet."
+      description="No bookings match the current filters."
     />
 
     <el-table v-else :data="bookings" stripe>
@@ -178,6 +247,24 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
+.admin-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+  align-items: end;
+}
+
+.admin-filters__control {
+  width: 100%;
+}
+
+.admin-filters__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .admin-page h1 {
   margin-top: 0;
   margin-bottom: 8px;
@@ -210,5 +297,17 @@ onMounted(() => {
 .actions-cell {
   flex-wrap: wrap;
   gap: 8px;
+}
+
+@media (max-width: 1100px) {
+  .admin-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .admin-filters {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
