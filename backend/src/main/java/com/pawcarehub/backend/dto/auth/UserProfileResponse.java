@@ -6,6 +6,7 @@ public record UserProfileResponse(
     String phone,
     String address,
     String preferredContactMethod,
+    boolean active,
     boolean emailReminders,
     boolean textReminders
 ) {

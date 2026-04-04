@@ -30,6 +30,10 @@ function getStatusTagType(status) {
   return 'info'
 }
 
+function getAccountStatusTagType(isActive) {
+  return isActive ? 'success' : 'info'
+}
+
 const reminderItems = computed(() => {
   if (!user.value) {
     return []
@@ -54,6 +58,7 @@ const profileItems = computed(() => {
 
   return [
     { label: 'Role', value: user.value.role || 'User' },
+    { label: 'Account status', value: user.value.active ? 'Active' : 'Deactivated' },
     { label: 'Phone', value: user.value.phone || 'Not provided' },
     { label: 'Address', value: user.value.address || 'Not provided' },
     {
@@ -122,6 +127,11 @@ onMounted(() => {
         <p class="details-card__eyebrow">User #{{ user.id }}</p>
         <h2>{{ user.name }}</h2>
         <span>{{ user.email }}</span>
+        <div class="hero-status">
+          <el-tag :type="getAccountStatusTagType(user.active)" effect="plain">
+            {{ user.active ? 'Active account' : 'Deactivated account' }}
+          </el-tag>
+        </div>
       </section>
 
       <section class="details-grid">
@@ -285,6 +295,10 @@ onMounted(() => {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.78rem;
+}
+
+.hero-status {
+  margin-top: 14px;
 }
 
 .details-card h3 {

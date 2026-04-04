@@ -42,7 +42,8 @@ public class AdminUserService {
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
-                resolveRole(user.getEmail())
+                resolveRole(user.getEmail()),
+                user.isActive()
             ))
             .toList();
     }
@@ -76,6 +77,7 @@ public class AdminUserService {
             user.getName(),
             user.getEmail(),
             resolveRole(user.getEmail()),
+            user.isActive(),
             user.getPhone(),
             user.getAddress(),
             user.getPreferredContactMethod(),

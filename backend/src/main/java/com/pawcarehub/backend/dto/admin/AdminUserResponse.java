@@ -6,12 +6,14 @@ public class AdminUserResponse {
     private final String name;
     private final String email;
     private final String role;
+    private final boolean active;
 
-    public AdminUserResponse(Long id, String name, String email, String role) {
+    public AdminUserResponse(Long id, String name, String email, String role, boolean active) {
         this.id = id;
         this.name = name;
         this.email = email;
         this.role = role;
+        this.active = active;
     }
 
     public Long getId() {
@@ -28,5 +30,9 @@ public class AdminUserResponse {
 
     public String getRole() {
         return role;
+    }
+
+    public boolean isActive() {
+        return active;
     }
 }

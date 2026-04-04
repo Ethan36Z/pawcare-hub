@@ -36,6 +36,7 @@ const isLoading = ref(false)
 const isSavingProfile = ref(false)
 const isSavingPreferences = ref(false)
 const isChangingPassword = ref(false)
+const isDeletingAccount = ref(false)
 const isEditDialogOpen = ref(false)
 const isPasswordDialogOpen = ref(false)
 const passwordErrorMessage = ref('')
@@ -196,6 +197,34 @@ async function handleChangePassword() {
   }
 }
 
+async function handleDeleteAccount() {
+  if (!authStore.user?.email || isDeletingAccount.value) {
+    return
+  }
+
+  const confirmed = window.confirm(
+    'Delete this account? You will immediately lose access to PawCare Hub, and you will not be able to log in again.'
+  )
+
+  if (!confirmed) {
+    return
+  }
+
+  isDeletingAccount.value = true
+  errorMessage.value = ''
+  successMessage.value = ''
+
+  try {
+    await authApi.deleteAccount(authStore.user.email)
+    authStore.logout()
+    router.push('/login')
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, 'Unable to delete your account right now.')
+  } finally {
+    isDeletingAccount.value = false
+  }
+}
+
 function handleLogout() {
   authStore.logout()
   router.push('/login')
@@ -340,9 +369,16 @@ function handleLogout() {
             <div class="action-row action-row--subtle">
               <div>
                 <strong>Delete account</strong>
-                <p>Request permanent account removal if you no longer need PawCare Hub.</p>
+                <p>Deactivate this account and immediately sign out of PawCare Hub.</p>
               </div>
-              <el-button text class="danger-link">Delete Account</el-button>
+              <el-button
+                text
+                class="danger-link"
+                :loading="isDeletingAccount"
+                @click="handleDeleteAccount"
+              >
+                Delete Account
+              </el-button>
             </div>
           </div>
         </el-card>

@@ -12,6 +12,10 @@ function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
 }
 
+function getStatusTagType(isActive) {
+  return isActive ? 'success' : 'info'
+}
+
 async function loadUsers() {
   isLoading.value = true
   errorMessage.value = ''
@@ -61,6 +65,13 @@ onMounted(() => {
       <el-table-column prop="name" label="Name" min-width="180" />
       <el-table-column prop="email" label="Email" min-width="240" />
       <el-table-column prop="role" label="Role" min-width="120" />
+      <el-table-column label="Status" min-width="140">
+        <template #default="{ row }">
+          <el-tag :type="getStatusTagType(row.active)" effect="plain">
+            {{ row.active ? 'Active' : 'Deactivated' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="Actions" min-width="160" fixed="right">
         <template #default="{ row }">
           <el-button

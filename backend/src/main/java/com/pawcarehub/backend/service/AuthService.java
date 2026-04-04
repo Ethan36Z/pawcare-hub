@@ -42,7 +42,9 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User already exists");
         }
 
-        User savedUser = userRepository.save(new User(name, email, passwordEncoder.encode(password)));
+        User savedUser = new User(name, email, passwordEncoder.encode(password));
+        savedUser.setActive(true);
+        savedUser = userRepository.save(savedUser);
         petInitializationService.createDefaultPetsForUser(savedUser);
         bookingInitializationService.createDefaultBookingsForUser(savedUser);
         return new AuthResponse("Registration successful", savedUser.getEmail(), savedUser.getName());
@@ -54,6 +56,10 @@ public class AuthService {
 
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password"));
+
+        if (!user.isActive()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "This account has been deactivated");
+        }
 
         if (!passwordMatches(user, password)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
@@ -107,10 +113,22 @@ public class AuthService {
         userRepository.save(user);
     }
 
+    public void deactivateCurrentUser(String userEmailHeader) {
+        User user = getAuthenticatedUserEntity(userEmailHeader);
+        user.setActive(false);
+        userRepository.save(user);
+    }
+
     public User getAuthenticatedUserEntity(String email) {
         String normalizedEmail = normalizeEmail(email);
-        return userRepository.findByEmail(normalizedEmail)
+        User user = userRepository.findByEmail(normalizedEmail)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User session is not recognized"));
+
+        if (!user.isActive()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User session is not recognized");
+        }
+
+        return user;
     }
 
     private String normalizeEmail(String email) {
@@ -142,6 +160,7 @@ public class AuthService {
             user.getPhone(),
             user.getAddress(),
             user.getPreferredContactMethod(),
+            user.isActive(),
             user.isEmailRemindersEnabled(),
             user.isTextRemindersEnabled()
         );

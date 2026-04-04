@@ -8,6 +8,7 @@ public class AdminUserDetailResponse {
     private final String name;
     private final String email;
     private final String role;
+    private final boolean active;
     private final String phone;
     private final String address;
     private final String preferredContactMethod;
@@ -23,6 +24,7 @@ public class AdminUserDetailResponse {
         String name,
         String email,
         String role,
+        boolean active,
         String phone,
         String address,
         String preferredContactMethod,
@@ -37,6 +39,7 @@ public class AdminUserDetailResponse {
         this.name = name;
         this.email = email;
         this.role = role;
+        this.active = active;
         this.phone = phone;
         this.address = address;
         this.preferredContactMethod = preferredContactMethod;
@@ -62,6 +65,10 @@ public class AdminUserDetailResponse {
 
     public String getRole() {
         return role;
+    }
+
+    public boolean isActive() {
+        return active;
     }
 
     public String getPhone() {

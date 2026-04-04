@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 @Entity
@@ -33,6 +34,9 @@ public class User {
     private Boolean emailReminders;
 
     private Boolean textReminders;
+
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private Boolean active = true;
 
     protected User() {
     }
@@ -101,5 +105,20 @@ public class User {
 
     public void setTextReminders(Boolean textReminders) {
         this.textReminders = textReminders;
+    }
+
+    public boolean isActive() {
+        return active == null || active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
+    }
+
+    @PrePersist
+    protected void applyDefaults() {
+        if (active == null) {
+            active = true;
+        }
     }
 }

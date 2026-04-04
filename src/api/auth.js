@@ -28,4 +28,11 @@ export const authApi = {
       },
     })
   },
+  deleteAccount(email) {
+    return http.patch('/auth/delete-account', null, {
+      headers: {
+        'X-User-Email': email,
+      },
+    })
+  },
 }

@@ -63,4 +63,12 @@ public class AuthController {
         authService.changePassword(userEmailHeader, request);
         return ResponseEntity.noContent().build();
     }
+
+    @PatchMapping("/delete-account")
+    public ResponseEntity<Void> deleteAccount(
+        @RequestHeader("X-User-Email") String userEmailHeader
+    ) {
+        authService.deactivateCurrentUser(userEmailHeader);
+        return ResponseEntity.noContent().build();
+    }
 }
