@@ -4,6 +4,7 @@ import com.pawcarehub.backend.dto.admin.CreateClinicServiceRequest;
 import com.pawcarehub.backend.dto.admin.AdminClinicServiceResponse;
 import com.pawcarehub.backend.entity.ClinicService;
 import com.pawcarehub.backend.repository.ClinicServiceRepository;
+import java.util.Comparator;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,8 +20,12 @@ public class AdminClinicServiceService {
         this.clinicServiceRepository = clinicServiceRepository;
     }
 
-    public List<AdminClinicServiceResponse> getAllServices() {
-        return clinicServiceRepository.findAllByOrderByCategoryAscNameAsc().stream()
+    public List<AdminClinicServiceResponse> getAllServices(Boolean active, String category, String name, String sort) {
+        return clinicServiceRepository.findAll().stream()
+            .filter(service -> active == null || service.isActive() == active)
+            .filter(service -> matchesCategory(service.getCategory(), category))
+            .filter(service -> matchesName(service.getName(), name))
+            .sorted(resolveSort(sort))
             .map(this::toResponse)
             .toList();
     }
@@ -72,6 +77,38 @@ public class AdminClinicServiceService {
         ClinicService savedService = clinicServiceRepository.save(service);
 
         return toResponse(savedService);
+    }
+
+    private boolean matchesCategory(String value, String filter) {
+        if (!StringUtils.hasText(filter)) {
+            return true;
+        }
+
+        return value != null && value.equalsIgnoreCase(filter.trim());
+    }
+
+    private boolean matchesName(String value, String filter) {
+        if (!StringUtils.hasText(filter)) {
+            return true;
+        }
+
+        return value != null && value.toLowerCase().contains(filter.trim().toLowerCase());
+    }
+
+    private Comparator<ClinicService> resolveSort(String sort) {
+        if ("name-desc".equalsIgnoreCase(sort)) {
+            return Comparator.comparing(ClinicService::getName, String.CASE_INSENSITIVE_ORDER).reversed();
+        }
+
+        if ("newest".equalsIgnoreCase(sort)) {
+            return Comparator.comparing(ClinicService::getId).reversed();
+        }
+
+        if ("oldest".equalsIgnoreCase(sort)) {
+            return Comparator.comparing(ClinicService::getId);
+        }
+
+        return Comparator.comparing(ClinicService::getName, String.CASE_INSENSITIVE_ORDER);
     }
 
     private AdminClinicServiceResponse toResponse(ClinicService service) {

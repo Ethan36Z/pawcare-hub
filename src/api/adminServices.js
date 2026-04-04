@@ -1,8 +1,8 @@
 import http from './http'
 
 export const adminServicesApi = {
-  list() {
-    return http.get('/admin/services')
+  list(params = {}) {
+    return http.get('/admin/services', { params })
   },
   create(payload) {
     return http.post('/admin/services', payload)

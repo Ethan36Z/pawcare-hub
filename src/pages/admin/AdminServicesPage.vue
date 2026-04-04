@@ -13,6 +13,12 @@ const isEditDialogOpen = ref(false)
 const isEditing = ref(false)
 const editErrorMessage = ref('')
 const editingServiceId = ref(null)
+const filters = ref({
+  active: '',
+  category: '',
+  name: '',
+  sort: 'name-asc',
+})
 const createForm = ref({
   name: '',
   category: '',
@@ -39,7 +45,12 @@ async function loadServices() {
   errorMessage.value = ''
 
   try {
-    const { data } = await adminServicesApi.list()
+    const { data } = await adminServicesApi.list({
+      active: filters.value.active === '' ? undefined : filters.value.active,
+      category: filters.value.category || undefined,
+      name: filters.value.name || undefined,
+      sort: filters.value.sort,
+    })
     services.value = data
   } catch (error) {
     errorMessage.value = getApiErrorMessage(error, 'Unable to load services right now.')
@@ -146,6 +157,20 @@ async function handleToggleService(service) {
   }
 }
 
+function handleApplyFilters() {
+  loadServices()
+}
+
+function handleResetFilters() {
+  filters.value = {
+    active: '',
+    category: '',
+    name: '',
+    sort: 'name-asc',
+  }
+  loadServices()
+}
+
 onMounted(() => {
   loadServices()
 })
@@ -169,11 +194,56 @@ onMounted(() => {
       class="admin-page__alert"
     />
 
+    <div class="admin-filters">
+      <el-select
+        v-model="filters.active"
+        placeholder="Status"
+        clearable
+        class="admin-filters__control"
+      >
+        <el-option label="Active" :value="true" />
+        <el-option label="Inactive" :value="false" />
+      </el-select>
+
+      <el-input
+        v-model="filters.category"
+        placeholder="Filter by category"
+        clearable
+        class="admin-filters__control"
+      />
+
+      <el-input
+        v-model="filters.name"
+        placeholder="Search by name"
+        clearable
+        class="admin-filters__control"
+      />
+
+      <el-select
+        v-model="filters.sort"
+        class="admin-filters__control"
+      >
+        <el-option label="Name A-Z" value="name-asc" />
+        <el-option label="Name Z-A" value="name-desc" />
+        <el-option label="Newest first" value="newest" />
+        <el-option label="Oldest first" value="oldest" />
+      </el-select>
+
+      <div class="admin-filters__actions">
+        <el-button plain @click="handleApplyFilters">
+          Apply
+        </el-button>
+        <el-button @click="handleResetFilters">
+          Reset
+        </el-button>
+      </div>
+    </div>
+
     <el-skeleton v-if="isLoading" :rows="6" animated />
 
     <el-empty
       v-else-if="!services.length"
-      description="No services found yet."
+      description="No services match the current filters."
     />
 
     <el-table v-else :data="services" stripe>
@@ -331,6 +401,24 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
+.admin-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+  align-items: end;
+}
+
+.admin-filters__control {
+  width: 100%;
+}
+
+.admin-filters__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .admin-page h1 {
   margin-top: 0;
   margin-bottom: 8px;
@@ -365,6 +453,16 @@ onMounted(() => {
   .admin-page__header {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .admin-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1100px) {
+  .admin-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

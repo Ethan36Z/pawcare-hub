@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,8 +24,13 @@ public class AdminClinicServiceController {
     }
 
     @GetMapping
-    public List<AdminClinicServiceResponse> getServices() {
-        return adminClinicServiceService.getAllServices();
+    public List<AdminClinicServiceResponse> getServices(
+        @RequestParam(required = false) Boolean active,
+        @RequestParam(required = false) String category,
+        @RequestParam(required = false) String name,
+        @RequestParam(defaultValue = "name-asc") String sort
+    ) {
+        return adminClinicServiceService.getAllServices(active, category, name, sort);
     }
 
     @PostMapping
