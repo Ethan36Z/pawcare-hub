@@ -5,6 +5,7 @@ import { adminServicesApi } from '@/api/adminServices'
 const services = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
+const togglingServiceId = ref(null)
 
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
@@ -22,6 +23,24 @@ async function loadServices() {
     services.value = []
   } finally {
     isLoading.value = false
+  }
+}
+
+async function handleToggleService(service) {
+  if (!service?.id) {
+    return
+  }
+
+  togglingServiceId.value = service.id
+  errorMessage.value = ''
+
+  try {
+    await adminServicesApi.toggle(service.id)
+    await loadServices()
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, 'Unable to update this service right now.')
+  } finally {
+    togglingServiceId.value = null
   }
 }
 
@@ -60,7 +79,26 @@ onMounted(() => {
       <el-table-column prop="category" label="Category" min-width="140" />
       <el-table-column prop="duration" label="Duration" min-width="120" />
       <el-table-column prop="price" label="Price" min-width="120" />
-      <el-table-column prop="description" label="Description" min-width="360" show-overflow-tooltip />
+      <el-table-column label="Status" min-width="140">
+        <template #default="{ row }">
+          <el-tag :type="row.active ? 'success' : 'info'" effect="plain">
+            {{ row.active ? 'Active' : 'Inactive' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="description" label="Description" min-width="320" show-overflow-tooltip />
+      <el-table-column label="Actions" min-width="160" fixed="right">
+        <template #default="{ row }">
+          <el-button
+            plain
+            size="small"
+            :loading="togglingServiceId === row.id"
+            @click="handleToggleService(row)"
+          >
+            {{ row.active ? 'Disable' : 'Enable' }}
+          </el-button>
+        </template>
+      </el-table-column>
     </el-table>
   </section>
 </template>

@@ -1,69 +1,51 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import PageContainer from '@/components/common/PageContainer.vue'
+import { servicesApi } from '@/api/services'
 
-const categories = ['All', 'Wellness', 'Vaccines', 'Dental', 'Sick Visits']
-
+const services = ref([])
 const selectedCategory = ref('All')
+const isLoading = ref(false)
+const errorMessage = ref('')
 
-const services = [
-  {
-    name: 'Annual wellness exam',
-    category: 'Wellness',
-    description: 'A routine checkup with preventive guidance and a general health review.',
-    duration: '30 min',
-    price: '$85',
-  },
-  {
-    name: 'Puppy and kitten wellness visit',
-    category: 'Wellness',
-    description: 'Early-life exam focused on growth, nutrition, and preventive care planning.',
-    duration: '30 min',
-    price: '$78',
-  },
-  {
-    name: 'Core vaccine appointment',
-    category: 'Vaccines',
-    description: "A visit for recommended core vaccines with timing based on your pet's age.",
-    duration: '20 min',
-    price: 'From $35',
-  },
-  {
-    name: 'Lifestyle vaccine consult',
-    category: 'Vaccines',
-    description: 'Vaccine recommendations tailored to travel, boarding, and daily exposure risks.',
-    duration: '20 min',
-    price: 'From $42',
-  },
-  {
-    name: 'Dental evaluation',
-    category: 'Dental',
-    description: 'An oral health assessment to review tartar, gum condition, and next steps.',
-    duration: '25 min',
-    price: '$65',
-  },
-  {
-    name: 'Sick visit consultation',
-    category: 'Sick Visits',
-    description: 'A prompt appointment for concerns like itching, vomiting, coughing, or low energy.',
-    duration: '30 min',
-    price: 'From $95',
-  },
-  {
-    name: 'Ear and skin check',
-    category: 'Sick Visits',
-    description: 'A focused visit for irritation, scratching, redness, or recurring ear discomfort.',
-    duration: '25 min',
-    price: 'From $88',
-  },
-]
+function getApiErrorMessage(error, fallbackMessage) {
+  return error?.response?.data?.message || fallbackMessage
+}
+
+const categories = computed(() => [
+  'All',
+  ...new Set(services.value.map((service) => service.category)),
+])
 
 const visibleServices = computed(() => {
   if (selectedCategory.value === 'All') {
-    return services
+    return services.value
   }
 
-  return services.filter((service) => service.category === selectedCategory.value)
+  return services.value.filter((service) => service.category === selectedCategory.value)
+})
+
+async function loadServices() {
+  isLoading.value = true
+  errorMessage.value = ''
+
+  try {
+    const { data } = await servicesApi.list()
+    services.value = data
+
+    if (!categories.value.includes(selectedCategory.value)) {
+      selectedCategory.value = 'All'
+    }
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, 'Unable to load services right now.')
+    services.value = []
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(() => {
+  loadServices()
 })
 </script>
 
@@ -79,6 +61,14 @@ const visibleServices = computed(() => {
             and starting prices.
           </p>
         </div>
+
+        <el-alert
+          v-if="errorMessage"
+          :title="errorMessage"
+          type="error"
+          :closable="false"
+          class="services-alert"
+        />
 
         <div class="filters-section">
           <div class="filters-header">
@@ -101,10 +91,20 @@ const visibleServices = computed(() => {
         </div>
       </section>
 
-      <section class="services-grid">
+      <section v-if="isLoading" class="services-grid">
+        <el-card
+          v-for="index in 4"
+          :key="index"
+          class="service-card"
+        >
+          <el-skeleton :rows="4" animated />
+        </el-card>
+      </section>
+
+      <section v-else-if="visibleServices.length" class="services-grid">
         <el-card
           v-for="service in visibleServices"
-          :key="service.name"
+          :key="service.id ?? service.name"
           class="service-card"
           shadow="hover"
         >
@@ -125,6 +125,10 @@ const visibleServices = computed(() => {
             <el-button type="primary">Book Now</el-button>
           </div>
         </el-card>
+      </section>
+
+      <section v-else class="empty-state">
+        <el-empty description="No active services are available right now." />
       </section>
     </div>
   </PageContainer>
@@ -175,6 +179,10 @@ const visibleServices = computed(() => {
   margin: 16px 0 0;
   color: #6b7480;
   line-height: 1.75;
+}
+
+.services-alert {
+  margin-top: 20px;
 }
 
 .filters-section {
@@ -307,6 +315,13 @@ const visibleServices = computed(() => {
   --el-button-hover-border-color: #355f4d;
   --el-button-active-bg-color: #2c5141;
   --el-button-active-border-color: #2c5141;
+}
+
+.empty-state {
+  padding: 34px 24px;
+  border: 1px dashed rgba(63, 114, 93, 0.24);
+  border-radius: 28px;
+  background: rgba(255, 251, 244, 0.72);
 }
 
 @media (max-width: 640px) {

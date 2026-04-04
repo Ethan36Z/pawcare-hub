@@ -8,6 +8,7 @@ public class AdminClinicServiceResponse {
     private final String description;
     private final String duration;
     private final String price;
+    private final boolean active;
 
     public AdminClinicServiceResponse(
         Long id,
@@ -15,7 +16,8 @@ public class AdminClinicServiceResponse {
         String category,
         String description,
         String duration,
-        String price
+        String price,
+        boolean active
     ) {
         this.id = id;
         this.name = name;
@@ -23,6 +25,7 @@ public class AdminClinicServiceResponse {
         this.description = description;
         this.duration = duration;
         this.price = price;
+        this.active = active;
     }
 
     public Long getId() {
@@ -47,5 +50,9 @@ public class AdminClinicServiceResponse {
 
     public String getPrice() {
         return price;
+    }
+
+    public boolean isActive() {
+        return active;
     }
 }

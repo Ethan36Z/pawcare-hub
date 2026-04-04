@@ -30,6 +30,9 @@ public class ClinicService {
     @Column(nullable = false)
     private String price;
 
+    @Column(nullable = false)
+    private boolean active;
+
     protected ClinicService() {
     }
 
@@ -38,13 +41,15 @@ public class ClinicService {
         String category,
         String description,
         String duration,
-        String price
+        String price,
+        boolean active
     ) {
         this.name = name;
         this.category = category;
         this.description = description;
         this.duration = duration;
         this.price = price;
+        this.active = active;
     }
 
     public Long getId() {
@@ -69,5 +74,13 @@ public class ClinicService {
 
     public String getPrice() {
         return price;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 }

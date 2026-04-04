@@ -23,35 +23,40 @@ public class ClinicServiceInitializationService {
                 "Wellness",
                 "A routine checkup with preventive guidance and a general health review.",
                 "30 min",
-                "$85"
+                "$85",
+                true
             ),
             new ClinicService(
                 "Puppy and kitten wellness visit",
                 "Wellness",
                 "Early-life exam focused on growth, nutrition, and preventive care planning.",
                 "30 min",
-                "$78"
+                "$78",
+                true
             ),
             new ClinicService(
                 "Core vaccine appointment",
                 "Vaccines",
                 "A visit for recommended core vaccines with timing based on your pet's age.",
                 "20 min",
-                "From $35"
+                "From $35",
+                true
             ),
             new ClinicService(
                 "Dental evaluation",
                 "Dental",
                 "An oral health assessment to review tartar, gum condition, and next steps.",
                 "25 min",
-                "$65"
+                "$65",
+                true
             ),
             new ClinicService(
                 "Sick visit consultation",
                 "Sick Visits",
                 "A prompt appointment for concerns like itching, vomiting, coughing, or low energy.",
                 "30 min",
-                "From $95"
+                "From $95",
+                true
             )
         );
 
