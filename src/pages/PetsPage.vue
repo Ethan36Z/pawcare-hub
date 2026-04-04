@@ -12,8 +12,21 @@ const errorMessage = ref('')
 const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
 const createErrorMessage = ref('')
+const isEditDialogOpen = ref(false)
+const isEditing = ref(false)
+const editErrorMessage = ref('')
+const editingPetId = ref(null)
 const isDeletingPetId = ref(null)
 const createForm = ref({
+  name: '',
+  species: '',
+  breed: '',
+  age: '',
+  weight: '',
+  note: '',
+  status: 'Healthy',
+})
+const editForm = ref({
   name: '',
   species: '',
   breed: '',
@@ -58,8 +71,37 @@ function openCreateDialog() {
   isCreateDialogOpen.value = true
 }
 
+function openEditDialog(pet) {
+  editErrorMessage.value = ''
+  editingPetId.value = pet.id
+  editForm.value = {
+    name: pet.name,
+    species: pet.species,
+    breed: pet.breed,
+    age: pet.age,
+    weight: pet.weight,
+    note: pet.note,
+    status: pet.status,
+  }
+  isEditDialogOpen.value = true
+}
+
 function resetCreateForm() {
   createForm.value = {
+    name: '',
+    species: '',
+    breed: '',
+    age: '',
+    weight: '',
+    note: '',
+    status: 'Healthy',
+  }
+}
+
+function resetEditForm() {
+  editingPetId.value = null
+  editErrorMessage.value = ''
+  editForm.value = {
     name: '',
     species: '',
     breed: '',
@@ -87,6 +129,26 @@ async function handleCreatePet() {
     createErrorMessage.value = getApiErrorMessage(error, 'Unable to add pet right now.')
   } finally {
     isCreating.value = false
+  }
+}
+
+async function handleEditPet() {
+  if (!authStore.user?.email || !editingPetId.value) {
+    return
+  }
+
+  isEditing.value = true
+  editErrorMessage.value = ''
+  errorMessage.value = ''
+
+  try {
+    await petsApi.update(authStore.user.email, editingPetId.value, editForm.value)
+    isEditDialogOpen.value = false
+    await loadPets()
+  } catch (error) {
+    editErrorMessage.value = getApiErrorMessage(error, 'Unable to update this pet right now.')
+  } finally {
+    isEditing.value = false
   }
 }
 
@@ -177,7 +239,7 @@ async function handleDeletePet(pet) {
 
           <div class="pet-actions">
             <el-button type="primary">View Profile</el-button>
-            <el-button plain>Edit</el-button>
+            <el-button plain @click="openEditDialog(pet)">Edit</el-button>
             <el-button
               plain
               :loading="isDeletingPetId === pet.id"
@@ -194,6 +256,57 @@ async function handleDeletePet(pet) {
           <el-button type="primary" @click="openCreateDialog">Add Pet</el-button>
         </el-empty>
       </section>
+
+      <el-dialog
+        v-model="isEditDialogOpen"
+        title="Edit Pet"
+        width="min(560px, 92vw)"
+        @closed="resetEditForm"
+      >
+        <el-alert
+          v-if="editErrorMessage"
+          :title="editErrorMessage"
+          type="error"
+          :closable="false"
+          class="create-alert"
+        />
+
+        <el-form :model="editForm" label-position="top">
+          <el-form-item label="Name">
+            <el-input v-model="editForm.name" placeholder="Pet name" />
+          </el-form-item>
+          <el-form-item label="Species">
+            <el-input v-model="editForm.species" placeholder="Dog, Cat, etc." />
+          </el-form-item>
+          <el-form-item label="Breed">
+            <el-input v-model="editForm.breed" placeholder="Breed" />
+          </el-form-item>
+          <el-form-item label="Age">
+            <el-input v-model="editForm.age" placeholder="e.g. 2 years" />
+          </el-form-item>
+          <el-form-item label="Weight">
+            <el-input v-model="editForm.weight" placeholder="e.g. 10 lb" />
+          </el-form-item>
+          <el-form-item label="Status">
+            <el-input v-model="editForm.status" placeholder="Healthy" />
+          </el-form-item>
+          <el-form-item label="Care note">
+            <el-input
+              v-model="editForm.note"
+              type="textarea"
+              :rows="4"
+              placeholder="Add a short care note"
+            />
+          </el-form-item>
+        </el-form>
+
+        <template #footer>
+          <el-button @click="isEditDialogOpen = false">Cancel</el-button>
+          <el-button type="primary" :loading="isEditing" @click="handleEditPet">
+            Save Changes
+          </el-button>
+        </template>
+      </el-dialog>
 
       <el-dialog
         v-model="isCreateDialogOpen"

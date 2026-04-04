@@ -18,6 +18,13 @@ export const petsApi = {
       },
     })
   },
+  update(email, id, payload) {
+    return http.patch(`/pets/${id}`, payload, {
+      headers: {
+        'X-User-Email': email,
+      },
+    })
+  },
   remove(email, id) {
     return http.delete(`/pets/${id}`, {
       headers: {

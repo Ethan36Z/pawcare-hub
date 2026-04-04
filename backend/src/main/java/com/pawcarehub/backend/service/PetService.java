@@ -3,6 +3,7 @@ package com.pawcarehub.backend.service;
 import com.pawcarehub.backend.dto.auth.AuthenticatedUser;
 import com.pawcarehub.backend.dto.pet.CreatePetRequest;
 import com.pawcarehub.backend.dto.pet.PetResponse;
+import com.pawcarehub.backend.dto.pet.UpdatePetRequest;
 import com.pawcarehub.backend.entity.Pet;
 import com.pawcarehub.backend.entity.User;
 import com.pawcarehub.backend.repository.BookingRepository;
@@ -51,6 +52,23 @@ public class PetService {
             owner
         ));
 
+        return toPetResponse(savedPet);
+    }
+
+    public PetResponse updatePet(String userEmailHeader, Long petId, UpdatePetRequest request) {
+        AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
+        Pet pet = petRepository.findByIdAndOwnerEmail(petId, user.email())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pet not found"));
+
+        pet.setName(normalizeRequiredField(request.name(), "name"));
+        pet.setSpecies(normalizeRequiredField(request.species(), "species"));
+        pet.setBreed(normalizeRequiredField(request.breed(), "breed"));
+        pet.setAge(normalizeRequiredField(request.age(), "age"));
+        pet.setWeight(normalizeRequiredField(request.weight(), "weight"));
+        pet.setNote(normalizeRequiredField(request.note(), "note"));
+        pet.setStatus(normalizeRequiredField(request.status(), "status"));
+
+        Pet savedPet = petRepository.save(pet);
         return toPetResponse(savedPet);
     }
 

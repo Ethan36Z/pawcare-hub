@@ -74,28 +74,56 @@ public class Pet {
         return name;
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
     public String getSpecies() {
         return species;
+    }
+
+    public void setSpecies(String species) {
+        this.species = species;
     }
 
     public String getBreed() {
         return breed;
     }
 
+    public void setBreed(String breed) {
+        this.breed = breed;
+    }
+
     public String getAge() {
         return age;
+    }
+
+    public void setAge(String age) {
+        this.age = age;
     }
 
     public String getWeight() {
         return weight;
     }
 
+    public void setWeight(String weight) {
+        this.weight = weight;
+    }
+
     public String getNote() {
         return note;
     }
 
+    public void setNote(String note) {
+        this.note = note;
+    }
+
     public String getStatus() {
         return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public User getOwner() {
