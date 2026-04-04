@@ -92,7 +92,7 @@ public class AdminBookingService {
         return new AdminBookingResponse(
             booking.getId(),
             booking.getPetName(),
-            booking.getService(),
+            booking.getResolvedServiceName(),
             booking.getDate(),
             booking.getTime(),
             booking.getStatus(),

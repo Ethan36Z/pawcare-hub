@@ -1,15 +1,18 @@
 package com.pawcarehub.backend.service;
 
 import com.pawcarehub.backend.dto.auth.AuthenticatedUser;
-import com.pawcarehub.backend.dto.booking.CreateBookingRequest;
 import com.pawcarehub.backend.dto.booking.BookingResponse;
+import com.pawcarehub.backend.dto.booking.CreateBookingRequest;
 import com.pawcarehub.backend.dto.booking.RescheduleBookingRequest;
 import com.pawcarehub.backend.entity.Booking;
+import com.pawcarehub.backend.entity.ClinicService;
 import com.pawcarehub.backend.entity.User;
 import com.pawcarehub.backend.repository.BookingRepository;
+import com.pawcarehub.backend.repository.ClinicServiceRepository;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -18,12 +21,19 @@ public class BookingService {
 
     private final AuthService authService;
     private final BookingRepository bookingRepository;
+    private final ClinicServiceRepository clinicServiceRepository;
 
-    public BookingService(AuthService authService, BookingRepository bookingRepository) {
+    public BookingService(
+        AuthService authService,
+        BookingRepository bookingRepository,
+        ClinicServiceRepository clinicServiceRepository
+    ) {
         this.authService = authService;
         this.bookingRepository = bookingRepository;
+        this.clinicServiceRepository = clinicServiceRepository;
     }
 
+    @Transactional(readOnly = true)
     public List<BookingResponse> getCurrentUserBookings(String userEmailHeader) {
         AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
         return bookingRepository.findByOwnerEmailOrderByIdAsc(user.email()).stream()
@@ -31,6 +41,7 @@ public class BookingService {
             .toList();
     }
 
+    @Transactional(readOnly = true)
     public BookingResponse getCurrentUserBooking(String userEmailHeader, Long bookingId) {
         AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
         Booking booking = bookingRepository.findByIdAndOwnerEmail(bookingId, user.email())
@@ -39,23 +50,28 @@ public class BookingService {
         return toBookingResponse(booking, user.email());
     }
 
+    @Transactional
     public BookingResponse createBooking(String userEmailHeader, CreateBookingRequest request) {
         User owner = authService.getAuthenticatedUserEntity(userEmailHeader);
+        ClinicService serviceRecord = resolveServiceRecord(request.serviceId());
+        String serviceName = resolveServiceName(request, serviceRecord);
 
         Booking savedBooking = bookingRepository.save(new Booking(
             normalizeRequiredField(request.petName(), "petName"),
-            normalizeRequiredField(request.service(), "service"),
+            serviceName,
             normalizeRequiredField(request.date(), "date"),
             normalizeRequiredField(request.time(), "time"),
             normalizeRequiredField(request.status(), "status"),
             normalizeRequiredField(request.clinic(), "clinic"),
             normalizeRequiredField(request.staff(), "staff"),
+            serviceRecord,
             owner
         ));
 
         return toBookingResponse(savedBooking, owner.getEmail());
     }
 
+    @Transactional
     public BookingResponse cancelBooking(String userEmailHeader, Long bookingId) {
         AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
         Booking booking = bookingRepository.findByIdAndOwnerEmail(bookingId, user.email())
@@ -70,6 +86,7 @@ public class BookingService {
         return toBookingResponse(savedBooking, user.email());
     }
 
+    @Transactional
     public BookingResponse rescheduleBooking(String userEmailHeader, Long bookingId, RescheduleBookingRequest request) {
         AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
         Booking booking = bookingRepository.findByIdAndOwnerEmail(bookingId, user.email())
@@ -94,7 +111,8 @@ public class BookingService {
         return new BookingResponse(
             booking.getId(),
             booking.getPetName(),
-            booking.getService(),
+            booking.getServiceRecord() != null ? booking.getServiceRecord().getId() : null,
+            booking.getResolvedServiceName(),
             booking.getDate(),
             booking.getTime(),
             booking.getStatus(),
@@ -102,6 +120,23 @@ public class BookingService {
             booking.getStaff(),
             ownerEmail
         );
+    }
+
+    private ClinicService resolveServiceRecord(Long serviceId) {
+        if (serviceId == null) {
+            return null;
+        }
+
+        return clinicServiceRepository.findByIdAndActiveTrue(serviceId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selected service is not available"));
+    }
+
+    private String resolveServiceName(CreateBookingRequest request, ClinicService serviceRecord) {
+        if (serviceRecord != null) {
+            return serviceRecord.getName();
+        }
+
+        return normalizeRequiredField(request.service(), "service");
     }
 
     private String normalizeRequiredField(String value, String fieldName) {

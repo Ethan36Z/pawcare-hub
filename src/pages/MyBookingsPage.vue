@@ -1,16 +1,21 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { bookingsApi } from '@/api/bookings'
+import { servicesApi } from '@/api/services'
 import PageContainer from '@/components/common/PageContainer.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useRoute, useRouter } from 'vue-router'
 
 const authStore = useAuthStore()
+const route = useRoute()
+const router = useRouter()
 const bookings = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
 const createErrorMessage = ref('')
+const services = ref([])
 const isCancellingBookingId = ref(null)
 const isDetailsDialogOpen = ref(false)
 const isLoadingDetails = ref(false)
@@ -27,6 +32,7 @@ const rescheduleForm = ref({
 })
 const createForm = ref({
   petName: '',
+  serviceId: null,
   service: '',
   date: '',
   time: '',
@@ -35,6 +41,10 @@ const createForm = ref({
   staff: '',
 })
 const ownerName = computed(() => authStore.user?.fullName || 'your account')
+const serviceOptions = computed(() => services.value.map((service) => ({
+  label: `${service.name} · ${service.category}`,
+  value: service.id,
+})))
 
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
@@ -76,12 +86,38 @@ async function loadBookings() {
   }
 }
 
-onMounted(() => {
-  loadBookings()
-})
+async function loadServices() {
+  try {
+    const { data } = await servicesApi.list()
+    services.value = data
+    applyBookingQuerySelection()
+  } catch {
+    services.value = []
+  }
+}
 
 function openCreateDialog() {
   createErrorMessage.value = ''
+  isCreateDialogOpen.value = true
+}
+
+function openCreateDialogForService(serviceId) {
+  const normalizedServiceId = Number(serviceId)
+  if (!normalizedServiceId) {
+    return
+  }
+
+  const selectedService = services.value.find((service) => service.id === normalizedServiceId)
+  if (!selectedService) {
+    return
+  }
+
+  createErrorMessage.value = ''
+  createForm.value = {
+    ...createForm.value,
+    serviceId: normalizedServiceId,
+    service: selectedService.name,
+  }
   isCreateDialogOpen.value = true
 }
 
@@ -99,6 +135,7 @@ function openRescheduleDialog(booking) {
 function resetCreateForm() {
   createForm.value = {
     petName: '',
+    serviceId: null,
     service: '',
     date: '',
     time: '',
@@ -106,6 +143,26 @@ function resetCreateForm() {
     clinic: 'PawCare Hub Clinic',
     staff: '',
   }
+}
+
+function clearBookingQuerySelection() {
+  if (!route.query.bookServiceId) {
+    return
+  }
+
+  const nextQuery = { ...route.query }
+  delete nextQuery.bookServiceId
+  router.replace({ query: nextQuery })
+}
+
+function applyBookingQuerySelection() {
+  const serviceId = route.query.bookServiceId
+  if (!serviceId || !services.value.length) {
+    return
+  }
+
+  openCreateDialogForService(serviceId)
+  clearBookingQuerySelection()
 }
 
 function resetSelectedBooking() {
@@ -132,7 +189,13 @@ async function handleCreateBooking() {
   createErrorMessage.value = ''
 
   try {
-    await bookingsApi.create(authStore.user.email, createForm.value)
+    const selectedService = services.value.find((service) => service.id === createForm.value.serviceId)
+
+    await bookingsApi.create(authStore.user.email, {
+      ...createForm.value,
+      serviceId: createForm.value.serviceId,
+      service: selectedService?.name || createForm.value.service,
+    })
     isCreateDialogOpen.value = false
     resetCreateForm()
     await loadBookings()
@@ -221,6 +284,18 @@ async function handleCancelBooking(booking) {
     isCancellingBookingId.value = null
   }
 }
+
+watch(
+  () => route.query.bookServiceId,
+  () => {
+    applyBookingQuerySelection()
+  }
+)
+
+onMounted(() => {
+  loadBookings()
+  loadServices()
+})
 </script>
 
 <template>
@@ -415,7 +490,19 @@ async function handleCancelBooking(booking) {
             <el-input v-model="createForm.petName" placeholder="Pet name" />
           </el-form-item>
           <el-form-item label="Service">
-            <el-input v-model="createForm.service" placeholder="Service" />
+            <el-select
+              v-model="createForm.serviceId"
+              placeholder="Select a service"
+              filterable
+              class="booking-service-select"
+            >
+              <el-option
+                v-for="service in serviceOptions"
+                :key="service.value"
+                :label="service.label"
+                :value="service.value"
+              />
+            </el-select>
           </el-form-item>
           <el-form-item label="Date">
             <el-input v-model="createForm.date" placeholder="e.g. May 10, 2026" />

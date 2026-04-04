@@ -9,6 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.PrePersist;
 
 @Entity
 @Table(name = "bookings")
@@ -23,6 +24,10 @@ public class Booking {
 
     @Column(nullable = false)
     private String service;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "service_id")
+    private ClinicService serviceRecord;
 
     @Column(nullable = false)
     private String date;
@@ -54,6 +59,7 @@ public class Booking {
         String status,
         String clinic,
         String staff,
+        ClinicService serviceRecord,
         User owner
     ) {
         this.petName = petName;
@@ -63,6 +69,7 @@ public class Booking {
         this.status = status;
         this.clinic = clinic;
         this.staff = staff;
+        this.serviceRecord = serviceRecord;
         this.owner = owner;
     }
 
@@ -76,6 +83,10 @@ public class Booking {
 
     public String getService() {
         return service;
+    }
+
+    public String getResolvedServiceName() {
+        return serviceRecord != null ? serviceRecord.getName() : service;
     }
 
     public String getDate() {
@@ -116,5 +127,17 @@ public class Booking {
 
     public User getOwner() {
         return owner;
+    }
+
+    public ClinicService getServiceRecord() {
+        return serviceRecord;
+    }
+
+    @PrePersist
+    @SuppressWarnings("unused")
+    protected void syncServiceName() {
+        if (serviceRecord != null) {
+            service = serviceRecord.getName();
+        }
     }
 }

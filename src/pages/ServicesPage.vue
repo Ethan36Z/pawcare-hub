@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import PageContainer from '@/components/common/PageContainer.vue'
 import { servicesApi } from '@/api/services'
 
@@ -7,6 +8,7 @@ const services = ref([])
 const selectedCategory = ref('All')
 const isLoading = ref(false)
 const errorMessage = ref('')
+const router = useRouter()
 
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
@@ -42,6 +44,19 @@ async function loadServices() {
   } finally {
     isLoading.value = false
   }
+}
+
+function handleBookNow(service) {
+  if (!service?.id) {
+    return
+  }
+
+  router.push({
+    name: 'my-bookings',
+    query: {
+      bookServiceId: String(service.id),
+    },
+  })
 }
 
 onMounted(() => {
@@ -122,7 +137,7 @@ onMounted(() => {
               <strong>{{ service.price }}</strong>
             </div>
 
-            <el-button type="primary">Book Now</el-button>
+            <el-button type="primary" @click="handleBookNow(service)">Book Now</el-button>
           </div>
         </el-card>
       </section>
