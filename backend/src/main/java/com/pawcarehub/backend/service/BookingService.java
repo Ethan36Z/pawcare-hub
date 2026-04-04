@@ -3,6 +3,7 @@ package com.pawcarehub.backend.service;
 import com.pawcarehub.backend.dto.auth.AuthenticatedUser;
 import com.pawcarehub.backend.dto.booking.CreateBookingRequest;
 import com.pawcarehub.backend.dto.booking.BookingResponse;
+import com.pawcarehub.backend.dto.booking.RescheduleBookingRequest;
 import com.pawcarehub.backend.entity.Booking;
 import com.pawcarehub.backend.entity.User;
 import com.pawcarehub.backend.repository.BookingRepository;
@@ -28,6 +29,14 @@ public class BookingService {
         return bookingRepository.findByOwnerEmailOrderByIdAsc(user.email()).stream()
             .map(booking -> toBookingResponse(booking, user.email()))
             .toList();
+    }
+
+    public BookingResponse getCurrentUserBooking(String userEmailHeader, Long bookingId) {
+        AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
+        Booking booking = bookingRepository.findByIdAndOwnerEmail(bookingId, user.email())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
+
+        return toBookingResponse(booking, user.email());
     }
 
     public BookingResponse createBooking(String userEmailHeader, CreateBookingRequest request) {
@@ -57,6 +66,26 @@ public class BookingService {
         }
 
         booking.setStatus("Cancelled");
+        Booking savedBooking = bookingRepository.save(booking);
+        return toBookingResponse(savedBooking, user.email());
+    }
+
+    public BookingResponse rescheduleBooking(String userEmailHeader, Long bookingId, RescheduleBookingRequest request) {
+        AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
+        Booking booking = bookingRepository.findByIdAndOwnerEmail(bookingId, user.email())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
+
+        if ("Cancelled".equalsIgnoreCase(booking.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cancelled bookings cannot be rescheduled");
+        }
+
+        booking.setDate(normalizeRequiredField(request.date(), "date"));
+        booking.setTime(normalizeRequiredField(request.time(), "time"));
+
+        if (StringUtils.hasText(request.staff())) {
+            booking.setStaff(request.staff().trim());
+        }
+
         Booking savedBooking = bookingRepository.save(booking);
         return toBookingResponse(savedBooking, user.email());
     }

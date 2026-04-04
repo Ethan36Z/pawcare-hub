@@ -8,6 +8,13 @@ export const bookingsApi = {
       },
     })
   },
+  detail(email, id) {
+    return http.get(`/bookings/${id}`, {
+      headers: {
+        'X-User-Email': email,
+      },
+    })
+  },
   list() {
     return http.get('/bookings')
   },
@@ -20,6 +27,13 @@ export const bookingsApi = {
   },
   cancel(email, id) {
     return http.patch(`/bookings/${id}/cancel`, null, {
+      headers: {
+        'X-User-Email': email,
+      },
+    })
+  },
+  reschedule(email, id, payload) {
+    return http.patch(`/bookings/${id}/reschedule`, payload, {
       headers: {
         'X-User-Email': email,
       },

@@ -2,6 +2,7 @@ package com.pawcarehub.backend.controller;
 
 import com.pawcarehub.backend.dto.booking.BookingResponse;
 import com.pawcarehub.backend.dto.booking.CreateBookingRequest;
+import com.pawcarehub.backend.dto.booking.RescheduleBookingRequest;
 import com.pawcarehub.backend.service.BookingService;
 import java.util.List;
 import org.springframework.http.HttpStatus;
@@ -32,6 +33,14 @@ public class BookingController {
         return bookingService.getCurrentUserBookings(userEmailHeader);
     }
 
+    @GetMapping("/{id}")
+    public BookingResponse getCurrentUserBooking(
+        @RequestHeader("X-User-Email") String userEmailHeader,
+        @PathVariable Long id
+    ) {
+        return bookingService.getCurrentUserBooking(userEmailHeader, id);
+    }
+
     @PostMapping
     public ResponseEntity<BookingResponse> createBooking(
         @RequestHeader("X-User-Email") String userEmailHeader,
@@ -47,6 +56,16 @@ public class BookingController {
         @PathVariable Long id
     ) {
         BookingResponse response = bookingService.cancelBooking(userEmailHeader, id);
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{id}/reschedule")
+    public ResponseEntity<BookingResponse> rescheduleBooking(
+        @RequestHeader("X-User-Email") String userEmailHeader,
+        @PathVariable Long id,
+        @RequestBody RescheduleBookingRequest request
+    ) {
+        BookingResponse response = bookingService.rescheduleBooking(userEmailHeader, id, request);
         return ResponseEntity.ok(response);
     }
 }

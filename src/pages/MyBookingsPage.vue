@@ -12,6 +12,19 @@ const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
 const createErrorMessage = ref('')
 const isCancellingBookingId = ref(null)
+const isDetailsDialogOpen = ref(false)
+const isLoadingDetails = ref(false)
+const detailsErrorMessage = ref('')
+const selectedBooking = ref(null)
+const isRescheduleDialogOpen = ref(false)
+const isRescheduling = ref(false)
+const rescheduleErrorMessage = ref('')
+const rescheduleBookingId = ref(null)
+const rescheduleForm = ref({
+  date: '',
+  time: '',
+  staff: '',
+})
 const createForm = ref({
   petName: '',
   service: '',
@@ -72,6 +85,17 @@ function openCreateDialog() {
   isCreateDialogOpen.value = true
 }
 
+function openRescheduleDialog(booking) {
+  rescheduleErrorMessage.value = ''
+  rescheduleBookingId.value = booking.id
+  rescheduleForm.value = {
+    date: booking.date,
+    time: booking.time,
+    staff: booking.staff,
+  }
+  isRescheduleDialogOpen.value = true
+}
+
 function resetCreateForm() {
   createForm.value = {
     petName: '',
@@ -80,6 +104,21 @@ function resetCreateForm() {
     time: '',
     status: 'Upcoming',
     clinic: 'PawCare Hub Clinic',
+    staff: '',
+  }
+}
+
+function resetSelectedBooking() {
+  selectedBooking.value = null
+  detailsErrorMessage.value = ''
+}
+
+function resetRescheduleForm() {
+  rescheduleBookingId.value = null
+  rescheduleErrorMessage.value = ''
+  rescheduleForm.value = {
+    date: '',
+    time: '',
     staff: '',
   }
 }
@@ -104,6 +143,55 @@ async function handleCreateBooking() {
   }
 }
 
+async function handleViewDetails(booking) {
+  if (!authStore.user?.email || !booking?.id) {
+    return
+  }
+
+  isDetailsDialogOpen.value = true
+  isLoadingDetails.value = true
+  detailsErrorMessage.value = ''
+  selectedBooking.value = null
+
+  try {
+    const { data } = await bookingsApi.detail(authStore.user.email, booking.id)
+    selectedBooking.value = data
+  } catch (error) {
+    detailsErrorMessage.value = getApiErrorMessage(error, 'Unable to load booking details right now.')
+  } finally {
+    isLoadingDetails.value = false
+  }
+}
+
+async function handleRescheduleBooking() {
+  if (!authStore.user?.email || !rescheduleBookingId.value) {
+    return
+  }
+
+  isRescheduling.value = true
+  rescheduleErrorMessage.value = ''
+  errorMessage.value = ''
+
+  try {
+    const { data } = await bookingsApi.reschedule(
+      authStore.user.email,
+      rescheduleBookingId.value,
+      rescheduleForm.value,
+    )
+
+    isRescheduleDialogOpen.value = false
+    await loadBookings()
+
+    if (selectedBooking.value?.id === data.id) {
+      selectedBooking.value = data
+    }
+  } catch (error) {
+    rescheduleErrorMessage.value = getApiErrorMessage(error, 'Unable to reschedule this booking right now.')
+  } finally {
+    isRescheduling.value = false
+  }
+}
+
 async function handleCancelBooking(booking) {
   if (!authStore.user?.email || !booking?.id) {
     return
@@ -120,6 +208,13 @@ async function handleCancelBooking(booking) {
   try {
     await bookingsApi.cancel(authStore.user.email, booking.id)
     await loadBookings()
+
+    if (selectedBooking.value?.id === booking.id) {
+      selectedBooking.value = {
+        ...selectedBooking.value,
+        status: 'Cancelled',
+      }
+    }
   } catch (error) {
     errorMessage.value = getApiErrorMessage(error, 'Unable to cancel this booking right now.')
   } finally {
@@ -188,8 +283,8 @@ async function handleCancelBooking(booking) {
           </div>
 
           <div class="booking-actions">
-            <el-button type="primary">View Details</el-button>
-            <el-button plain>Reschedule</el-button>
+            <el-button type="primary" @click="handleViewDetails(booking)">View Details</el-button>
+            <el-button plain @click="openRescheduleDialog(booking)">Reschedule</el-button>
             <el-button
               plain
               :loading="isCancellingBookingId === booking.id"
@@ -206,6 +301,94 @@ async function handleCancelBooking(booking) {
           <el-button type="primary" @click="openCreateDialog">Book New Visit</el-button>
         </el-empty>
       </section>
+
+      <el-dialog
+        v-model="isDetailsDialogOpen"
+        title="Booking Details"
+        width="min(560px, 92vw)"
+        @closed="resetSelectedBooking"
+      >
+        <el-alert
+          v-if="detailsErrorMessage"
+          :title="detailsErrorMessage"
+          type="error"
+          :closable="false"
+          class="create-alert"
+        />
+
+        <el-skeleton v-else-if="isLoadingDetails" :rows="6" animated />
+
+        <div v-else-if="selectedBooking" class="details-grid">
+          <div>
+            <span>Pet name</span>
+            <strong>{{ selectedBooking.petName }}</strong>
+          </div>
+          <div>
+            <span>Service</span>
+            <strong>{{ selectedBooking.service }}</strong>
+          </div>
+          <div>
+            <span>Staff</span>
+            <strong>{{ selectedBooking.staff }}</strong>
+          </div>
+          <div>
+            <span>Clinic</span>
+            <strong>{{ selectedBooking.clinic }}</strong>
+          </div>
+          <div>
+            <span>Date</span>
+            <strong>{{ selectedBooking.date }}</strong>
+          </div>
+          <div>
+            <span>Time</span>
+            <strong>{{ selectedBooking.time }}</strong>
+          </div>
+          <div>
+            <span>Status</span>
+            <el-tag :type="getStatusTagType(selectedBooking.status)" effect="plain" class="details-tag">
+              {{ selectedBooking.status }}
+            </el-tag>
+          </div>
+          <div>
+            <span>Account</span>
+            <strong>{{ selectedBooking.ownerEmail }}</strong>
+          </div>
+        </div>
+      </el-dialog>
+
+      <el-dialog
+        v-model="isRescheduleDialogOpen"
+        title="Reschedule Booking"
+        width="min(560px, 92vw)"
+        @closed="resetRescheduleForm"
+      >
+        <el-alert
+          v-if="rescheduleErrorMessage"
+          :title="rescheduleErrorMessage"
+          type="error"
+          :closable="false"
+          class="create-alert"
+        />
+
+        <el-form :model="rescheduleForm" label-position="top">
+          <el-form-item label="Date">
+            <el-input v-model="rescheduleForm.date" placeholder="e.g. May 10, 2026" />
+          </el-form-item>
+          <el-form-item label="Time">
+            <el-input v-model="rescheduleForm.time" placeholder="e.g. 10:30 AM" />
+          </el-form-item>
+          <el-form-item label="Staff">
+            <el-input v-model="rescheduleForm.staff" placeholder="Assigned staff" />
+          </el-form-item>
+        </el-form>
+
+        <template #footer>
+          <el-button @click="isRescheduleDialogOpen = false">Cancel</el-button>
+          <el-button type="primary" :loading="isRescheduling" @click="handleRescheduleBooking">
+            Save Reschedule
+          </el-button>
+        </template>
+      </el-dialog>
 
       <el-dialog
         v-model="isCreateDialogOpen"
@@ -367,17 +550,22 @@ async function handleCancelBooking(booking) {
   color: #6d7680;
 }
 
-.booking-meta {
+.booking-meta,
+.details-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
+}
+
+.booking-meta {
   margin-top: 20px;
   padding: 16px 0;
   border-top: 1px solid rgba(28, 60, 88, 0.08);
   border-bottom: 1px solid rgba(28, 60, 88, 0.08);
 }
 
-.booking-meta span {
+.booking-meta span,
+.details-grid span {
   display: block;
   color: #7a817f;
   font-size: 0.84rem;
@@ -385,7 +573,8 @@ async function handleCancelBooking(booking) {
   letter-spacing: 0.06em;
 }
 
-.booking-meta strong {
+.booking-meta strong,
+.details-grid strong {
   display: block;
   margin-top: 6px;
   color: #173047;
@@ -408,6 +597,14 @@ async function handleCancelBooking(booking) {
 
 .create-alert {
   margin-bottom: 16px;
+}
+
+.details-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.details-tag {
+  margin-top: 8px;
 }
 
 @media (max-width: 760px) {
@@ -438,7 +635,8 @@ async function handleCancelBooking(booking) {
     align-items: flex-start;
   }
 
-  .booking-meta {
+  .booking-meta,
+  .details-grid {
     grid-template-columns: 1fr;
   }
 

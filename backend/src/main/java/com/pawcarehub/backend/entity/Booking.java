@@ -82,8 +82,16 @@ public class Booking {
         return date;
     }
 
+    public void setDate(String date) {
+        this.date = date;
+    }
+
     public String getTime() {
         return time;
+    }
+
+    public void setTime(String time) {
+        this.time = time;
     }
 
     public String getStatus() {
@@ -100,6 +108,10 @@ public class Booking {
 
     public String getStaff() {
         return staff;
+    }
+
+    public void setStaff(String staff) {
+        this.staff = staff;
     }
 
     public User getOwner() {
