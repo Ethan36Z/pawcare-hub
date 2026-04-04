@@ -28,4 +28,9 @@ public class AdminBookingController {
     public AdminBookingResponse confirmBooking(@PathVariable Long id) {
         return adminBookingService.confirmBooking(id);
     }
+
+    @PatchMapping("/{id}/cancel")
+    public AdminBookingResponse cancelBooking(@PathVariable Long id) {
+        return adminBookingService.cancelBooking(id);
+    }
 }

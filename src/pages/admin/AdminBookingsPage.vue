@@ -6,6 +6,7 @@ const bookings = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 const confirmingBookingId = ref(null)
+const cancellingBookingId = ref(null)
 
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
@@ -57,6 +58,24 @@ async function handleConfirmBooking(booking) {
     errorMessage.value = getApiErrorMessage(error, 'Unable to confirm this booking right now.')
   } finally {
     confirmingBookingId.value = null
+  }
+}
+
+async function handleCancelBooking(booking) {
+  if (!booking?.id) {
+    return
+  }
+
+  cancellingBookingId.value = booking.id
+  errorMessage.value = ''
+
+  try {
+    await adminBookingsApi.cancel(booking.id)
+    await loadBookings()
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, 'Unable to cancel this booking right now.')
+  } finally {
+    cancellingBookingId.value = null
   }
 }
 
@@ -115,17 +134,28 @@ onMounted(() => {
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="Actions" min-width="150" fixed="right">
+      <el-table-column label="Actions" min-width="220" fixed="right">
         <template #default="{ row }">
-          <el-button
-            v-if="row.status !== 'Confirmed' && row.status !== 'Cancelled'"
-            plain
-            size="small"
-            :loading="confirmingBookingId === row.id"
-            @click="handleConfirmBooking(row)"
-          >
-            Confirm
-          </el-button>
+          <div class="actions-cell">
+            <el-button
+              v-if="row.status !== 'Confirmed' && row.status !== 'Cancelled'"
+              plain
+              size="small"
+              :loading="confirmingBookingId === row.id"
+              @click="handleConfirmBooking(row)"
+            >
+              Confirm
+            </el-button>
+            <el-button
+              v-if="row.status !== 'Cancelled'"
+              plain
+              size="small"
+              :loading="cancellingBookingId === row.id"
+              @click="handleCancelBooking(row)"
+            >
+              Cancel
+            </el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -158,8 +188,12 @@ onMounted(() => {
   color: var(--pc-muted);
 }
 
-.owner-cell {
+.owner-cell,
+.actions-cell {
   display: flex;
+}
+
+.owner-cell {
   flex-direction: column;
   line-height: 1.35;
 }
@@ -171,5 +205,10 @@ onMounted(() => {
 .owner-cell span {
   color: var(--pc-muted);
   word-break: break-word;
+}
+
+.actions-cell {
+  flex-wrap: wrap;
+  gap: 8px;
 }
 </style>

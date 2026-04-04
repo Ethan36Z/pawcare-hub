@@ -25,6 +25,7 @@ public class AdminBookingService {
             .toList();
     }
 
+    @Transactional
     public AdminBookingResponse confirmBooking(Long bookingId) {
         Booking booking = bookingRepository.findById(bookingId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
@@ -34,6 +35,20 @@ public class AdminBookingService {
         }
 
         booking.setStatus("Confirmed");
+        Booking savedBooking = bookingRepository.save(booking);
+        return toAdminBookingResponse(savedBooking);
+    }
+
+    @Transactional
+    public AdminBookingResponse cancelBooking(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
+
+        if ("Cancelled".equalsIgnoreCase(booking.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Booking is already cancelled");
+        }
+
+        booking.setStatus("Cancelled");
         Booking savedBooking = bookingRepository.save(booking);
         return toAdminBookingResponse(savedBooking);
     }

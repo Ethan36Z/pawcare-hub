@@ -7,4 +7,7 @@ export const adminBookingsApi = {
   confirm(id) {
     return http.patch(`/admin/bookings/${id}/confirm`)
   },
+  cancel(id) {
+    return http.patch(`/admin/bookings/${id}/cancel`)
+  },
 }
