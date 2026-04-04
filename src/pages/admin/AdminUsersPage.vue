@@ -7,6 +7,11 @@ const users = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 const router = useRouter()
+const filters = ref({
+  search: '',
+  role: '',
+  active: '',
+})
 
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
@@ -21,7 +26,11 @@ async function loadUsers() {
   errorMessage.value = ''
 
   try {
-    const { data } = await usersApi.list()
+    const { data } = await usersApi.list({
+      search: filters.value.search || undefined,
+      role: filters.value.role || undefined,
+      active: filters.value.active === '' ? undefined : filters.value.active,
+    })
     users.value = data
   } catch (error) {
     errorMessage.value = getApiErrorMessage(error, 'Unable to load users right now.')
@@ -29,6 +38,19 @@ async function loadUsers() {
   } finally {
     isLoading.value = false
   }
+}
+
+function handleApplyFilters() {
+  loadUsers()
+}
+
+function handleResetFilters() {
+  filters.value = {
+    search: '',
+    role: '',
+    active: '',
+  }
+  loadUsers()
 }
 
 onMounted(() => {
@@ -53,11 +75,49 @@ onMounted(() => {
       class="admin-page__alert"
     />
 
+    <div class="admin-filters">
+      <el-input
+        v-model="filters.search"
+        placeholder="Search by name or email"
+        clearable
+        class="admin-filters__control"
+      />
+
+      <el-select
+        v-model="filters.role"
+        placeholder="Role"
+        clearable
+        class="admin-filters__control"
+      >
+        <el-option label="Admin" value="admin" />
+        <el-option label="User" value="user" />
+      </el-select>
+
+      <el-select
+        v-model="filters.active"
+        placeholder="Status"
+        clearable
+        class="admin-filters__control"
+      >
+        <el-option label="Active" :value="true" />
+        <el-option label="Deactivated" :value="false" />
+      </el-select>
+
+      <div class="admin-filters__actions">
+        <el-button plain @click="handleApplyFilters">
+          Apply
+        </el-button>
+        <el-button @click="handleResetFilters">
+          Reset
+        </el-button>
+      </div>
+    </div>
+
     <el-skeleton v-if="isLoading" :rows="5" animated />
 
     <el-empty
       v-else-if="!users.length"
-      description="No users found yet."
+      description="No users match the current filters."
     />
 
     <el-table v-else :data="users" stripe>
@@ -103,6 +163,24 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
+.admin-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)) auto;
+  gap: 12px;
+  margin-bottom: 18px;
+  align-items: end;
+}
+
+.admin-filters__control {
+  width: 100%;
+}
+
+.admin-filters__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .admin-page h1 {
   margin-top: 0;
   margin-bottom: 8px;
@@ -111,5 +189,17 @@ onMounted(() => {
 .admin-page p {
   margin-bottom: 0;
   color: var(--pc-muted);
+}
+
+@media (max-width: 960px) {
+  .admin-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-filters {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

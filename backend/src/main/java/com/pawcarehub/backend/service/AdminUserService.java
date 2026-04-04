@@ -14,6 +14,7 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -36,8 +37,11 @@ public class AdminUserService {
     }
 
     @Transactional(readOnly = true)
-    public List<AdminUserResponse> getAllUsers() {
+    public List<AdminUserResponse> getAllUsers(String search, String role, Boolean active) {
         return userRepository.findAll().stream()
+            .filter(user -> matchesSearch(user, search))
+            .filter(user -> matchesRole(user, role))
+            .filter(user -> active == null || user.isActive() == active)
             .map(user -> new AdminUserResponse(
                 user.getId(),
                 user.getName(),
@@ -105,5 +109,27 @@ public class AdminUserService {
 
     private String resolveRole(String email) {
         return email != null && email.matches(ADMIN_EMAIL_PATTERN) ? "admin" : "user";
+    }
+
+    private boolean matchesSearch(User user, String search) {
+        if (!StringUtils.hasText(search)) {
+            return true;
+        }
+
+        String normalizedSearch = search.trim().toLowerCase();
+        return containsIgnoreCase(user.getName(), normalizedSearch)
+            || containsIgnoreCase(user.getEmail(), normalizedSearch);
+    }
+
+    private boolean matchesRole(User user, String role) {
+        if (!StringUtils.hasText(role)) {
+            return true;
+        }
+
+        return resolveRole(user.getEmail()).equalsIgnoreCase(role.trim());
+    }
+
+    private boolean containsIgnoreCase(String value, String normalizedSearch) {
+        return value != null && value.toLowerCase().contains(normalizedSearch);
     }
 }
