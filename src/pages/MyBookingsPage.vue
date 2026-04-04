@@ -284,7 +284,13 @@ async function handleCancelBooking(booking) {
 
           <div class="booking-actions">
             <el-button type="primary" @click="handleViewDetails(booking)">View Details</el-button>
-            <el-button plain @click="openRescheduleDialog(booking)">Reschedule</el-button>
+            <el-button
+              v-if="booking.status !== 'Cancelled'"
+              plain
+              @click="openRescheduleDialog(booking)"
+            >
+              Reschedule
+            </el-button>
             <el-button
               plain
               :loading="isCancellingBookingId === booking.id"
