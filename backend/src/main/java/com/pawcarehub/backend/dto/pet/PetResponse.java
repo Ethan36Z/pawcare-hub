@@ -8,6 +8,7 @@ public record PetResponse(
     String age,
     String weight,
     String note,
-    String status
+    String status,
+    String displayStatus
 ) {
 }

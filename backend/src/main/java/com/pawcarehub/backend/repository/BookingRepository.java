@@ -15,5 +15,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     boolean existsByOwnerEmailAndPetName(String ownerEmail, String petName);
 
+    boolean existsByOwnerEmailAndPetNameAndStatusIn(String ownerEmail, String petName, List<String> statuses);
+
     Optional<Booking> findByIdAndOwnerEmail(Long id, String ownerEmail);
 }

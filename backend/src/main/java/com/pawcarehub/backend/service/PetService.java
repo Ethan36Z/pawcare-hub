@@ -8,6 +8,7 @@ import com.pawcarehub.backend.entity.Pet;
 import com.pawcarehub.backend.entity.User;
 import com.pawcarehub.backend.repository.BookingRepository;
 import com.pawcarehub.backend.repository.PetRepository;
+import java.util.Arrays;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ public class PetService {
     private final AuthService authService;
     private final PetRepository petRepository;
     private final BookingRepository bookingRepository;
+    private static final List<String> UPCOMING_BOOKING_STATUSES = Arrays.asList("Upcoming", "Confirmed");
 
     public PetService(
         AuthService authService,
@@ -34,8 +36,16 @@ public class PetService {
     public List<PetResponse> getCurrentUserPets(String userEmailHeader) {
         AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
         return petRepository.findByOwnerEmailOrderByIdAsc(user.email()).stream()
-            .map(this::toPetResponse)
+            .map(pet -> toPetResponse(pet, user.email()))
             .toList();
+    }
+
+    public PetResponse getCurrentUserPet(String userEmailHeader, Long petId) {
+        AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
+        Pet pet = petRepository.findByIdAndOwnerEmail(petId, user.email())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pet not found"));
+
+        return toPetResponse(pet, user.email());
     }
 
     public PetResponse createPet(String userEmailHeader, CreatePetRequest request) {
@@ -52,7 +62,7 @@ public class PetService {
             owner
         ));
 
-        return toPetResponse(savedPet);
+        return toPetResponse(savedPet, owner.getEmail());
     }
 
     public PetResponse updatePet(String userEmailHeader, Long petId, UpdatePetRequest request) {
@@ -69,7 +79,7 @@ public class PetService {
         pet.setStatus(normalizeRequiredField(request.status(), "status"));
 
         Pet savedPet = petRepository.save(pet);
-        return toPetResponse(savedPet);
+        return toPetResponse(savedPet, user.email());
     }
 
     public void deletePet(String userEmailHeader, Long petId) {
@@ -87,7 +97,7 @@ public class PetService {
         petRepository.delete(pet);
     }
 
-    private PetResponse toPetResponse(Pet pet) {
+    private PetResponse toPetResponse(Pet pet, String ownerEmail) {
         return new PetResponse(
             pet.getId(),
             pet.getName(),
@@ -96,8 +106,23 @@ public class PetService {
             pet.getAge(),
             pet.getWeight(),
             pet.getNote(),
-            pet.getStatus()
+            pet.getStatus(),
+            resolveDisplayStatus(ownerEmail, pet)
         );
+    }
+
+    private String resolveDisplayStatus(String ownerEmail, Pet pet) {
+        boolean hasUpcomingBooking = bookingRepository.existsByOwnerEmailAndPetNameAndStatusIn(
+            ownerEmail,
+            pet.getName(),
+            UPCOMING_BOOKING_STATUSES
+        );
+
+        if (hasUpcomingBooking) {
+            return "Upcoming visit";
+        }
+
+        return pet.getStatus();
     }
 
     private String normalizeRequiredField(String value, String fieldName) {

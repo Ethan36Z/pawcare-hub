@@ -8,6 +8,13 @@ export const petsApi = {
       },
     })
   },
+  detail(email, id) {
+    return http.get(`/pets/${id}`, {
+      headers: {
+        'X-User-Email': email,
+      },
+    })
+  },
   list() {
     return http.get('/pets')
   },

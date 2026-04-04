@@ -34,6 +34,14 @@ public class PetController {
         return petService.getCurrentUserPets(userEmailHeader);
     }
 
+    @GetMapping("/{id}")
+    public PetResponse getCurrentUserPet(
+        @RequestHeader("X-User-Email") String userEmailHeader,
+        @PathVariable Long id
+    ) {
+        return petService.getCurrentUserPet(userEmailHeader, id);
+    }
+
     @PostMapping
     public ResponseEntity<PetResponse> createPet(
         @RequestHeader("X-User-Email") String userEmailHeader,

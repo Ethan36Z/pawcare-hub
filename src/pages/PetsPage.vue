@@ -16,6 +16,10 @@ const isEditDialogOpen = ref(false)
 const isEditing = ref(false)
 const editErrorMessage = ref('')
 const editingPetId = ref(null)
+const isProfileDialogOpen = ref(false)
+const isLoadingProfile = ref(false)
+const profileErrorMessage = ref('')
+const selectedPet = ref(null)
 const isDeletingPetId = ref(null)
 const createForm = ref({
   name: '',
@@ -38,6 +42,22 @@ const editForm = ref({
 
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
+}
+
+function getPetStatusTagType(status) {
+  if (status === 'Upcoming visit') {
+    return 'primary'
+  }
+
+  if (status === 'Healthy') {
+    return 'success'
+  }
+
+  if (status === 'Needs attention') {
+    return 'warning'
+  }
+
+  return 'info'
 }
 
 const ownerName = computed(() => authStore.user?.fullName || 'your pets')
@@ -112,6 +132,11 @@ function resetEditForm() {
   }
 }
 
+function resetSelectedPet() {
+  selectedPet.value = null
+  profileErrorMessage.value = ''
+}
+
 async function handleCreatePet() {
   if (!authStore.user?.email) {
     return
@@ -132,6 +157,26 @@ async function handleCreatePet() {
   }
 }
 
+async function handleViewProfile(pet) {
+  if (!authStore.user?.email || !pet?.id) {
+    return
+  }
+
+  isProfileDialogOpen.value = true
+  isLoadingProfile.value = true
+  profileErrorMessage.value = ''
+  selectedPet.value = null
+
+  try {
+    const { data } = await petsApi.detail(authStore.user.email, pet.id)
+    selectedPet.value = data
+  } catch (error) {
+    profileErrorMessage.value = getApiErrorMessage(error, 'Unable to load this pet profile right now.')
+  } finally {
+    isLoadingProfile.value = false
+  }
+}
+
 async function handleEditPet() {
   if (!authStore.user?.email || !editingPetId.value) {
     return
@@ -142,9 +187,13 @@ async function handleEditPet() {
   errorMessage.value = ''
 
   try {
-    await petsApi.update(authStore.user.email, editingPetId.value, editForm.value)
+    const { data } = await petsApi.update(authStore.user.email, editingPetId.value, editForm.value)
     isEditDialogOpen.value = false
     await loadPets()
+
+    if (selectedPet.value?.id === data.id) {
+      selectedPet.value = data
+    }
   } catch (error) {
     editErrorMessage.value = getApiErrorMessage(error, 'Unable to update this pet right now.')
   } finally {
@@ -168,6 +217,11 @@ async function handleDeletePet(pet) {
   try {
     await petsApi.remove(authStore.user.email, pet.id)
     await loadPets()
+
+    if (selectedPet.value?.id === pet.id) {
+      isProfileDialogOpen.value = false
+      resetSelectedPet()
+    }
   } catch (error) {
     errorMessage.value = getApiErrorMessage(
       error,
@@ -218,7 +272,9 @@ async function handleDeletePet(pet) {
               <h2>{{ pet.name }}</h2>
               <p class="pet-subtitle">{{ pet.species }} | {{ pet.breed }}</p>
             </div>
-            <el-tag effect="plain">{{ pet.status }}</el-tag>
+            <el-tag :type="getPetStatusTagType(pet.displayStatus)" effect="plain">
+              {{ pet.displayStatus }}
+            </el-tag>
           </div>
 
           <div class="pet-details">
@@ -238,7 +294,7 @@ async function handleDeletePet(pet) {
           </div>
 
           <div class="pet-actions">
-            <el-button type="primary">View Profile</el-button>
+            <el-button type="primary" @click="handleViewProfile(pet)">View Profile</el-button>
             <el-button plain @click="openEditDialog(pet)">Edit</el-button>
             <el-button
               plain
@@ -256,6 +312,54 @@ async function handleDeletePet(pet) {
           <el-button type="primary" @click="openCreateDialog">Add Pet</el-button>
         </el-empty>
       </section>
+
+      <el-dialog
+        v-model="isProfileDialogOpen"
+        title="Pet Profile"
+        width="min(560px, 92vw)"
+        @closed="resetSelectedPet"
+      >
+        <el-alert
+          v-if="profileErrorMessage"
+          :title="profileErrorMessage"
+          type="error"
+          :closable="false"
+          class="create-alert"
+        />
+
+        <el-skeleton v-else-if="isLoadingProfile" :rows="6" animated />
+
+        <div v-else-if="selectedPet" class="profile-grid">
+          <div>
+            <span>Name</span>
+            <strong>{{ selectedPet.name }}</strong>
+          </div>
+          <div>
+            <span>Current status</span>
+            <strong>{{ selectedPet.displayStatus }}</strong>
+          </div>
+          <div>
+            <span>Species</span>
+            <strong>{{ selectedPet.species }}</strong>
+          </div>
+          <div>
+            <span>Breed</span>
+            <strong>{{ selectedPet.breed }}</strong>
+          </div>
+          <div>
+            <span>Age</span>
+            <strong>{{ selectedPet.age }}</strong>
+          </div>
+          <div>
+            <span>Weight</span>
+            <strong>{{ selectedPet.weight }}</strong>
+          </div>
+          <div class="profile-grid__note">
+            <span>Care note</span>
+            <p>{{ selectedPet.note }}</p>
+          </div>
+        </div>
+      </el-dialog>
 
       <el-dialog
         v-model="isEditDialogOpen"
@@ -473,10 +577,14 @@ async function handleDeletePet(pet) {
   color: #6d7680;
 }
 
-.pet-details {
+.pet-details,
+.profile-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+
+.pet-details {
   margin-top: 20px;
   padding: 16px 0;
   border-top: 1px solid rgba(28, 60, 88, 0.08);
@@ -484,7 +592,8 @@ async function handleDeletePet(pet) {
 }
 
 .pet-details span,
-.pet-note span {
+.pet-note span,
+.profile-grid span {
   display: block;
   color: #7a817f;
   font-size: 0.84rem;
@@ -492,7 +601,8 @@ async function handleDeletePet(pet) {
   letter-spacing: 0.06em;
 }
 
-.pet-details strong {
+.pet-details strong,
+.profile-grid strong {
   display: block;
   margin-top: 6px;
   color: #173047;
@@ -503,10 +613,15 @@ async function handleDeletePet(pet) {
   margin-top: 18px;
 }
 
-.pet-note p {
+.pet-note p,
+.profile-grid__note p {
   margin: 10px 0 0;
   color: #5f7484;
   line-height: 1.7;
+}
+
+.profile-grid__note {
+  grid-column: 1 / -1;
 }
 
 .pet-actions {
@@ -562,6 +677,10 @@ async function handleDeletePet(pet) {
 
   .pet-actions :deep(.el-button) {
     width: 100%;
+  }
+
+  .profile-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
