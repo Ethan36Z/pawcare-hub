@@ -24,12 +24,21 @@ const editForm = reactive({
   contactMethod: '',
 })
 
+const passwordForm = reactive({
+  currentPassword: '',
+  newPassword: '',
+  confirmNewPassword: '',
+})
+
 const contactOptions = ['Email', 'Text message', 'Phone call']
 
 const isLoading = ref(false)
 const isSavingProfile = ref(false)
 const isSavingPreferences = ref(false)
+const isChangingPassword = ref(false)
 const isEditDialogOpen = ref(false)
+const isPasswordDialogOpen = ref(false)
+const passwordErrorMessage = ref('')
 const errorMessage = ref('')
 const successMessage = ref('')
 
@@ -59,6 +68,13 @@ function resetEditForm() {
   editForm.contactMethod = profile.contactMethod
 }
 
+function resetPasswordForm() {
+  passwordForm.currentPassword = ''
+  passwordForm.newPassword = ''
+  passwordForm.confirmNewPassword = ''
+  passwordErrorMessage.value = ''
+}
+
 async function loadProfile() {
   if (!authStore.user?.email) {
     return
@@ -85,6 +101,12 @@ function openEditDialog() {
   successMessage.value = ''
   resetEditForm()
   isEditDialogOpen.value = true
+}
+
+function openPasswordDialog() {
+  successMessage.value = ''
+  resetPasswordForm()
+  isPasswordDialogOpen.value = true
 }
 
 async function handleSaveProfile() {
@@ -139,6 +161,38 @@ async function handleSavePreferences() {
     errorMessage.value = getApiErrorMessage(error, 'Unable to save your preferences right now.')
   } finally {
     isSavingPreferences.value = false
+  }
+}
+
+async function handleChangePassword() {
+  if (!authStore.user?.email) {
+    return
+  }
+
+  passwordErrorMessage.value = ''
+  errorMessage.value = ''
+  successMessage.value = ''
+
+  if (passwordForm.newPassword !== passwordForm.confirmNewPassword) {
+    passwordErrorMessage.value = 'New passwords do not match.'
+    return
+  }
+
+  isChangingPassword.value = true
+
+  try {
+    await authApi.changePassword(authStore.user.email, {
+      currentPassword: passwordForm.currentPassword,
+      newPassword: passwordForm.newPassword,
+    })
+
+    isPasswordDialogOpen.value = false
+    resetPasswordForm()
+    successMessage.value = 'Password updated successfully.'
+  } catch (error) {
+    passwordErrorMessage.value = getApiErrorMessage(error, 'Unable to change your password right now.')
+  } finally {
+    isChangingPassword.value = false
   }
 }
 
@@ -272,7 +326,7 @@ function handleLogout() {
                 <strong>Change password</strong>
                 <p>Update your sign-in password for better account security.</p>
               </div>
-              <el-button plain>Change Password</el-button>
+              <el-button plain @click="openPasswordDialog">Change Password</el-button>
             </div>
 
             <div class="action-row">
@@ -323,6 +377,55 @@ function handleLogout() {
           <el-button @click="isEditDialogOpen = false">Cancel</el-button>
           <el-button type="primary" :loading="isSavingProfile" @click="handleSaveProfile">
             Save Changes
+          </el-button>
+        </template>
+      </el-dialog>
+
+      <el-dialog
+        v-model="isPasswordDialogOpen"
+        title="Change Password"
+        width="min(560px, 92vw)"
+        @closed="resetPasswordForm"
+      >
+        <el-alert
+          v-if="passwordErrorMessage"
+          :title="passwordErrorMessage"
+          type="error"
+          :closable="false"
+          class="password-alert"
+        />
+
+        <el-form label-position="top">
+          <el-form-item label="Current password">
+            <el-input
+              v-model="passwordForm.currentPassword"
+              type="password"
+              show-password
+              placeholder="Enter your current password"
+            />
+          </el-form-item>
+          <el-form-item label="New password">
+            <el-input
+              v-model="passwordForm.newPassword"
+              type="password"
+              show-password
+              placeholder="Enter a new password"
+            />
+          </el-form-item>
+          <el-form-item label="Confirm new password">
+            <el-input
+              v-model="passwordForm.confirmNewPassword"
+              type="password"
+              show-password
+              placeholder="Re-enter your new password"
+            />
+          </el-form-item>
+        </el-form>
+
+        <template #footer>
+          <el-button @click="isPasswordDialogOpen = false">Cancel</el-button>
+          <el-button type="primary" :loading="isChangingPassword" @click="handleChangePassword">
+            Update Password
           </el-button>
         </template>
       </el-dialog>
@@ -502,6 +605,10 @@ function handleLogout() {
 
 .preferences-actions {
   padding-top: 8px;
+}
+
+.password-alert {
+  margin-bottom: 16px;
 }
 
 .settings-card :deep(.el-button--primary) {

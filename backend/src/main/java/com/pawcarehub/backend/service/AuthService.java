@@ -2,6 +2,7 @@ package com.pawcarehub.backend.service;
 
 import com.pawcarehub.backend.dto.auth.AuthenticatedUser;
 import com.pawcarehub.backend.dto.auth.AuthResponse;
+import com.pawcarehub.backend.dto.auth.ChangePasswordRequest;
 import com.pawcarehub.backend.dto.auth.LoginRequest;
 import com.pawcarehub.backend.dto.auth.RegisterRequest;
 import com.pawcarehub.backend.dto.auth.UpdateUserProfileRequest;
@@ -84,6 +85,26 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
         return toUserProfileResponse(savedUser);
+    }
+
+    public void changePassword(String userEmailHeader, ChangePasswordRequest request) {
+        User user = getAuthenticatedUserEntity(userEmailHeader);
+        String currentPassword = normalizeRequiredField(request.currentPassword(), "currentPassword");
+        String newPassword = normalizeRequiredField(request.newPassword(), "newPassword");
+
+        if (!passwordMatches(user, currentPassword)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Current password is incorrect");
+        }
+
+        if (currentPassword.equals(newPassword)) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "New password must be different from the current password"
+            );
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
     }
 
     public User getAuthenticatedUserEntity(String email) {

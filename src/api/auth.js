@@ -21,4 +21,11 @@ export const authApi = {
       },
     })
   },
+  changePassword(email, payload) {
+    return http.patch('/auth/change-password', payload, {
+      headers: {
+        'X-User-Email': email,
+      },
+    })
+  },
 }

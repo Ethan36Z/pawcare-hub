@@ -1,6 +1,7 @@
 package com.pawcarehub.backend.controller;
 
 import com.pawcarehub.backend.dto.auth.AuthResponse;
+import com.pawcarehub.backend.dto.auth.ChangePasswordRequest;
 import com.pawcarehub.backend.dto.auth.LoginRequest;
 import com.pawcarehub.backend.dto.auth.RegisterRequest;
 import com.pawcarehub.backend.dto.auth.UpdateUserProfileRequest;
@@ -52,5 +53,14 @@ public class AuthController {
     ) {
         UserProfileResponse response = authService.updateProfile(userEmailHeader, request);
         return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/change-password")
+    public ResponseEntity<Void> changePassword(
+        @RequestHeader("X-User-Email") String userEmailHeader,
+        @RequestBody ChangePasswordRequest request
+    ) {
+        authService.changePassword(userEmailHeader, request);
+        return ResponseEntity.noContent().build();
     }
 }
