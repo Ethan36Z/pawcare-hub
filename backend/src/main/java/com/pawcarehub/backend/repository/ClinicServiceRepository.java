@@ -16,4 +16,6 @@ public interface ClinicServiceRepository extends JpaRepository<ClinicService, Lo
     List<ClinicService> findAllByOrderByCategoryAscNameAsc();
 
     Optional<ClinicService> findByIdAndActiveTrue(Long id);
+
+    long countByActiveTrue();
 }

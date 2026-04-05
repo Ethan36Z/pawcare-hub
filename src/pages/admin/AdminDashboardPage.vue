@@ -1,15 +1,16 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import FeatureCard from '@/components/common/FeatureCard.vue'
 import { adminDashboardApi } from '@/api/adminDashboard'
 
 const stats = ref({
   totalUsers: 0,
-  totalPets: 0,
+  petRecords: 0,
+  activeStaff: 0,
+  activeServices: 0,
   totalBookings: 0,
-  totalServices: 0,
-  confirmedBookings: 0,
-  cancelledBookings: 0,
+  bookingsByStatus: [],
+  upcomingBookings: [],
+  recentCompletedVisits: [],
 })
 const isLoading = ref(false)
 const errorMessage = ref('')
@@ -18,20 +19,54 @@ function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
 }
 
-const metrics = computed(() => [
+function getStatusTagType(status) {
+  if (status === 'Completed' || status === 'Confirmed') {
+    return 'success'
+  }
+
+  if (status === 'Upcoming') {
+    return 'primary'
+  }
+
+  if (status === 'Cancelled') {
+    return 'danger'
+  }
+
+  return 'info'
+}
+
+const summaryCards = computed(() => [
   {
-    title: 'Clinic overview',
-    description: `${stats.value.totalUsers} users, ${stats.value.totalPets} pets, and ${stats.value.totalServices} services are currently stored in the database.`,
+    label: 'Total users',
+    value: stats.value.totalUsers,
+    hint: 'Registered client accounts',
   },
   {
-    title: 'Booking queue',
-    description: `${stats.value.totalBookings} total bookings, with ${stats.value.confirmedBookings} confirmed and ${stats.value.cancelledBookings} cancelled appointments.`,
+    label: 'Pet records',
+    value: stats.value.petRecords,
+    hint: 'Pets tracked in the clinic system',
   },
   {
-    title: 'Team workflow',
-    description: `The admin workspace is now pulling real summary totals from the live database instead of placeholder dashboard copy.`,
+    label: 'Active staff',
+    value: stats.value.activeStaff,
+    hint: 'Currently bookable team members',
+  },
+  {
+    label: 'Active services',
+    value: stats.value.activeServices,
+    hint: 'Services available for booking',
   },
 ])
+
+const maxStatusCount = computed(() => {
+  const counts = stats.value.bookingsByStatus.map((item) => item.count)
+  return counts.length ? Math.max(...counts, 1) : 1
+})
+
+const statusChartItems = computed(() => stats.value.bookingsByStatus.map((item) => ({
+  ...item,
+  percentage: `${Math.max((item.count / maxStatusCount.value) * 100, item.count ? 14 : 0)}%`,
+})))
 
 async function loadStats() {
   isLoading.value = true
@@ -53,11 +88,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <div>
+  <div class="dashboard-page">
     <div class="admin-hero">
       <p>Admin workspace</p>
       <h1>Dashboard</h1>
-      <span>Live operational totals from the MySQL-backed PawCare Hub database.</span>
+      <span>Live operational activity from the real PawCare Hub system.</span>
     </div>
 
     <el-alert
@@ -68,32 +103,159 @@ onMounted(() => {
       class="admin-alert"
     />
 
-    <section v-if="isLoading" class="admin-grid">
+    <section v-if="isLoading" class="summary-grid">
       <article
-        v-for="index in 3"
+        v-for="index in 4"
         :key="index"
-        class="admin-skeleton-card"
+        class="dashboard-skeleton-card"
       >
         <el-skeleton :rows="3" animated />
       </article>
     </section>
 
-    <section v-else class="admin-grid">
-      <FeatureCard
-        v-for="metric in metrics"
-        :key="metric.title"
-        :title="metric.title"
-        :description="metric.description"
-      />
-    </section>
+    <template v-else>
+      <section class="summary-grid">
+        <article
+          v-for="card in summaryCards"
+          :key="card.label"
+          class="summary-card"
+        >
+          <span>{{ card.label }}</span>
+          <strong>{{ card.value }}</strong>
+          <p>{{ card.hint }}</p>
+        </article>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="dashboard-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Booking Status Mix</h2>
+              <p>Quick view of how appointments are moving through the clinic workflow.</p>
+            </div>
+            <strong>{{ stats.totalBookings }} total</strong>
+          </div>
+
+          <div class="status-chart">
+            <div
+              v-for="item in statusChartItems"
+              :key="item.status"
+              class="status-chart__row"
+            >
+              <div class="status-chart__label">
+                <span>{{ item.status }}</span>
+                <strong>{{ item.count }}</strong>
+              </div>
+              <div class="status-chart__track">
+                <div
+                  class="status-chart__bar"
+                  :class="`status-chart__bar--${item.status.toLowerCase()}`"
+                  :style="{ width: item.percentage }"
+                />
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="dashboard-panel">
+          <div class="panel-header">
+            <div>
+              <h2>System Snapshot</h2>
+              <p>Practical operating totals from the current database-backed environment.</p>
+            </div>
+          </div>
+
+          <div class="snapshot-grid">
+            <div class="snapshot-card">
+              <span>Booking-ready resources</span>
+              <strong>{{ stats.activeStaff + stats.activeServices }}</strong>
+              <p>{{ stats.activeStaff }} staff and {{ stats.activeServices }} services are currently active.</p>
+            </div>
+            <div class="snapshot-card">
+              <span>Client + pet base</span>
+              <strong>{{ stats.totalUsers + stats.petRecords }}</strong>
+              <p>{{ stats.totalUsers }} user accounts are managing {{ stats.petRecords }} pet records.</p>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="dashboard-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Upcoming Bookings</h2>
+              <p>Latest upcoming or confirmed visits that still need clinic attention.</p>
+            </div>
+          </div>
+
+          <div v-if="stats.upcomingBookings.length" class="activity-list">
+            <div
+              v-for="booking in stats.upcomingBookings"
+              :key="booking.id"
+              class="activity-row"
+            >
+              <div>
+                <strong>{{ booking.petName }} · {{ booking.service }}</strong>
+                <p>{{ booking.date }} at {{ booking.time }} · {{ booking.ownerName }}</p>
+              </div>
+              <div class="activity-row__meta">
+                <span>{{ booking.staff }}</span>
+                <el-tag :type="getStatusTagType(booking.status)" effect="plain">
+                  {{ booking.status }}
+                </el-tag>
+              </div>
+            </div>
+          </div>
+          <el-empty v-else description="No upcoming bookings to highlight right now." />
+        </article>
+
+        <article class="dashboard-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Recent Completed Visits</h2>
+              <p>Most recent visits marked complete in the clinic workflow.</p>
+            </div>
+          </div>
+
+          <div v-if="stats.recentCompletedVisits.length" class="activity-list">
+            <div
+              v-for="booking in stats.recentCompletedVisits"
+              :key="booking.id"
+              class="activity-row"
+            >
+              <div>
+                <strong>{{ booking.petName }} · {{ booking.service }}</strong>
+                <p>{{ booking.date }} at {{ booking.time }} · {{ booking.ownerName }}</p>
+              </div>
+              <div class="activity-row__meta">
+                <span>{{ booking.staff }}</span>
+                <el-tag type="success" effect="plain">
+                  Completed
+                </el-tag>
+              </div>
+            </div>
+          </div>
+          <el-empty v-else description="No completed visits yet." />
+        </article>
+      </section>
+    </template>
   </div>
 </template>
 
 <style scoped>
+.dashboard-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
 .admin-hero {
   padding: 28px;
   border-radius: 28px;
-  background: linear-gradient(135deg, #1f4d7c 0%, #0e7490 100%);
+  background:
+    radial-gradient(circle at top right, rgba(255, 224, 164, 0.2), transparent 30%),
+    linear-gradient(135deg, #1f4d7c 0%, #0e7490 100%);
   color: white;
 }
 
@@ -108,21 +270,194 @@ onMounted(() => {
 }
 
 .admin-alert {
-  margin-top: 18px;
+  margin-top: -4px;
 }
 
-.admin-grid {
+.summary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 18px;
-  margin-top: 24px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
 }
 
-.admin-skeleton-card {
-  padding: 22px;
-  border-radius: 22px;
-  background: var(--pc-surface);
+.summary-card,
+.dashboard-skeleton-card,
+.dashboard-panel {
   border: 1px solid var(--pc-border);
+  border-radius: 24px;
+  background: white;
   box-shadow: var(--pc-shadow);
+}
+
+.summary-card,
+.dashboard-skeleton-card {
+  padding: 22px;
+}
+
+.summary-card span,
+.snapshot-card span {
+  display: block;
+  color: var(--pc-muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.summary-card strong,
+.snapshot-card strong {
+  display: block;
+  margin-top: 10px;
+  color: var(--pc-text);
+  font-size: clamp(1.8rem, 3vw, 2.3rem);
+  line-height: 1;
+}
+
+.summary-card p,
+.snapshot-card p,
+.panel-header p,
+.activity-row p {
+  margin: 10px 0 0;
+  color: var(--pc-muted);
+  line-height: 1.6;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.dashboard-panel {
+  padding: 22px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.panel-header h2 {
+  margin: 0;
+  color: var(--pc-text);
+}
+
+.panel-header strong {
+  color: #1f4d7c;
+}
+
+.status-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.status-chart__row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.status-chart__label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--pc-text);
+}
+
+.status-chart__track {
+  height: 12px;
+  border-radius: 999px;
+  background: #edf2f7;
+  overflow: hidden;
+}
+
+.status-chart__bar {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.status-chart__bar--upcoming {
+  background: linear-gradient(90deg, #5da9e9 0%, #3d7bd9 100%);
+}
+
+.status-chart__bar--confirmed {
+  background: linear-gradient(90deg, #5bbf8a 0%, #2f9a68 100%);
+}
+
+.status-chart__bar--completed {
+  background: linear-gradient(90deg, #3f725d 0%, #2b5444 100%);
+}
+
+.status-chart__bar--cancelled {
+  background: linear-gradient(90deg, #f28a8a 0%, #d95d5d 100%);
+}
+
+.snapshot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.snapshot-card {
+  padding: 18px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #f8fbff 0%, #f4f8fb 100%);
+  border: 1px solid rgba(31, 77, 124, 0.08);
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.activity-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(248, 251, 255, 0.82);
+  border: 1px solid rgba(31, 77, 124, 0.08);
+}
+
+.activity-row strong {
+  color: var(--pc-text);
+}
+
+.activity-row__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  text-align: right;
+  color: var(--pc-muted);
+}
+
+@media (max-width: 1100px) {
+  .summary-grid,
+  .dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .summary-grid,
+  .dashboard-grid,
+  .snapshot-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-header,
+  .activity-row {
+    flex-direction: column;
+  }
+
+  .activity-row__meta {
+    align-items: flex-start;
+    text-align: left;
+  }
 }
 </style>

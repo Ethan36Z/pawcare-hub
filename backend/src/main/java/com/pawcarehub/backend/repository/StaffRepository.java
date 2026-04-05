@@ -18,4 +18,6 @@ public interface StaffRepository extends JpaRepository<Staff, Long> {
     boolean existsByNameIgnoreCaseAndRoleIgnoreCase(String name, String role);
 
     boolean existsByNameIgnoreCaseAndRoleIgnoreCaseAndIdNot(String name, String role, Long id);
+
+    long countByActiveTrue();
 }

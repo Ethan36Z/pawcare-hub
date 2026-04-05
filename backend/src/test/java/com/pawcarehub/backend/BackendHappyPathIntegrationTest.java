@@ -639,6 +639,81 @@ class BackendHappyPathIntegrationTest {
     }
 
     @Test
+    void adminDashboardReturnsRicherOperationalStats() throws Exception {
+        registerUser("jamie@example.com");
+
+        mockMvc.perform(post("/api/pets")
+                .header("X-User-Email", "jamie@example.com")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "name": "Milo",
+                      "species": "Dog",
+                      "breed": "Corgi",
+                      "age": "3 years",
+                      "weight": "28 lbs",
+                      "note": "Friendly during checkups",
+                      "sex": "Male",
+                      "color": "Golden and white",
+                      "microchipNumber": "MC-1001",
+                      "allergies": "None reported",
+                      "status": "Healthy"
+                    }
+                    """))
+            .andExpect(status().isCreated());
+
+        ClinicService service = clinicServiceRepository.findByActiveTrueOrderByCategoryAscNameAsc().stream()
+            .findFirst()
+            .orElseThrow();
+        Staff staff = staffRepository.findByActiveTrueOrderByNameAsc().stream()
+            .findFirst()
+            .orElseThrow();
+
+        MvcResult bookingResult = mockMvc.perform(post("/api/bookings")
+                .header("X-User-Email", "jamie@example.com")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "petName": "Milo",
+                      "serviceId": %d,
+                      "service": "%s",
+                      "date": "May 10, 2026",
+                      "time": "10:30 AM",
+                      "status": "Confirmed",
+                      "clinic": "PawCare Hub Clinic",
+                      "staffId": %d,
+                      "staff": "%s"
+                    }
+                    """.formatted(service.getId(), service.getName(), staff.getId(), staff.getName())))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        long bookingId = objectMapper.readTree(bookingResult.getResponse().getContentAsString()).get("id").asLong();
+
+        mockMvc.perform(patch("/api/admin/bookings/{id}/complete", bookingId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "visitSummary": "Routine check completed successfully.",
+                      "diagnosisAssessment": "Stable condition.",
+                      "treatmentRecommendation": "Continue current care plan.",
+                      "followUpNote": "Book another wellness exam in six months."
+                    }
+                    """))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/admin/dashboard/stats"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalUsers").value(1))
+            .andExpect(jsonPath("$.petRecords").value(3))
+            .andExpect(jsonPath("$.activeStaff").isNumber())
+            .andExpect(jsonPath("$.activeServices").isNumber())
+            .andExpect(jsonPath("$.bookingsByStatus[?(@.status=='Completed')].count").value(org.hamcrest.Matchers.hasItem(1)))
+            .andExpect(jsonPath("$.recentCompletedVisits[0].id").value(bookingId))
+            .andExpect(jsonPath("$.upcomingBookings").isArray());
+    }
+
+    @Test
     void adminCanToggleStaffActiveState() throws Exception {
         Staff staff = staffRepository.findByActiveTrueOrderByNameAsc().stream()
             .findFirst()
