@@ -6,9 +6,11 @@ import com.pawcarehub.backend.dto.booking.CreateBookingRequest;
 import com.pawcarehub.backend.dto.booking.RescheduleBookingRequest;
 import com.pawcarehub.backend.entity.Booking;
 import com.pawcarehub.backend.entity.ClinicService;
+import com.pawcarehub.backend.entity.Staff;
 import com.pawcarehub.backend.entity.User;
 import com.pawcarehub.backend.repository.BookingRepository;
 import com.pawcarehub.backend.repository.ClinicServiceRepository;
+import com.pawcarehub.backend.repository.StaffRepository;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -22,15 +24,18 @@ public class BookingService {
     private final AuthService authService;
     private final BookingRepository bookingRepository;
     private final ClinicServiceRepository clinicServiceRepository;
+    private final StaffRepository staffRepository;
 
     public BookingService(
         AuthService authService,
         BookingRepository bookingRepository,
-        ClinicServiceRepository clinicServiceRepository
+        ClinicServiceRepository clinicServiceRepository,
+        StaffRepository staffRepository
     ) {
         this.authService = authService;
         this.bookingRepository = bookingRepository;
         this.clinicServiceRepository = clinicServiceRepository;
+        this.staffRepository = staffRepository;
     }
 
     @Transactional(readOnly = true)
@@ -54,7 +59,9 @@ public class BookingService {
     public BookingResponse createBooking(String userEmailHeader, CreateBookingRequest request) {
         User owner = authService.getAuthenticatedUserEntity(userEmailHeader);
         ClinicService serviceRecord = resolveServiceRecord(request.serviceId());
+        Staff staffRecord = resolveStaffRecord(request.staffId(), request.staff());
         String serviceName = resolveServiceName(request, serviceRecord);
+        String staffName = resolveStaffName(request, staffRecord);
 
         Booking savedBooking = bookingRepository.save(new Booking(
             normalizeRequiredField(request.petName(), "petName"),
@@ -63,8 +70,9 @@ public class BookingService {
             normalizeRequiredField(request.time(), "time"),
             normalizeRequiredField(request.status(), "status"),
             normalizeRequiredField(request.clinic(), "clinic"),
-            normalizeRequiredField(request.staff(), "staff"),
+            staffName,
             serviceRecord,
+            staffRecord,
             owner
         ));
 
@@ -100,7 +108,9 @@ public class BookingService {
         booking.setTime(normalizeRequiredField(request.time(), "time"));
 
         if (StringUtils.hasText(request.staff())) {
-            booking.setStaff(request.staff().trim());
+            Staff staffRecord = resolveStaffRecord(null, request.staff());
+            booking.setStaff(resolveStaffName(request.staff(), staffRecord));
+            booking.setStaffRecord(staffRecord);
         }
 
         Booking savedBooking = bookingRepository.save(booking);
@@ -117,7 +127,8 @@ public class BookingService {
             booking.getTime(),
             booking.getStatus(),
             booking.getClinic(),
-            booking.getStaff(),
+            booking.getStaffRecord() != null ? booking.getStaffRecord().getId() : null,
+            booking.getResolvedStaffName(),
             ownerEmail
         );
     }
@@ -137,6 +148,31 @@ public class BookingService {
         }
 
         return normalizeRequiredField(request.service(), "service");
+    }
+
+    private Staff resolveStaffRecord(Long staffId, String staffName) {
+        if (staffId != null) {
+            return staffRepository.findByIdAndActiveTrue(staffId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selected staff member is not available"));
+        }
+
+        if (!StringUtils.hasText(staffName)) {
+            return null;
+        }
+
+        return staffRepository.findFirstByNameIgnoreCaseAndActiveTrue(staffName.trim()).orElse(null);
+    }
+
+    private String resolveStaffName(CreateBookingRequest request, Staff staffRecord) {
+        return resolveStaffName(request.staff(), staffRecord);
+    }
+
+    private String resolveStaffName(String staffName, Staff staffRecord) {
+        if (staffRecord != null) {
+            return staffRecord.getName();
+        }
+
+        return normalizeRequiredField(staffName, "staff");
     }
 
     private String normalizeRequiredField(String value, String fieldName) {

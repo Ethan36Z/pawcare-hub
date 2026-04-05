@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { bookingsApi } from '@/api/bookings'
 import { servicesApi } from '@/api/services'
+import { staffApi } from '@/api/staff'
 import PageContainer from '@/components/common/PageContainer.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRoute, useRouter } from 'vue-router'
@@ -16,6 +17,7 @@ const isCreateDialogOpen = ref(false)
 const isCreating = ref(false)
 const createErrorMessage = ref('')
 const services = ref([])
+const staffRecords = ref([])
 const isCancellingBookingId = ref(null)
 const isDetailsDialogOpen = ref(false)
 const isLoadingDetails = ref(false)
@@ -38,9 +40,14 @@ const createForm = ref({
   time: '',
   status: 'Upcoming',
   clinic: 'PawCare Hub Clinic',
+  staffId: null,
   staff: '',
 })
 const ownerName = computed(() => authStore.user?.fullName || 'your account')
+const staffOptions = computed(() => staffRecords.value.map((staff) => ({
+  label: `${staff.name} - ${staff.role}`,
+  value: staff.id,
+})))
 const serviceOptions = computed(() => services.value.map((service) => ({
   label: `${service.name} · ${service.category}`,
   value: service.id,
@@ -96,8 +103,19 @@ async function loadServices() {
   }
 }
 
+async function loadStaff() {
+  try {
+    const { data } = await staffApi.list()
+    staffRecords.value = data
+    applyDefaultStaffSelection()
+  } catch {
+    staffRecords.value = []
+  }
+}
+
 function openCreateDialog() {
   createErrorMessage.value = ''
+  applyDefaultStaffSelection()
   isCreateDialogOpen.value = true
 }
 
@@ -118,6 +136,7 @@ function openCreateDialogForService(serviceId) {
     serviceId: normalizedServiceId,
     service: selectedService.name,
   }
+  applyDefaultStaffSelection()
   isCreateDialogOpen.value = true
 }
 
@@ -141,7 +160,21 @@ function resetCreateForm() {
     time: '',
     status: 'Upcoming',
     clinic: 'PawCare Hub Clinic',
+    staffId: null,
     staff: '',
+  }
+}
+
+function applyDefaultStaffSelection() {
+  if (createForm.value.staffId || !staffRecords.value.length) {
+    return
+  }
+
+  const defaultStaff = staffRecords.value[0]
+  createForm.value = {
+    ...createForm.value,
+    staffId: defaultStaff.id,
+    staff: defaultStaff.name,
   }
 }
 
@@ -185,16 +218,23 @@ async function handleCreateBooking() {
     return
   }
 
+  if (!createForm.value.staffId && staffRecords.value.length) {
+    applyDefaultStaffSelection()
+  }
+
   isCreating.value = true
   createErrorMessage.value = ''
 
   try {
     const selectedService = services.value.find((service) => service.id === createForm.value.serviceId)
+    const selectedStaff = staffRecords.value.find((staff) => staff.id === createForm.value.staffId)
 
     await bookingsApi.create(authStore.user.email, {
       ...createForm.value,
       serviceId: createForm.value.serviceId,
       service: selectedService?.name || createForm.value.service,
+      staffId: createForm.value.staffId,
+      staff: selectedStaff?.name || createForm.value.staff,
     })
     isCreateDialogOpen.value = false
     resetCreateForm()
@@ -295,6 +335,7 @@ watch(
 onMounted(() => {
   loadBookings()
   loadServices()
+  loadStaff()
 })
 </script>
 
@@ -510,14 +551,23 @@ onMounted(() => {
           <el-form-item label="Time">
             <el-input v-model="createForm.time" placeholder="e.g. 10:30 AM" />
           </el-form-item>
-          <el-form-item label="Status">
-            <el-input v-model="createForm.status" placeholder="Upcoming" />
-          </el-form-item>
           <el-form-item label="Clinic">
             <el-input v-model="createForm.clinic" placeholder="Clinic name" />
           </el-form-item>
           <el-form-item label="Staff">
-            <el-input v-model="createForm.staff" placeholder="Assigned staff" />
+            <el-select
+              v-model="createForm.staffId"
+              placeholder="Select a staff member"
+              filterable
+              class="booking-service-select"
+            >
+              <el-option
+                v-for="staff in staffOptions"
+                :key="staff.value"
+                :label="staff.label"
+                :value="staff.value"
+              />
+            </el-select>
           </el-form-item>
         </el-form>
 

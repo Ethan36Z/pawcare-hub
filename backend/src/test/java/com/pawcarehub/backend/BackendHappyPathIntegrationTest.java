@@ -3,6 +3,7 @@ package com.pawcarehub.backend;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -10,10 +11,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pawcarehub.backend.entity.Booking;
 import com.pawcarehub.backend.entity.ClinicService;
+import com.pawcarehub.backend.entity.Staff;
 import com.pawcarehub.backend.entity.User;
 import com.pawcarehub.backend.repository.BookingRepository;
 import com.pawcarehub.backend.repository.ClinicServiceRepository;
 import com.pawcarehub.backend.repository.PetRepository;
+import com.pawcarehub.backend.repository.StaffRepository;
 import com.pawcarehub.backend.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,6 +50,9 @@ class BackendHappyPathIntegrationTest {
 
     @Autowired
     private ClinicServiceRepository clinicServiceRepository;
+
+    @Autowired
+    private StaffRepository staffRepository;
 
     @BeforeEach
     void cleanUserData() {
@@ -126,8 +132,11 @@ class BackendHappyPathIntegrationTest {
         ClinicService service = clinicServiceRepository.findByActiveTrueOrderByCategoryAscNameAsc().stream()
             .findFirst()
             .orElseThrow();
+        Staff staff = staffRepository.findAllByOrderByActiveDescNameAsc().stream()
+            .findFirst()
+            .orElseThrow();
 
-        mockMvc.perform(post("/api/bookings")
+        MvcResult createResult = mockMvc.perform(post("/api/bookings")
                 .header("X-User-Email", "jamie@example.com")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
@@ -139,14 +148,61 @@ class BackendHappyPathIntegrationTest {
                       "time": "10:30 AM",
                       "status": "Upcoming",
                       "clinic": "PawCare Hub Clinic",
-                      "staff": "Dr. Rivera"
+                      "staffId": %d,
+                      "staff": "%s"
                     }
-                    """.formatted(service.getId(), service.getName())))
+                    """.formatted(service.getId(), service.getName(), staff.getId(), staff.getName())))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.petName").value("Milo"))
             .andExpect(jsonPath("$.serviceId").value(service.getId()))
             .andExpect(jsonPath("$.service").value(service.getName()))
-            .andExpect(jsonPath("$.status").value("Upcoming"));
+            .andExpect(jsonPath("$.staffId").value(staff.getId()))
+            .andExpect(jsonPath("$.staff").value(staff.getName()))
+            .andExpect(jsonPath("$.status").value("Upcoming"))
+            .andReturn();
+
+        JsonNode bookingJson = objectMapper.readTree(createResult.getResponse().getContentAsString());
+        long bookingId = bookingJson.get("id").asLong();
+        Booking savedBooking = bookingRepository.findById(bookingId).orElseThrow();
+        assertThat(savedBooking.getServiceRecord()).isNotNull();
+        assertThat(savedBooking.getStaffRecord()).isNotNull();
+        assertThat(savedBooking.getStaffRecord().getId()).isEqualTo(staff.getId());
+    }
+
+    @Test
+    void adminCanListRealStaffRecords() throws Exception {
+        mockMvc.perform(get("/api/admin/staff"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").isNumber())
+            .andExpect(jsonPath("$[0].name").isNotEmpty())
+            .andExpect(jsonPath("$[0].role").isNotEmpty())
+            .andExpect(jsonPath("$[0].active").isBoolean());
+    }
+
+    @Test
+    void adminCanToggleStaffActiveState() throws Exception {
+        Staff staff = staffRepository.findAllByOrderByActiveDescNameAsc().stream()
+            .findFirst()
+            .orElseThrow();
+        boolean initialActive = staff.isActive();
+
+        mockMvc.perform(patch("/api/admin/staff/{id}/toggle", staff.getId()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(staff.getId()))
+            .andExpect(jsonPath("$.active").value(!initialActive));
+
+        Staff updatedStaff = staffRepository.findById(staff.getId()).orElseThrow();
+        assertThat(updatedStaff.isActive()).isEqualTo(!initialActive);
+    }
+
+    @Test
+    void bookingFlowCanListActiveStaffRecords() throws Exception {
+        mockMvc.perform(get("/api/staff"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").isNumber())
+            .andExpect(jsonPath("$[0].name").isNotEmpty())
+            .andExpect(jsonPath("$[0].role").isNotEmpty())
+            .andExpect(jsonPath("$[0].active").value(true));
     }
 
     @Test

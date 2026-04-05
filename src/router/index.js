@@ -92,6 +92,12 @@ const routes = [
         meta: { title: 'Admin Bookings' },
       },
       {
+        path: 'staff',
+        name: 'admin-staff',
+        component: () => import('@/pages/admin/AdminStaffPage.vue'),
+        meta: { title: 'Admin Staff' },
+      },
+      {
         path: 'users',
         name: 'admin-users',
         component: () => import('@/pages/admin/AdminUsersPage.vue'),
