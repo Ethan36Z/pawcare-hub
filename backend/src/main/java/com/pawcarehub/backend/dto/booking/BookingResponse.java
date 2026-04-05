@@ -9,6 +9,7 @@ public record BookingResponse(
     String time,
     String status,
     String clinic,
+    Long staffId,
     String staff,
     String ownerEmail
 ) {

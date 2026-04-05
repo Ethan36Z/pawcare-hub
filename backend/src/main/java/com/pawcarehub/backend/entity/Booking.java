@@ -8,6 +8,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.PrePersist;
 
@@ -44,6 +45,10 @@ public class Booking {
     @Column(nullable = false)
     private String staff;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "staff_id")
+    private Staff staffRecord;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
@@ -60,6 +65,7 @@ public class Booking {
         String clinic,
         String staff,
         ClinicService serviceRecord,
+        Staff staffRecord,
         User owner
     ) {
         this.petName = petName;
@@ -70,6 +76,7 @@ public class Booking {
         this.clinic = clinic;
         this.staff = staff;
         this.serviceRecord = serviceRecord;
+        this.staffRecord = staffRecord;
         this.owner = owner;
     }
 
@@ -121,8 +128,23 @@ public class Booking {
         return staff;
     }
 
+    public String getResolvedStaffName() {
+        return staffRecord != null ? staffRecord.getName() : staff;
+    }
+
     public void setStaff(String staff) {
         this.staff = staff;
+    }
+
+    public Staff getStaffRecord() {
+        return staffRecord;
+    }
+
+    public void setStaffRecord(Staff staffRecord) {
+        this.staffRecord = staffRecord;
+        if (staffRecord != null) {
+            this.staff = staffRecord.getName();
+        }
     }
 
     public User getOwner() {
@@ -134,10 +156,15 @@ public class Booking {
     }
 
     @PrePersist
+    @PreUpdate
     @SuppressWarnings("unused")
-    protected void syncServiceName() {
+    protected void syncReferenceNames() {
         if (serviceRecord != null) {
             service = serviceRecord.getName();
+        }
+
+        if (staffRecord != null) {
+            staff = staffRecord.getName();
         }
     }
 }

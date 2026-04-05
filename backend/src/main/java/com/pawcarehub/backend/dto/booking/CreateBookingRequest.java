@@ -8,6 +8,7 @@ public record CreateBookingRequest(
     String time,
     String status,
     String clinic,
+    Long staffId,
     String staff
 ) {
 }

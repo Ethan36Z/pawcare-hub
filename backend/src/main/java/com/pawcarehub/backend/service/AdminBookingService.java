@@ -97,7 +97,7 @@ public class AdminBookingService {
             booking.getTime(),
             booking.getStatus(),
             booking.getClinic(),
-            booking.getStaff(),
+            booking.getResolvedStaffName(),
             booking.getOwner().getId(),
             booking.getOwner().getName(),
             booking.getOwner().getEmail()
