@@ -9,6 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "pets")
@@ -36,6 +37,33 @@ public class Pet {
     @Column(nullable = false, length = 1000)
     private String note;
 
+    @Column
+    private String sex;
+
+    @Column
+    private LocalDate dateOfBirth;
+
+    @Column
+    private String color;
+
+    @Column
+    private String microchipNumber;
+
+    @Column(length = 2000)
+    private String allergies;
+
+    @Column(length = 2000)
+    private String chronicConditions;
+
+    @Column(length = 2000)
+    private String medications;
+
+    @Column(length = 2000)
+    private String vaccinationNotes;
+
+    @Column(length = 2000)
+    private String generalMedicalNotes;
+
     @Column(nullable = false)
     private String status;
 
@@ -53,6 +81,15 @@ public class Pet {
         String age,
         String weight,
         String note,
+        String sex,
+        LocalDate dateOfBirth,
+        String color,
+        String microchipNumber,
+        String allergies,
+        String chronicConditions,
+        String medications,
+        String vaccinationNotes,
+        String generalMedicalNotes,
         String status,
         User owner
     ) {
@@ -62,6 +99,15 @@ public class Pet {
         this.age = age;
         this.weight = weight;
         this.note = note;
+        this.sex = sex;
+        this.dateOfBirth = dateOfBirth;
+        this.color = color;
+        this.microchipNumber = microchipNumber;
+        this.allergies = allergies;
+        this.chronicConditions = chronicConditions;
+        this.medications = medications;
+        this.vaccinationNotes = vaccinationNotes;
+        this.generalMedicalNotes = generalMedicalNotes;
         this.status = status;
         this.owner = owner;
     }
@@ -116,6 +162,78 @@ public class Pet {
 
     public void setNote(String note) {
         this.note = note;
+    }
+
+    public String getSex() {
+        return sex;
+    }
+
+    public void setSex(String sex) {
+        this.sex = sex;
+    }
+
+    public LocalDate getDateOfBirth() {
+        return dateOfBirth;
+    }
+
+    public void setDateOfBirth(LocalDate dateOfBirth) {
+        this.dateOfBirth = dateOfBirth;
+    }
+
+    public String getColor() {
+        return color;
+    }
+
+    public void setColor(String color) {
+        this.color = color;
+    }
+
+    public String getMicrochipNumber() {
+        return microchipNumber;
+    }
+
+    public void setMicrochipNumber(String microchipNumber) {
+        this.microchipNumber = microchipNumber;
+    }
+
+    public String getAllergies() {
+        return allergies;
+    }
+
+    public void setAllergies(String allergies) {
+        this.allergies = allergies;
+    }
+
+    public String getChronicConditions() {
+        return chronicConditions;
+    }
+
+    public void setChronicConditions(String chronicConditions) {
+        this.chronicConditions = chronicConditions;
+    }
+
+    public String getMedications() {
+        return medications;
+    }
+
+    public void setMedications(String medications) {
+        this.medications = medications;
+    }
+
+    public String getVaccinationNotes() {
+        return vaccinationNotes;
+    }
+
+    public void setVaccinationNotes(String vaccinationNotes) {
+        this.vaccinationNotes = vaccinationNotes;
+    }
+
+    public String getGeneralMedicalNotes() {
+        return generalMedicalNotes;
+    }
+
+    public void setGeneralMedicalNotes(String generalMedicalNotes) {
+        this.generalMedicalNotes = generalMedicalNotes;
     }
 
     public String getStatus() {

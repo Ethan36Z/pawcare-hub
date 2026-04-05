@@ -6,6 +6,38 @@ import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
 
+const sexOptions = ['Male', 'Female', 'Unknown']
+
+function createEmptyPetForm() {
+  return {
+    name: '',
+    species: '',
+    breed: '',
+    age: '',
+    weight: '',
+    note: 'No care summary added yet.',
+    sex: '',
+    dateOfBirth: '',
+    color: '',
+    microchipNumber: '',
+    allergies: '',
+    chronicConditions: '',
+    medications: '',
+    vaccinationNotes: '',
+    generalMedicalNotes: '',
+    status: 'Healthy',
+  }
+}
+
+function createEmptyMedicalNoteForm() {
+  return {
+    date: new Date().toISOString().slice(0, 10),
+    author: '',
+    relatedBookingId: null,
+    noteText: '',
+  }
+}
+
 const pets = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
@@ -21,24 +53,12 @@ const isLoadingProfile = ref(false)
 const profileErrorMessage = ref('')
 const selectedPet = ref(null)
 const isDeletingPetId = ref(null)
-const createForm = ref({
-  name: '',
-  species: '',
-  breed: '',
-  age: '',
-  weight: '',
-  note: '',
-  status: 'Healthy',
-})
-const editForm = ref({
-  name: '',
-  species: '',
-  breed: '',
-  age: '',
-  weight: '',
-  note: '',
-  status: 'Healthy',
-})
+const isNoteDialogOpen = ref(false)
+const isSavingMedicalNote = ref(false)
+const medicalNoteErrorMessage = ref('')
+const createForm = ref(createEmptyPetForm())
+const editForm = ref(createEmptyPetForm())
+const medicalNoteForm = ref(createEmptyMedicalNoteForm())
 
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
@@ -58,6 +78,29 @@ function getPetStatusTagType(status) {
   }
 
   return 'info'
+}
+
+function getSummaryMedicalLine(pet) {
+  return pet.generalMedicalNotes || pet.note
+}
+
+function formatOptionalValue(value, fallback = 'Not added yet') {
+  return value || fallback
+}
+
+function formatMedicalNoteDate(value) {
+  if (!value) {
+    return 'No date'
+  }
+
+  const parsedDate = new Date(`${value}T00:00:00`)
+  return Number.isNaN(parsedDate.getTime())
+    ? value
+    : parsedDate.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
 }
 
 const ownerName = computed(() => authStore.user?.fullName || 'your pets')
@@ -82,6 +125,25 @@ async function loadPets() {
   }
 }
 
+async function loadPetDetail(petId) {
+  if (!authStore.user?.email || !petId) {
+    return
+  }
+
+  isLoadingProfile.value = true
+  profileErrorMessage.value = ''
+
+  try {
+    const { data } = await petsApi.detail(authStore.user.email, petId)
+    selectedPet.value = data
+  } catch (error) {
+    profileErrorMessage.value = getApiErrorMessage(error, 'Unable to load this pet profile right now.')
+    selectedPet.value = null
+  } finally {
+    isLoadingProfile.value = false
+  }
+}
+
 onMounted(() => {
   loadPets()
 })
@@ -101,40 +163,39 @@ function openEditDialog(pet) {
     age: pet.age,
     weight: pet.weight,
     note: pet.note,
+    sex: pet.sex || '',
+    dateOfBirth: pet.dateOfBirth || '',
+    color: pet.color || '',
+    microchipNumber: pet.microchipNumber || '',
+    allergies: pet.allergies || '',
+    chronicConditions: pet.chronicConditions || '',
+    medications: pet.medications || '',
+    vaccinationNotes: pet.vaccinationNotes || '',
+    generalMedicalNotes: pet.generalMedicalNotes || '',
     status: pet.status,
   }
   isEditDialogOpen.value = true
 }
 
 function resetCreateForm() {
-  createForm.value = {
-    name: '',
-    species: '',
-    breed: '',
-    age: '',
-    weight: '',
-    note: '',
-    status: 'Healthy',
-  }
+  createForm.value = createEmptyPetForm()
+  createErrorMessage.value = ''
 }
 
 function resetEditForm() {
   editingPetId.value = null
   editErrorMessage.value = ''
-  editForm.value = {
-    name: '',
-    species: '',
-    breed: '',
-    age: '',
-    weight: '',
-    note: '',
-    status: 'Healthy',
-  }
+  editForm.value = createEmptyPetForm()
 }
 
 function resetSelectedPet() {
   selectedPet.value = null
   profileErrorMessage.value = ''
+}
+
+function resetMedicalNoteForm() {
+  medicalNoteForm.value = createEmptyMedicalNoteForm()
+  medicalNoteErrorMessage.value = ''
 }
 
 async function handleCreatePet() {
@@ -158,23 +219,13 @@ async function handleCreatePet() {
 }
 
 async function handleViewProfile(pet) {
-  if (!authStore.user?.email || !pet?.id) {
+  if (!pet?.id) {
     return
   }
 
   isProfileDialogOpen.value = true
-  isLoadingProfile.value = true
-  profileErrorMessage.value = ''
   selectedPet.value = null
-
-  try {
-    const { data } = await petsApi.detail(authStore.user.email, pet.id)
-    selectedPet.value = data
-  } catch (error) {
-    profileErrorMessage.value = getApiErrorMessage(error, 'Unable to load this pet profile right now.')
-  } finally {
-    isLoadingProfile.value = false
-  }
+  await loadPetDetail(pet.id)
 }
 
 async function handleEditPet() {
@@ -192,7 +243,7 @@ async function handleEditPet() {
     await loadPets()
 
     if (selectedPet.value?.id === data.id) {
-      selectedPet.value = data
+      await loadPetDetail(data.id)
     }
   } catch (error) {
     editErrorMessage.value = getApiErrorMessage(error, 'Unable to update this pet right now.')
@@ -229,6 +280,38 @@ async function handleDeletePet(pet) {
     )
   } finally {
     isDeletingPetId.value = null
+  }
+}
+
+function openMedicalNoteDialog() {
+  if (!selectedPet.value?.id) {
+    return
+  }
+
+  resetMedicalNoteForm()
+  isNoteDialogOpen.value = true
+}
+
+async function handleAddMedicalNote() {
+  if (!authStore.user?.email || !selectedPet.value?.id) {
+    return
+  }
+
+  isSavingMedicalNote.value = true
+  medicalNoteErrorMessage.value = ''
+
+  try {
+    await petsApi.addMedicalNote(authStore.user.email, selectedPet.value.id, medicalNoteForm.value)
+    isNoteDialogOpen.value = false
+    resetMedicalNoteForm()
+    await loadPetDetail(selectedPet.value.id)
+  } catch (error) {
+    medicalNoteErrorMessage.value = getApiErrorMessage(
+      error,
+      'Unable to save this medical note right now.'
+    )
+  } finally {
+    isSavingMedicalNote.value = false
   }
 }
 </script>
@@ -286,11 +369,19 @@ async function handleDeletePet(pet) {
               <span>Weight</span>
               <strong>{{ pet.weight }}</strong>
             </div>
+            <div>
+              <span>Sex</span>
+              <strong>{{ formatOptionalValue(pet.sex) }}</strong>
+            </div>
+            <div>
+              <span>Microchip</span>
+              <strong>{{ formatOptionalValue(pet.microchipNumber) }}</strong>
+            </div>
           </div>
 
           <div class="pet-note">
-            <span>Care note</span>
-            <p>{{ pet.note }}</p>
+            <span>Medical summary</span>
+            <p>{{ getSummaryMedicalLine(pet) }}</p>
           </div>
 
           <div class="pet-actions">
@@ -316,7 +407,7 @@ async function handleDeletePet(pet) {
       <el-dialog
         v-model="isProfileDialogOpen"
         title="Pet Profile"
-        width="min(560px, 92vw)"
+        width="min(820px, 94vw)"
         @closed="resetSelectedPet"
       >
         <el-alert
@@ -327,44 +418,197 @@ async function handleDeletePet(pet) {
           class="create-alert"
         />
 
-        <el-skeleton v-else-if="isLoadingProfile" :rows="6" animated />
+        <el-skeleton v-else-if="isLoadingProfile" :rows="8" animated />
 
-        <div v-else-if="selectedPet" class="profile-grid">
-          <div>
-            <span>Name</span>
-            <strong>{{ selectedPet.name }}</strong>
-          </div>
-          <div>
-            <span>Current status</span>
-            <strong>{{ selectedPet.displayStatus }}</strong>
-          </div>
-          <div>
-            <span>Species</span>
-            <strong>{{ selectedPet.species }}</strong>
-          </div>
-          <div>
-            <span>Breed</span>
-            <strong>{{ selectedPet.breed }}</strong>
-          </div>
-          <div>
-            <span>Age</span>
-            <strong>{{ selectedPet.age }}</strong>
-          </div>
-          <div>
-            <span>Weight</span>
-            <strong>{{ selectedPet.weight }}</strong>
-          </div>
-          <div class="profile-grid__note">
-            <span>Care note</span>
-            <p>{{ selectedPet.note }}</p>
-          </div>
+        <div v-else-if="selectedPet" class="profile-layout">
+          <section class="profile-section">
+            <div class="profile-section__header">
+              <div>
+                <h3>Profile Summary</h3>
+                <p>Everyday details that help keep visits smooth and familiar.</p>
+              </div>
+              <el-tag :type="getPetStatusTagType(selectedPet.displayStatus)" effect="plain">
+                {{ selectedPet.displayStatus }}
+              </el-tag>
+            </div>
+
+            <div class="profile-grid">
+              <div>
+                <span>Name</span>
+                <strong>{{ selectedPet.name }}</strong>
+              </div>
+              <div>
+                <span>Species</span>
+                <strong>{{ selectedPet.species }}</strong>
+              </div>
+              <div>
+                <span>Breed</span>
+                <strong>{{ selectedPet.breed }}</strong>
+              </div>
+              <div>
+                <span>Sex</span>
+                <strong>{{ formatOptionalValue(selectedPet.sex) }}</strong>
+              </div>
+              <div>
+                <span>Age</span>
+                <strong>{{ selectedPet.age }}</strong>
+              </div>
+              <div>
+                <span>Date of birth</span>
+                <strong>{{ formatOptionalValue(selectedPet.dateOfBirth) }}</strong>
+              </div>
+              <div>
+                <span>Weight</span>
+                <strong>{{ selectedPet.weight }}</strong>
+              </div>
+              <div>
+                <span>Color</span>
+                <strong>{{ formatOptionalValue(selectedPet.color) }}</strong>
+              </div>
+              <div class="profile-grid__full">
+                <span>Care summary</span>
+                <p>{{ selectedPet.note }}</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="profile-section">
+            <div class="profile-section__header">
+              <div>
+                <h3>Medical Record</h3>
+                <p>Lightweight clinic details for continuity of care.</p>
+              </div>
+            </div>
+
+            <div class="profile-grid">
+              <div>
+                <span>Microchip number</span>
+                <strong>{{ formatOptionalValue(selectedPet.microchipNumber) }}</strong>
+              </div>
+              <div>
+                <span>Current status</span>
+                <strong>{{ selectedPet.status }}</strong>
+              </div>
+              <div class="profile-grid__full">
+                <span>Allergies</span>
+                <p>{{ formatOptionalValue(selectedPet.allergies) }}</p>
+              </div>
+              <div class="profile-grid__full">
+                <span>Chronic conditions</span>
+                <p>{{ formatOptionalValue(selectedPet.chronicConditions) }}</p>
+              </div>
+              <div class="profile-grid__full">
+                <span>Medications</span>
+                <p>{{ formatOptionalValue(selectedPet.medications) }}</p>
+              </div>
+              <div class="profile-grid__full">
+                <span>Vaccination notes</span>
+                <p>{{ formatOptionalValue(selectedPet.vaccinationNotes) }}</p>
+              </div>
+              <div class="profile-grid__full">
+                <span>General medical notes</span>
+                <p>{{ formatOptionalValue(selectedPet.generalMedicalNotes) }}</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="profile-section">
+            <div class="profile-section__header">
+              <div>
+                <h3>Visit Notes</h3>
+                <p>A simple timeline for follow-ups, observations, and care updates.</p>
+              </div>
+              <el-button type="primary" plain @click="openMedicalNoteDialog">
+                Add Note
+              </el-button>
+            </div>
+
+            <div v-if="selectedPet.medicalNotes?.length" class="note-timeline">
+              <article
+                v-for="noteItem in selectedPet.medicalNotes"
+                :key="noteItem.id"
+                class="note-card"
+              >
+                <div class="note-card__meta">
+                  <strong>{{ formatMedicalNoteDate(noteItem.date) }}</strong>
+                  <span>{{ formatOptionalValue(noteItem.author, 'Clinic team') }}</span>
+                </div>
+                <p>{{ noteItem.noteText }}</p>
+                <small v-if="noteItem.relatedBookingId">
+                  Related booking #{{ noteItem.relatedBookingId }}
+                </small>
+              </article>
+            </div>
+            <el-empty
+              v-else
+              description="No medical notes yet. Add one to start a simple care timeline."
+            />
+          </section>
         </div>
+      </el-dialog>
+
+      <el-dialog
+        v-model="isNoteDialogOpen"
+        title="Add Medical Note"
+        width="min(560px, 92vw)"
+        @closed="resetMedicalNoteForm"
+      >
+        <el-alert
+          v-if="medicalNoteErrorMessage"
+          :title="medicalNoteErrorMessage"
+          type="error"
+          :closable="false"
+          class="create-alert"
+        />
+
+        <el-form :model="medicalNoteForm" label-position="top">
+          <div class="form-grid form-grid--compact">
+            <el-form-item label="Date">
+              <el-date-picker
+                v-model="medicalNoteForm.date"
+                type="date"
+                value-format="YYYY-MM-DD"
+                placeholder="Select note date"
+                class="full-width"
+              />
+            </el-form-item>
+            <el-form-item label="Author or source">
+              <el-input v-model="medicalNoteForm.author" placeholder="Dr. Rivera, Front desk, Owner" />
+            </el-form-item>
+          </div>
+
+          <el-form-item label="Related booking ID">
+            <el-input-number
+              v-model="medicalNoteForm.relatedBookingId"
+              :min="1"
+              :controls="false"
+              placeholder="Optional booking reference"
+              class="full-width"
+            />
+          </el-form-item>
+
+          <el-form-item label="Note">
+            <el-input
+              v-model="medicalNoteForm.noteText"
+              type="textarea"
+              :rows="5"
+              placeholder="Add a brief clinic note, follow-up detail, or observation"
+            />
+          </el-form-item>
+        </el-form>
+
+        <template #footer>
+          <el-button @click="isNoteDialogOpen = false">Cancel</el-button>
+          <el-button type="primary" :loading="isSavingMedicalNote" @click="handleAddMedicalNote">
+            Save Note
+          </el-button>
+        </template>
       </el-dialog>
 
       <el-dialog
         v-model="isEditDialogOpen"
         title="Edit Pet"
-        width="min(560px, 92vw)"
+        width="min(720px, 94vw)"
         @closed="resetEditForm"
       >
         <el-alert
@@ -376,32 +620,51 @@ async function handleDeletePet(pet) {
         />
 
         <el-form :model="editForm" label-position="top">
-          <el-form-item label="Name">
-            <el-input v-model="editForm.name" placeholder="Pet name" />
-          </el-form-item>
-          <el-form-item label="Species">
-            <el-input v-model="editForm.species" placeholder="Dog, Cat, etc." />
-          </el-form-item>
-          <el-form-item label="Breed">
-            <el-input v-model="editForm.breed" placeholder="Breed" />
-          </el-form-item>
-          <el-form-item label="Age">
-            <el-input v-model="editForm.age" placeholder="e.g. 2 years" />
-          </el-form-item>
-          <el-form-item label="Weight">
-            <el-input v-model="editForm.weight" placeholder="e.g. 10 lb" />
-          </el-form-item>
-          <el-form-item label="Status">
-            <el-input v-model="editForm.status" placeholder="Healthy" />
-          </el-form-item>
-          <el-form-item label="Care note">
-            <el-input
-              v-model="editForm.note"
-              type="textarea"
-              :rows="4"
-              placeholder="Add a short care note"
-            />
-          </el-form-item>
+          <section class="form-section">
+            <h3>Basic Profile</h3>
+            <p>Update the everyday details you maintain for this pet.</p>
+            <div class="form-grid">
+              <el-form-item label="Name">
+                <el-input v-model="editForm.name" placeholder="Pet name" />
+              </el-form-item>
+              <el-form-item label="Species">
+                <el-input v-model="editForm.species" placeholder="Dog, Cat, etc." />
+              </el-form-item>
+              <el-form-item label="Breed">
+                <el-input v-model="editForm.breed" placeholder="Breed" />
+              </el-form-item>
+              <el-form-item label="Sex">
+                <el-select v-model="editForm.sex" clearable placeholder="Select sex">
+                  <el-option
+                    v-for="option in sexOptions"
+                    :key="option"
+                    :label="option"
+                    :value="option"
+                  />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="Age">
+                <el-input v-model="editForm.age" placeholder="e.g. 2 years" />
+              </el-form-item>
+              <el-form-item label="Weight">
+                <el-input v-model="editForm.weight" placeholder="e.g. 10 lb" />
+              </el-form-item>
+              <el-form-item label="Color">
+                <el-input v-model="editForm.color" placeholder="Coat color" />
+              </el-form-item>
+              <el-form-item label="Microchip number">
+                <el-input v-model="editForm.microchipNumber" placeholder="Optional microchip ID" />
+              </el-form-item>
+              <el-form-item label="Allergies">
+                <el-input
+                  v-model="editForm.allergies"
+                  type="textarea"
+                  :rows="2"
+                  placeholder="Known allergies or sensitivities"
+                />
+              </el-form-item>
+            </div>
+          </section>
         </el-form>
 
         <template #footer>
@@ -415,7 +678,7 @@ async function handleDeletePet(pet) {
       <el-dialog
         v-model="isCreateDialogOpen"
         title="Add Pet"
-        width="min(560px, 92vw)"
+        width="min(720px, 94vw)"
         @closed="resetCreateForm"
       >
         <el-alert
@@ -427,32 +690,51 @@ async function handleDeletePet(pet) {
         />
 
         <el-form :model="createForm" label-position="top">
-          <el-form-item label="Name">
-            <el-input v-model="createForm.name" placeholder="Pet name" />
-          </el-form-item>
-          <el-form-item label="Species">
-            <el-input v-model="createForm.species" placeholder="Dog, Cat, etc." />
-          </el-form-item>
-          <el-form-item label="Breed">
-            <el-input v-model="createForm.breed" placeholder="Breed" />
-          </el-form-item>
-          <el-form-item label="Age">
-            <el-input v-model="createForm.age" placeholder="e.g. 2 years" />
-          </el-form-item>
-          <el-form-item label="Weight">
-            <el-input v-model="createForm.weight" placeholder="e.g. 10 lb" />
-          </el-form-item>
-          <el-form-item label="Status">
-            <el-input v-model="createForm.status" placeholder="Healthy" />
-          </el-form-item>
-          <el-form-item label="Care note">
-            <el-input
-              v-model="createForm.note"
-              type="textarea"
-              :rows="4"
-              placeholder="Add a short care note"
-            />
-          </el-form-item>
+          <section class="form-section">
+            <h3>Basic Profile</h3>
+            <p>Start with the core profile details you need day to day.</p>
+            <div class="form-grid">
+              <el-form-item label="Name">
+                <el-input v-model="createForm.name" placeholder="Pet name" />
+              </el-form-item>
+              <el-form-item label="Species">
+                <el-input v-model="createForm.species" placeholder="Dog, Cat, etc." />
+              </el-form-item>
+              <el-form-item label="Breed">
+                <el-input v-model="createForm.breed" placeholder="Breed" />
+              </el-form-item>
+              <el-form-item label="Sex">
+                <el-select v-model="createForm.sex" clearable placeholder="Select sex">
+                  <el-option
+                    v-for="option in sexOptions"
+                    :key="option"
+                    :label="option"
+                    :value="option"
+                  />
+                </el-select>
+              </el-form-item>
+              <el-form-item label="Age">
+                <el-input v-model="createForm.age" placeholder="e.g. 2 years" />
+              </el-form-item>
+              <el-form-item label="Weight">
+                <el-input v-model="createForm.weight" placeholder="e.g. 10 lb" />
+              </el-form-item>
+              <el-form-item label="Color">
+                <el-input v-model="createForm.color" placeholder="Coat color" />
+              </el-form-item>
+              <el-form-item label="Microchip number">
+                <el-input v-model="createForm.microchipNumber" placeholder="Optional microchip ID" />
+              </el-form-item>
+              <el-form-item label="Allergies">
+                <el-input
+                  v-model="createForm.allergies"
+                  type="textarea"
+                  :rows="2"
+                  placeholder="Known allergies or sensitivities"
+                />
+              </el-form-item>
+            </div>
+          </section>
         </el-form>
 
         <template #footer>
@@ -518,7 +800,8 @@ async function handleDeletePet(pet) {
 
 .pets-header :deep(.el-button--primary),
 .pet-actions :deep(.el-button--primary),
-.empty-state :deep(.el-button--primary) {
+.empty-state :deep(.el-button--primary),
+.profile-section__header :deep(.el-button--primary) {
   --el-button-bg-color: #3f725d;
   --el-button-border-color: #3f725d;
   --el-button-hover-bg-color: #355f4d;
@@ -527,7 +810,8 @@ async function handleDeletePet(pet) {
   --el-button-active-border-color: #2c5141;
 }
 
-.pet-actions :deep(.el-button.is-plain) {
+.pet-actions :deep(.el-button.is-plain),
+.profile-section__header :deep(.el-button.is-plain) {
   --el-button-text-color: #5f685e;
   --el-button-bg-color: rgba(255, 251, 244, 0.86);
   --el-button-border-color: rgba(132, 125, 104, 0.16);
@@ -566,9 +850,34 @@ async function handleDeletePet(pet) {
   gap: 16px;
 }
 
-.pet-card h2 {
+.profile-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.pet-card h2,
+.profile-section h3,
+.form-section h3 {
   margin: 0;
   color: #173047;
+}
+
+.field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.field-label small,
+.form-section p {
+  color: #6d7680;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.pet-card h2 {
   font-size: 1.3rem;
 }
 
@@ -578,7 +887,8 @@ async function handleDeletePet(pet) {
 }
 
 .pet-details,
-.profile-grid {
+.profile-grid,
+.form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
@@ -614,13 +924,14 @@ async function handleDeletePet(pet) {
 }
 
 .pet-note p,
-.profile-grid__note p {
+.profile-grid p,
+.note-card p {
   margin: 10px 0 0;
   color: #5f7484;
   line-height: 1.7;
 }
 
-.profile-grid__note {
+.profile-grid__full {
   grid-column: 1 / -1;
 }
 
@@ -638,17 +949,74 @@ async function handleDeletePet(pet) {
   background: rgba(255, 251, 244, 0.72);
 }
 
+.profile-layout,
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.profile-section,
+.form-section {
+  padding: 18px;
+  border: 1px solid rgba(28, 60, 88, 0.08);
+  border-radius: 20px;
+  background: rgba(255, 252, 247, 0.72);
+}
+
+.note-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.note-card {
+  padding: 16px;
+  border: 1px solid rgba(28, 60, 88, 0.08);
+  border-radius: 18px;
+  background: #fff;
+}
+
+.note-card__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  color: #5f685e;
+}
+
+.note-card small {
+  display: block;
+  margin-top: 10px;
+  color: #7a817f;
+}
+
+.form-section {
+  margin-bottom: 16px;
+}
+
+.form-grid--compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.full-width {
+  width: 100%;
+}
+
 .create-alert {
   margin-bottom: 16px;
 }
 
 @media (max-width: 760px) {
-  .pets-header {
+  .pets-header,
+  .pet-card__top,
+  .profile-section__header {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .pets-header :deep(.el-button) {
+  .pets-header :deep(.el-button),
+  .profile-section__header :deep(.el-button) {
     width: 100%;
   }
 
@@ -669,7 +1037,12 @@ async function handleDeletePet(pet) {
     border-radius: 24px;
   }
 
-  .pet-card__top,
+  .profile-grid,
+  .form-grid,
+  .form-grid--compact {
+    grid-template-columns: 1fr;
+  }
+
   .pet-actions {
     flex-direction: column;
     align-items: flex-start;
@@ -677,10 +1050,6 @@ async function handleDeletePet(pet) {
 
   .pet-actions :deep(.el-button) {
     width: 100%;
-  }
-
-  .profile-grid {
-    grid-template-columns: 1fr;
   }
 }
 </style>

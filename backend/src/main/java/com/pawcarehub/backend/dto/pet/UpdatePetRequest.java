@@ -7,6 +7,15 @@ public record UpdatePetRequest(
     String age,
     String weight,
     String note,
+    String sex,
+    String dateOfBirth,
+    String color,
+    String microchipNumber,
+    String allergies,
+    String chronicConditions,
+    String medications,
+    String vaccinationNotes,
+    String generalMedicalNotes,
     String status
 ) {
 }

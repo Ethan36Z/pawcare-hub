@@ -17,6 +17,7 @@ import com.pawcarehub.backend.entity.StaffAvailability;
 import com.pawcarehub.backend.entity.User;
 import com.pawcarehub.backend.repository.BookingRepository;
 import com.pawcarehub.backend.repository.ClinicServiceRepository;
+import com.pawcarehub.backend.repository.PetMedicalNoteRepository;
 import com.pawcarehub.backend.repository.PetRepository;
 import com.pawcarehub.backend.repository.StaffAvailabilityRepository;
 import com.pawcarehub.backend.repository.StaffRepository;
@@ -56,6 +57,9 @@ class BackendHappyPathIntegrationTest {
     private PetRepository petRepository;
 
     @Autowired
+    private PetMedicalNoteRepository petMedicalNoteRepository;
+
+    @Autowired
     private BookingRepository bookingRepository;
 
     @Autowired
@@ -70,6 +74,7 @@ class BackendHappyPathIntegrationTest {
     @BeforeEach
     void cleanUserData() {
         bookingRepository.deleteAll();
+        petMedicalNoteRepository.deleteAll();
         petRepository.deleteAll();
         userRepository.deleteAll();
     }
@@ -129,6 +134,15 @@ class BackendHappyPathIntegrationTest {
                       "age": "3 years",
                       "weight": "28 lbs",
                       "note": "Friendly during checkups",
+                      "sex": "Male",
+                      "dateOfBirth": "2023-01-05",
+                      "color": "Golden and white",
+                      "microchipNumber": "MC-1001",
+                      "allergies": "None reported",
+                      "chronicConditions": "",
+                      "medications": "",
+                      "vaccinationNotes": "Core vaccines up to date",
+                      "generalMedicalNotes": "Enjoys treats after exams",
                       "status": "Healthy"
                     }
                     """))
@@ -136,7 +150,95 @@ class BackendHappyPathIntegrationTest {
             .andExpect(jsonPath("$.name").value("Milo"))
             .andExpect(jsonPath("$.species").value("Dog"))
             .andExpect(jsonPath("$.breed").value("Corgi"))
+            .andExpect(jsonPath("$.sex").value("Male"))
+            .andExpect(jsonPath("$.dateOfBirth").value("2023-01-05"))
+            .andExpect(jsonPath("$.microchipNumber").value("MC-1001"))
             .andExpect(jsonPath("$.status").value("Healthy"));
+    }
+
+    @Test
+    void updatePetPersistsMedicalRecordFieldsAndNotesCanBeAdded() throws Exception {
+        registerUser("jamie@example.com");
+
+        MvcResult createPetResult = mockMvc.perform(post("/api/pets")
+                .header("X-User-Email", "jamie@example.com")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "name": "Luna",
+                      "species": "Cat",
+                      "breed": "Siamese",
+                      "age": "4 years",
+                      "weight": "9 lbs",
+                      "note": "Calm during visits",
+                      "sex": "Female",
+                      "dateOfBirth": "2022-03-12",
+                      "color": "Cream",
+                      "microchipNumber": "MC-2222",
+                      "allergies": "Chicken",
+                      "chronicConditions": "Mild asthma",
+                      "medications": "Inhaler as needed",
+                      "vaccinationNotes": "Rabies current through 2026",
+                      "generalMedicalNotes": "Monitor breathing after exercise",
+                      "status": "Healthy"
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.generalMedicalNotes").value("Monitor breathing after exercise"))
+            .andReturn();
+
+        long petId = objectMapper.readTree(createPetResult.getResponse().getContentAsString()).get("id").asLong();
+
+        mockMvc.perform(patch("/api/pets/{id}", petId)
+                .header("X-User-Email", "jamie@example.com")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "name": "Luna",
+                      "species": "Cat",
+                      "breed": "Siamese",
+                      "age": "4 years",
+                      "weight": "9.5 lbs",
+                      "note": "Prefers a quiet exam room",
+                      "sex": "Female",
+                      "dateOfBirth": "2022-03-12",
+                      "color": "Cream and gray",
+                      "microchipNumber": "MC-2222",
+                      "allergies": "Chicken",
+                      "chronicConditions": "Mild asthma",
+                      "medications": "Inhaler as needed",
+                      "vaccinationNotes": "Rabies current through 2026",
+                      "generalMedicalNotes": "Monitor breathing after exercise and grooming",
+                      "status": "Needs attention"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.weight").value("9.5 lbs"))
+            .andExpect(jsonPath("$.color").value("Cream and gray"))
+            .andExpect(jsonPath("$.status").value("Needs attention"));
+
+        mockMvc.perform(post("/api/pets/{id}/medical-notes", petId)
+                .header("X-User-Email", "jamie@example.com")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "date": "2026-04-04",
+                      "author": "Dr. Rivera",
+                      "noteText": "Follow-up exam showed stable breathing."
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.date").value("2026-04-04"))
+            .andExpect(jsonPath("$.author").value("Dr. Rivera"))
+            .andExpect(jsonPath("$.noteText").value("Follow-up exam showed stable breathing."));
+
+        mockMvc.perform(get("/api/pets/{id}", petId)
+                .header("X-User-Email", "jamie@example.com"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.microchipNumber").value("MC-2222"))
+            .andExpect(jsonPath("$.generalMedicalNotes").value("Monitor breathing after exercise and grooming"))
+            .andExpect(jsonPath("$.medicalNotes[0].author").value("Dr. Rivera"))
+            .andExpect(jsonPath("$.medicalNotes[0].noteText").value("Follow-up exam showed stable breathing."));
     }
 
     @Test

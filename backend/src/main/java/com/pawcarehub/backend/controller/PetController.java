@@ -1,6 +1,8 @@
 package com.pawcarehub.backend.controller;
 
 import com.pawcarehub.backend.dto.pet.CreatePetRequest;
+import com.pawcarehub.backend.dto.pet.PetMedicalNoteRequest;
+import com.pawcarehub.backend.dto.pet.PetMedicalNoteResponse;
 import com.pawcarehub.backend.dto.pet.PetResponse;
 import com.pawcarehub.backend.dto.pet.UpdatePetRequest;
 import com.pawcarehub.backend.service.PetService;
@@ -59,6 +61,16 @@ public class PetController {
     ) {
         PetResponse response = petService.updatePet(userEmailHeader, id, request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/medical-notes")
+    public ResponseEntity<PetMedicalNoteResponse> addMedicalNote(
+        @RequestHeader("X-User-Email") String userEmailHeader,
+        @PathVariable Long id,
+        @RequestBody PetMedicalNoteRequest request
+    ) {
+        PetMedicalNoteResponse response = petService.addMedicalNote(userEmailHeader, id, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @DeleteMapping("/{id}")
