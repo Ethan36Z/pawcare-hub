@@ -14,9 +14,12 @@ import com.pawcarehub.backend.repository.BookingRepository;
 import com.pawcarehub.backend.repository.PetMedicalNoteRepository;
 import com.pawcarehub.backend.repository.PetRepository;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.List;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -184,12 +187,25 @@ public class PetService {
     }
 
     private List<PetMedicalNoteResponse> getMedicalNotes(Long petId) {
-        return petMedicalNoteRepository.findByPetIdOrderByNoteDateDescIdDesc(petId).stream()
-            .map(this::toMedicalNoteResponse)
+        List<PetMedicalNote> notes = petMedicalNoteRepository.findByPetIdOrderByNoteDateDescIdDesc(petId);
+        Map<Long, Booking> bookingsById = bookingRepository.findAllById(
+            notes.stream()
+                .map(PetMedicalNote::getRelatedBookingId)
+                .filter(relatedBookingId -> relatedBookingId != null)
+                .distinct()
+                .toList()
+        ).stream().collect(Collectors.toMap(Booking::getId, Function.identity()));
+
+        return notes.stream()
+            .map(note -> toMedicalNoteResponse(note, bookingsById.get(note.getRelatedBookingId())))
             .toList();
     }
 
     private PetMedicalNoteResponse toMedicalNoteResponse(PetMedicalNote note) {
+        return toMedicalNoteResponse(note, null);
+    }
+
+    private PetMedicalNoteResponse toMedicalNoteResponse(PetMedicalNote note, Booking relatedBooking) {
         return new PetMedicalNoteResponse(
             note.getId(),
             note.getNoteDate().toString(),
@@ -197,7 +213,27 @@ public class PetService {
             note.getRelatedBookingId(),
             note.getNoteText(),
             note.getCreatedAt() != null ? note.getCreatedAt().toString() : null,
-            note.getUpdatedAt() != null ? note.getUpdatedAt().toString() : null
+            note.getUpdatedAt() != null ? note.getUpdatedAt().toString() : null,
+            toRelatedVisitSummary(relatedBooking)
+        );
+    }
+
+    private PetMedicalNoteResponse.RelatedVisitSummary toRelatedVisitSummary(Booking booking) {
+        if (booking == null) {
+            return null;
+        }
+
+        return new PetMedicalNoteResponse.RelatedVisitSummary(
+            booking.getId(),
+            booking.getService(),
+            booking.getStaff(),
+            booking.getDate(),
+            booking.getTime(),
+            booking.getStatus(),
+            booking.getVisitSummary(),
+            booking.getDiagnosisAssessment(),
+            booking.getTreatmentRecommendation(),
+            booking.getFollowUpNote()
         );
     }
 

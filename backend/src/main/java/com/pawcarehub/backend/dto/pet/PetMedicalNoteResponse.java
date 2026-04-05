@@ -7,6 +7,20 @@ public record PetMedicalNoteResponse(
     Long relatedBookingId,
     String noteText,
     String createdAt,
-    String updatedAt
+    String updatedAt,
+    RelatedVisitSummary relatedVisit
 ) {
+    public record RelatedVisitSummary(
+        Long bookingId,
+        String service,
+        String staff,
+        String date,
+        String time,
+        String status,
+        String visitSummary,
+        String diagnosisAssessment,
+        String treatmentRecommendation,
+        String followUpNote
+    ) {
+    }
 }

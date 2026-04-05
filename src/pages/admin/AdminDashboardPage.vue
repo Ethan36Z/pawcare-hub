@@ -9,6 +9,8 @@ const stats = ref({
   activeServices: 0,
   totalBookings: 0,
   bookingsByStatus: [],
+  topServices: [],
+  staffWorkload: [],
   upcomingBookings: [],
   recentCompletedVisits: [],
 })
@@ -66,6 +68,22 @@ const maxStatusCount = computed(() => {
 const statusChartItems = computed(() => stats.value.bookingsByStatus.map((item) => ({
   ...item,
   percentage: `${Math.max((item.count / maxStatusCount.value) * 100, item.count ? 14 : 0)}%`,
+})))
+const maxServiceUsage = computed(() => {
+  const counts = stats.value.topServices.map((item) => item.count)
+  return counts.length ? Math.max(...counts, 1) : 1
+})
+const maxStaffWorkload = computed(() => {
+  const counts = stats.value.staffWorkload.map((item) => item.count)
+  return counts.length ? Math.max(...counts, 1) : 1
+})
+const serviceUsageItems = computed(() => stats.value.topServices.map((item) => ({
+  ...item,
+  percentage: `${Math.max((item.count / maxServiceUsage.value) * 100, item.count ? 16 : 0)}%`,
+})))
+const staffWorkloadItems = computed(() => stats.value.staffWorkload.map((item) => ({
+  ...item,
+  percentage: `${Math.max((item.count / maxStaffWorkload.value) * 100, item.count ? 16 : 0)}%`,
 })))
 
 async function loadStats() {
@@ -237,6 +255,60 @@ onMounted(() => {
             </div>
           </div>
           <el-empty v-else description="No completed visits yet." />
+        </article>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="dashboard-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Top Services</h2>
+              <p>Most frequently booked services in the current dataset.</p>
+            </div>
+          </div>
+
+          <div v-if="serviceUsageItems.length" class="mini-chart">
+            <div
+              v-for="item in serviceUsageItems"
+              :key="item.label"
+              class="mini-chart__row"
+            >
+              <div class="mini-chart__label">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.count }}</strong>
+              </div>
+              <div class="mini-chart__track">
+                <div class="mini-chart__bar mini-chart__bar--services" :style="{ width: item.percentage }" />
+              </div>
+            </div>
+          </div>
+          <el-empty v-else description="No service activity to summarize yet." />
+        </article>
+
+        <article class="dashboard-panel">
+          <div class="panel-header">
+            <div>
+              <h2>Staff Workload Snapshot</h2>
+              <p>Which staff members are carrying the most bookings right now.</p>
+            </div>
+          </div>
+
+          <div v-if="staffWorkloadItems.length" class="mini-chart">
+            <div
+              v-for="item in staffWorkloadItems"
+              :key="item.label"
+              class="mini-chart__row"
+            >
+              <div class="mini-chart__label">
+                <span>{{ item.label }}</span>
+                <strong>{{ item.count }}</strong>
+              </div>
+              <div class="mini-chart__track">
+                <div class="mini-chart__bar mini-chart__bar--staff" :style="{ width: item.percentage }" />
+              </div>
+            </div>
+          </div>
+          <el-empty v-else description="No staff workload data to summarize yet." />
         </article>
       </section>
     </template>
@@ -434,6 +506,45 @@ onMounted(() => {
   align-items: flex-end;
   text-align: right;
   color: var(--pc-muted);
+}
+
+.mini-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mini-chart__row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mini-chart__label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--pc-text);
+}
+
+.mini-chart__track {
+  height: 10px;
+  border-radius: 999px;
+  background: #edf2f7;
+  overflow: hidden;
+}
+
+.mini-chart__bar {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.mini-chart__bar--services {
+  background: linear-gradient(90deg, #e9b44c 0%, #d48f22 100%);
+}
+
+.mini-chart__bar--staff {
+  background: linear-gradient(90deg, #4da7a7 0%, #1f7c8c 100%);
 }
 
 @media (max-width: 1100px) {

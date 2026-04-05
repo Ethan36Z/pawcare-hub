@@ -251,6 +251,7 @@ class BackendHappyPathIntegrationTest {
             .andExpect(jsonPath("$.generalMedicalNotes").value("Monitor breathing after exercise and grooming"))
             .andExpect(jsonPath("$.medicalNotes[0].author").value("Dr. Rivera"))
             .andExpect(jsonPath("$.medicalNotes[0].noteText").value("Follow-up exam showed stable breathing."))
+            .andExpect(jsonPath("$.medicalNotes[0].relatedVisit").doesNotExist())
             .andExpect(jsonPath("$.medicalNotes[0].createdAt").isNotEmpty())
             .andExpect(jsonPath("$.medicalNotes[0].updatedAt").isNotEmpty());
     }
@@ -754,6 +755,10 @@ class BackendHappyPathIntegrationTest {
             .andExpect(jsonPath("$.activeStaff").isNumber())
             .andExpect(jsonPath("$.activeServices").isNumber())
             .andExpect(jsonPath("$.bookingsByStatus[?(@.status=='Completed')].count").value(org.hamcrest.Matchers.hasItem(1)))
+            .andExpect(jsonPath("$.topServices").isArray())
+            .andExpect(jsonPath("$.topServices[0].label").isNotEmpty())
+            .andExpect(jsonPath("$.staffWorkload").isArray())
+            .andExpect(jsonPath("$.staffWorkload[0].label").isNotEmpty())
             .andExpect(jsonPath("$.recentCompletedVisits[0].id").value(bookingId))
             .andExpect(jsonPath("$.upcomingBookings").isArray());
     }
@@ -954,6 +959,31 @@ class BackendHappyPathIntegrationTest {
         assertThat(savedNote.getAuthor()).isEqualTo("Dr. Rivera");
         assertThat(savedNote.getNoteText()).contains("Visit summary: Wellness exam completed with no urgent concerns.");
         assertThat(savedNote.getNoteText()).contains("Assessment: Mild seasonal skin irritation.");
+        long petId = petRepository.findByOwnerEmailOrderByIdAsc("jamie@example.com").stream()
+            .filter(pet -> "Milo".equalsIgnoreCase(pet.getName()))
+            .findFirst()
+            .orElseThrow()
+            .getId();
+
+        mockMvc.perform(get("/api/pets/{id}", petId)
+                .header("X-User-Email", "jamie@example.com"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.medicalNotes[?(@.relatedBookingId==%s)].relatedVisit.bookingId".formatted(bookingId))
+                .value(org.hamcrest.Matchers.hasItem((int) bookingId)))
+            .andExpect(jsonPath("$.medicalNotes[?(@.relatedBookingId==%s)].relatedVisit.service".formatted(bookingId))
+                .value(org.hamcrest.Matchers.hasItem(service.getName())))
+            .andExpect(jsonPath("$.medicalNotes[?(@.relatedBookingId==%s)].relatedVisit.staff".formatted(bookingId))
+                .value(org.hamcrest.Matchers.hasItem(completedBooking.getStaff())))
+            .andExpect(jsonPath("$.medicalNotes[?(@.relatedBookingId==%s)].relatedVisit.status".formatted(bookingId))
+                .value(org.hamcrest.Matchers.hasItem("Completed")))
+            .andExpect(jsonPath("$.medicalNotes[?(@.relatedBookingId==%s)].relatedVisit.visitSummary".formatted(bookingId))
+                .value(org.hamcrest.Matchers.hasItem("Wellness exam completed with no urgent concerns.")))
+            .andExpect(jsonPath("$.medicalNotes[?(@.relatedBookingId==%s)].relatedVisit.diagnosisAssessment".formatted(bookingId))
+                .value(org.hamcrest.Matchers.hasItem("Mild seasonal skin irritation.")))
+            .andExpect(jsonPath("$.medicalNotes[?(@.relatedBookingId==%s)].relatedVisit.treatmentRecommendation".formatted(bookingId))
+                .value(org.hamcrest.Matchers.hasItem("Use the prescribed medicated shampoo twice weekly.")))
+            .andExpect(jsonPath("$.medicalNotes[?(@.relatedBookingId==%s)].relatedVisit.followUpNote".formatted(bookingId))
+                .value(org.hamcrest.Matchers.hasItem("Recheck in 4 weeks if itching continues.")));
     }
 
     @Test

@@ -9,6 +9,8 @@ public record AdminDashboardStatsResponse(
     long activeServices,
     long totalBookings,
     List<BookingStatusStat> bookingsByStatus,
+    List<UsageStat> topServices,
+    List<UsageStat> staffWorkload,
     List<DashboardBookingSnapshotItem> upcomingBookings,
     List<DashboardBookingSnapshotItem> recentCompletedVisits
 ) {
@@ -27,6 +29,12 @@ public record AdminDashboardStatsResponse(
         String staff,
         String ownerName,
         String status
+    ) {
+    }
+
+    public record UsageStat(
+        String label,
+        long count
     ) {
     }
 }

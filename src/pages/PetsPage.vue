@@ -108,6 +108,10 @@ function formatMedicalNoteTimestamp(value) {
 }
 
 function getMedicalNoteTitle(noteItem) {
+  if (noteItem.relatedVisit?.service) {
+    return noteItem.relatedVisit.service
+  }
+
   if (noteItem.relatedBookingId) {
     return `Visit-linked note #${noteItem.relatedBookingId}`
   }
@@ -116,7 +120,10 @@ function getMedicalNoteTitle(noteItem) {
 }
 
 function getMedicalNoteMeta(noteItem) {
-  const author = formatOptionalValue(noteItem.author, 'Clinic team')
+  const author = formatOptionalValue(
+    noteItem.relatedVisit?.staff || noteItem.author,
+    'Clinic team'
+  )
   const recordedAt = formatMedicalNoteTimestamp(noteItem.createdAt)
   const updatedAt = noteItem.updatedAt && noteItem.updatedAt !== noteItem.createdAt
     ? `Updated ${formatMedicalNoteTimestamp(noteItem.updatedAt)}`
@@ -127,6 +134,29 @@ function getMedicalNoteMeta(noteItem) {
     recordedAt,
     updatedAt,
   }
+}
+
+function getVisitContextLine(noteItem) {
+  if (!noteItem.relatedVisit) {
+    return null
+  }
+
+  const visit = noteItem.relatedVisit
+  return `${visit.date} at ${visit.time} • ${visit.staff}`
+}
+
+function getVisitOutcomeItems(noteItem) {
+  if (!noteItem.relatedVisit) {
+    return []
+  }
+
+  const visit = noteItem.relatedVisit
+  return [
+    { label: 'Visit summary', value: visit.visitSummary },
+    { label: 'Assessment', value: visit.diagnosisAssessment },
+    { label: 'Treatment', value: visit.treatmentRecommendation },
+    { label: 'Follow-up', value: visit.followUpNote },
+  ].filter((item) => item.value)
 }
 
 const ownerName = computed(() => authStore.user?.fullName || 'your pets')
@@ -514,12 +544,16 @@ async function handleDeletePet(pet) {
                 v-for="noteItem in selectedPet.medicalNotes"
                 :key="noteItem.id"
                 class="note-card"
+                :class="{ 'note-card--visit': noteItem.relatedVisit }"
               >
                 <div class="note-card__pin" aria-hidden="true"></div>
                 <div class="note-card__meta">
                   <div class="note-card__meta-primary">
                     <strong>{{ formatMedicalNoteDate(noteItem.date) }}</strong>
                     <span class="note-card__title">{{ getMedicalNoteTitle(noteItem) }}</span>
+                    <span v-if="getVisitContextLine(noteItem)" class="note-card__visit-line">
+                      {{ getVisitContextLine(noteItem) }}
+                    </span>
                   </div>
                   <div class="note-card__meta-secondary">
                     <span>{{ getMedicalNoteMeta(noteItem).author }}</span>
@@ -527,9 +561,25 @@ async function handleDeletePet(pet) {
                   </div>
                 </div>
                 <p>{{ noteItem.noteText }}</p>
+                <div
+                  v-if="getVisitOutcomeItems(noteItem).length"
+                  class="note-card__visit-outcomes"
+                >
+                  <div
+                    v-for="item in getVisitOutcomeItems(noteItem)"
+                    :key="item.label"
+                    class="note-card__visit-outcome"
+                  >
+                    <span>{{ item.label }}</span>
+                    <p>{{ item.value }}</p>
+                  </div>
+                </div>
                 <div class="note-card__footer">
                   <small v-if="noteItem.relatedBookingId">
                     Related booking #{{ noteItem.relatedBookingId }}
+                  </small>
+                  <small v-if="noteItem.relatedVisit?.status">
+                    Visit status: {{ noteItem.relatedVisit.status }}
                   </small>
                   <small v-if="getMedicalNoteMeta(noteItem).updatedAt">
                     {{ getMedicalNoteMeta(noteItem).updatedAt }}
@@ -931,6 +981,11 @@ async function handleDeletePet(pet) {
   margin-left: 18px;
 }
 
+.note-card--visit {
+  background: linear-gradient(180deg, #fffdfa 0%, #f8fcfb 100%);
+  border-color: rgba(63, 114, 93, 0.18);
+}
+
 .note-card__pin {
   position: absolute;
   left: -24px;
@@ -963,10 +1018,41 @@ async function handleDeletePet(pet) {
   font-weight: 600;
 }
 
+.note-card__visit-line {
+  color: #6b7480;
+  font-size: 0.86rem;
+}
+
 .note-card__meta-secondary {
   text-align: right;
   color: #7a817f;
   font-size: 0.86rem;
+}
+
+.note-card__visit-outcomes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.note-card__visit-outcome {
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(244, 250, 248, 0.96);
+  border: 1px solid rgba(63, 114, 93, 0.1);
+}
+
+.note-card__visit-outcome span {
+  display: block;
+  color: #7a817f;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.note-card__visit-outcome p {
+  margin-top: 6px;
 }
 
 .note-card__footer {
@@ -1038,7 +1124,8 @@ async function handleDeletePet(pet) {
 
   .profile-grid,
   .form-grid,
-  .form-grid--compact {
+  .form-grid--compact,
+  .note-card__visit-outcomes {
     grid-template-columns: 1fr;
   }
 

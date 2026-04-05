@@ -2,12 +2,16 @@ package com.pawcarehub.backend.service;
 
 import com.pawcarehub.backend.dto.admin.AdminDashboardStatsResponse;
 import com.pawcarehub.backend.entity.Booking;
+import java.util.Comparator;
 import com.pawcarehub.backend.repository.BookingRepository;
 import com.pawcarehub.backend.repository.ClinicServiceRepository;
 import com.pawcarehub.backend.repository.PetRepository;
 import com.pawcarehub.backend.repository.StaffRepository;
 import com.pawcarehub.backend.repository.UserRepository;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +49,8 @@ public class AdminDashboardService {
             clinicServiceRepository.countByActiveTrue(),
             bookingRepository.count(),
             buildBookingStatusStats(),
+            buildUsageStats(latestBookings, Booking::getResolvedServiceName),
+            buildUsageStats(latestBookings, Booking::getResolvedStaffName),
             latestBookings.stream()
                 .filter(booking -> isUpcomingStatus(booking.getStatus()))
                 .limit(5)
@@ -65,6 +71,26 @@ public class AdminDashboardService {
             new AdminDashboardStatsResponse.BookingStatusStat("Completed", bookingRepository.countByStatusIgnoreCase("Completed")),
             new AdminDashboardStatsResponse.BookingStatusStat("Cancelled", bookingRepository.countByStatusIgnoreCase("Cancelled"))
         );
+    }
+
+    private List<AdminDashboardStatsResponse.UsageStat> buildUsageStats(
+        List<Booking> bookings,
+        Function<Booking, String> labelResolver
+    ) {
+        return bookings.stream()
+            .map(labelResolver)
+            .filter(label -> label != null && !label.isBlank())
+            .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()))
+            .entrySet()
+            .stream()
+            .sorted(
+                Comparator.<Map.Entry<String, Long>>comparingLong(Map.Entry::getValue)
+                    .reversed()
+                    .thenComparing(Map.Entry::getKey)
+            )
+            .limit(5)
+            .map(entry -> new AdminDashboardStatsResponse.UsageStat(entry.getKey(), entry.getValue()))
+            .toList();
     }
 
     private AdminDashboardStatsResponse.DashboardBookingSnapshotItem toSnapshotItem(Booking booking) {
