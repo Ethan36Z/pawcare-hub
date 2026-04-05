@@ -11,7 +11,11 @@ import com.pawcarehub.backend.entity.User;
 import com.pawcarehub.backend.repository.BookingRepository;
 import com.pawcarehub.backend.repository.ClinicServiceRepository;
 import com.pawcarehub.backend.repository.StaffRepository;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +24,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class BookingService {
+    private static final DateTimeFormatter APPOINTMENT_DATE_TIME_FORMATTER =
+        DateTimeFormatter.ofPattern("MMMM d, uuuu h:mm a", Locale.US);
 
     private final AuthService authService;
     private final BookingRepository bookingRepository;
@@ -62,12 +68,16 @@ public class BookingService {
         Staff staffRecord = resolveStaffRecord(request.staffId(), request.staff());
         String serviceName = resolveServiceName(request, serviceRecord);
         String staffName = resolveStaffName(request, staffRecord);
+        String appointmentDate = normalizeRequiredField(request.date(), "date");
+        String appointmentTime = normalizeRequiredField(request.time(), "time");
+
+        validateAppointmentTiming(appointmentDate, appointmentTime);
 
         Booking savedBooking = bookingRepository.save(new Booking(
             normalizeRequiredField(request.petName(), "petName"),
             serviceName,
-            normalizeRequiredField(request.date(), "date"),
-            normalizeRequiredField(request.time(), "time"),
+            appointmentDate,
+            appointmentTime,
             normalizeRequiredField(request.status(), "status"),
             normalizeRequiredField(request.clinic(), "clinic"),
             staffName,
@@ -104,8 +114,13 @@ public class BookingService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cancelled bookings cannot be rescheduled");
         }
 
-        booking.setDate(normalizeRequiredField(request.date(), "date"));
-        booking.setTime(normalizeRequiredField(request.time(), "time"));
+        String appointmentDate = normalizeRequiredField(request.date(), "date");
+        String appointmentTime = normalizeRequiredField(request.time(), "time");
+
+        validateAppointmentTiming(appointmentDate, appointmentTime);
+
+        booking.setDate(appointmentDate);
+        booking.setTime(appointmentTime);
 
         if (request.staffId() != null || StringUtils.hasText(request.staff())) {
             Staff staffRecord = resolveStaffRecord(request.staffId(), request.staff());
@@ -181,5 +196,22 @@ public class BookingService {
         }
 
         return value.trim();
+    }
+
+    private void validateAppointmentTiming(String date, String time) {
+        LocalDateTime appointmentDateTime;
+
+        try {
+            appointmentDateTime = LocalDateTime.parse(date + " " + time, APPOINTMENT_DATE_TIME_FORMATTER);
+        } catch (DateTimeParseException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Appointment date and time are invalid");
+        }
+
+        if (appointmentDateTime.isBefore(LocalDateTime.now().plusHours(1))) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Appointments must be scheduled at least 1 hour in advance"
+            );
+        }
     }
 }

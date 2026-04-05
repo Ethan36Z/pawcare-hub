@@ -7,6 +7,12 @@ import PageContainer from '@/components/common/PageContainer.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRoute, useRouter } from 'vue-router'
 
+const CLINIC_OPEN_HOUR = 8
+const CLINIC_CLOSE_HOUR = 17
+const TIME_SLOT_INTERVAL_MINUTES = 30
+const APPOINTMENT_BUFFER_MINUTES = 60
+const TIME_SLOT_OPTIONS = buildTimeSlotOptions()
+
 const authStore = useAuthStore()
 const route = useRoute()
 const router = useRouter()
@@ -54,6 +60,9 @@ const serviceOptions = computed(() => services.value.map((service) => ({
   value: service.id,
 })))
 
+const createTimeOptions = computed(() => buildAvailableTimeOptions(createForm.value.date))
+const rescheduleTimeOptions = computed(() => buildAvailableTimeOptions(rescheduleForm.value.date))
+
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
 }
@@ -72,6 +81,116 @@ function getStatusTagType(status) {
   }
 
   return 'info'
+}
+
+function getTodayLocalDate() {
+  return formatDateObjectForInput(new Date())
+}
+
+function formatDateObjectForInput(date) {
+  const year = date.getFullYear()
+  const month = `${date.getMonth() + 1}`.padStart(2, '0')
+  const day = `${date.getDate()}`.padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function buildTimeSlotOptions() {
+  const options = []
+
+  for (
+    let minutes = CLINIC_OPEN_HOUR * 60;
+    minutes <= CLINIC_CLOSE_HOUR * 60;
+    minutes += TIME_SLOT_INTERVAL_MINUTES
+  ) {
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    const labelHours = hours % 12 || 12
+    const labelMinutes = `${mins}`.padStart(2, '0')
+    const meridiem = hours >= 12 ? 'PM' : 'AM'
+
+    options.push({
+      value: `${labelHours}:${labelMinutes} ${meridiem}`,
+      minutes,
+    })
+  }
+
+  return options
+}
+
+function formatDateInputForApi(dateInput) {
+  if (!dateInput) {
+    return ''
+  }
+
+  const [year, month, day] = dateInput.split('-').map(Number)
+  if (!year || !month || !day) {
+    return dateInput
+  }
+
+  const displayDate = new Date(year, month - 1, day)
+  return displayDate.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+function parseDisplayDateToInput(displayDate) {
+  if (!displayDate) {
+    return ''
+  }
+
+  const parsedDate = new Date(displayDate)
+  if (Number.isNaN(parsedDate.getTime())) {
+    return ''
+  }
+
+  return formatDateObjectForInput(parsedDate)
+}
+
+function getBufferThreshold() {
+  return new Date(Date.now() + APPOINTMENT_BUFFER_MINUTES * 60 * 1000)
+}
+
+function isDateDisabled(date) {
+  const candidateDate = new Date(date)
+  candidateDate.setHours(0, 0, 0, 0)
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  return candidateDate < today
+}
+
+function isTimeSlotDisabled(selectedDate, slotMinutes) {
+  if (!selectedDate) {
+    return false
+  }
+
+  if (selectedDate !== getTodayLocalDate()) {
+    return false
+  }
+
+  const threshold = getBufferThreshold()
+  return slotMinutes < (threshold.getHours() * 60) + threshold.getMinutes()
+}
+
+function buildAvailableTimeOptions(selectedDate) {
+  return TIME_SLOT_OPTIONS.map((slot) => ({
+    ...slot,
+    disabled: isTimeSlotDisabled(selectedDate, slot.minutes),
+  }))
+}
+
+function ensureValidSelectedTime(formRef, timeOptions) {
+  const matchingOption = timeOptions.value.find((option) => option.value === formRef.value.time)
+
+  if (!matchingOption || matchingOption.disabled) {
+    formRef.value = {
+      ...formRef.value,
+      time: '',
+    }
+  }
 }
 
 async function loadBookings() {
@@ -145,7 +264,7 @@ function openRescheduleDialog(booking) {
   rescheduleErrorMessage.value = ''
   rescheduleBookingId.value = booking.id
   rescheduleForm.value = {
-    date: booking.date,
+    date: parseDisplayDateToInput(booking.date),
     time: booking.time,
     staffId: resolveStaffIdForBooking(booking),
     staff: booking.staff,
@@ -243,6 +362,7 @@ async function handleCreateBooking() {
 
     await bookingsApi.create(authStore.user.email, {
       ...createForm.value,
+      date: formatDateInputForApi(createForm.value.date),
       serviceId: createForm.value.serviceId,
       service: selectedService?.name || createForm.value.service,
       staffId: createForm.value.staffId,
@@ -294,6 +414,7 @@ async function handleRescheduleBooking() {
       rescheduleBookingId.value,
       {
         ...rescheduleForm.value,
+        date: formatDateInputForApi(rescheduleForm.value.date),
         staffId: rescheduleForm.value.staffId,
         staff: selectedStaff?.name || rescheduleForm.value.staff,
       },
@@ -346,6 +467,20 @@ watch(
   () => route.query.bookServiceId,
   () => {
     applyBookingQuerySelection()
+  }
+)
+
+watch(
+  () => createForm.value.date,
+  () => {
+    ensureValidSelectedTime(createForm, createTimeOptions)
+  }
+)
+
+watch(
+  () => rescheduleForm.value.date,
+  () => {
+    ensureValidSelectedTime(rescheduleForm, rescheduleTimeOptions)
   }
 )
 
@@ -511,10 +646,31 @@ onMounted(() => {
 
         <el-form :model="rescheduleForm" label-position="top">
           <el-form-item label="Date">
-            <el-input v-model="rescheduleForm.date" placeholder="e.g. May 10, 2026" />
+            <el-date-picker
+              v-model="rescheduleForm.date"
+              type="date"
+              placeholder="Select appointment date"
+              format="MMMM D, YYYY"
+              value-format="YYYY-MM-DD"
+              :disabled-date="isDateDisabled"
+              class="booking-service-select"
+            />
           </el-form-item>
           <el-form-item label="Time">
-            <el-input v-model="rescheduleForm.time" placeholder="e.g. 10:30 AM" />
+            <el-select
+              v-model="rescheduleForm.time"
+              placeholder="Select appointment time"
+              :disabled="!rescheduleForm.date"
+              class="booking-service-select"
+            >
+              <el-option
+                v-for="slot in rescheduleTimeOptions"
+                :key="slot.value"
+                :label="slot.value"
+                :value="slot.value"
+                :disabled="slot.disabled"
+              />
+            </el-select>
           </el-form-item>
           <el-form-item label="Staff">
             <el-select
@@ -575,10 +731,31 @@ onMounted(() => {
             </el-select>
           </el-form-item>
           <el-form-item label="Date">
-            <el-input v-model="createForm.date" placeholder="e.g. May 10, 2026" />
+            <el-date-picker
+              v-model="createForm.date"
+              type="date"
+              placeholder="Select appointment date"
+              format="MMMM D, YYYY"
+              value-format="YYYY-MM-DD"
+              :disabled-date="isDateDisabled"
+              class="booking-service-select"
+            />
           </el-form-item>
           <el-form-item label="Time">
-            <el-input v-model="createForm.time" placeholder="e.g. 10:30 AM" />
+            <el-select
+              v-model="createForm.time"
+              placeholder="Select appointment time"
+              :disabled="!createForm.date"
+              class="booking-service-select"
+            >
+              <el-option
+                v-for="slot in createTimeOptions"
+                :key="slot.value"
+                :label="slot.value"
+                :value="slot.value"
+                :disabled="slot.disabled"
+              />
+            </el-select>
           </el-form-item>
           <el-form-item label="Clinic">
             <el-input v-model="createForm.clinic" placeholder="Clinic name" />

@@ -18,6 +18,9 @@ import com.pawcarehub.backend.repository.ClinicServiceRepository;
 import com.pawcarehub.backend.repository.PetRepository;
 import com.pawcarehub.backend.repository.StaffRepository;
 import com.pawcarehub.backend.repository.UserRepository;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +35,8 @@ import org.springframework.test.web.servlet.MvcResult;
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class BackendHappyPathIntegrationTest {
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MMMM d, uuuu", Locale.US);
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("h:mm a", Locale.US);
 
     @Autowired
     private MockMvc mockMvc;
@@ -167,6 +172,44 @@ class BackendHappyPathIntegrationTest {
         assertThat(savedBooking.getServiceRecord()).isNotNull();
         assertThat(savedBooking.getStaffRecord()).isNotNull();
         assertThat(savedBooking.getStaffRecord().getId()).isEqualTo(staff.getId());
+    }
+
+    @Test
+    void createBookingRejectsAppointmentsWithinOneHour() throws Exception {
+        registerUser("jamie@example.com");
+        ClinicService service = clinicServiceRepository.findByActiveTrueOrderByCategoryAscNameAsc().stream()
+            .findFirst()
+            .orElseThrow();
+        Staff staff = staffRepository.findAllByOrderByActiveDescNameAsc().stream()
+            .findFirst()
+            .orElseThrow();
+        LocalDateTime nearFuture = LocalDateTime.now().plusMinutes(30);
+
+        mockMvc.perform(post("/api/bookings")
+                .header("X-User-Email", "jamie@example.com")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "petName": "Milo",
+                      "serviceId": %d,
+                      "service": "%s",
+                      "date": "%s",
+                      "time": "%s",
+                      "status": "Upcoming",
+                      "clinic": "PawCare Hub Clinic",
+                      "staffId": %d,
+                      "staff": "%s"
+                    }
+                    """.formatted(
+                    service.getId(),
+                    service.getName(),
+                    nearFuture.format(DATE_FORMATTER),
+                    nearFuture.format(TIME_FORMATTER),
+                    staff.getId(),
+                    staff.getName()
+                )))
+            .andExpect(status().isBadRequest())
+            .andExpect(status().reason("Appointments must be scheduled at least 1 hour in advance"));
     }
 
     @Test
