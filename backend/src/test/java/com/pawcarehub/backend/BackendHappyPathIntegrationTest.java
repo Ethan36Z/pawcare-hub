@@ -196,6 +196,52 @@ class BackendHappyPathIntegrationTest {
     }
 
     @Test
+    void adminCanCreateStaffRecord() throws Exception {
+        mockMvc.perform(post("/api/admin/staff")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "name": "Dr. Lopez",
+                      "role": "Veterinarian",
+                      "active": true
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("Dr. Lopez"))
+            .andExpect(jsonPath("$.role").value("Veterinarian"))
+            .andExpect(jsonPath("$.active").value(true));
+
+        assertThat(staffRepository.existsByNameIgnoreCaseAndRoleIgnoreCase("Dr. Lopez", "Veterinarian")).isTrue();
+    }
+
+    @Test
+    void adminCanEditStaffRecord() throws Exception {
+        Staff staff = staffRepository.findAllByOrderByActiveDescNameAsc().stream()
+            .findFirst()
+            .orElseThrow();
+
+        mockMvc.perform(patch("/api/admin/staff/{id}", staff.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "name": "Dr. Rivera Updated",
+                      "role": "Lead Veterinarian",
+                      "active": false
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(staff.getId()))
+            .andExpect(jsonPath("$.name").value("Dr. Rivera Updated"))
+            .andExpect(jsonPath("$.role").value("Lead Veterinarian"))
+            .andExpect(jsonPath("$.active").value(false));
+
+        Staff updatedStaff = staffRepository.findById(staff.getId()).orElseThrow();
+        assertThat(updatedStaff.getName()).isEqualTo("Dr. Rivera Updated");
+        assertThat(updatedStaff.getRole()).isEqualTo("Lead Veterinarian");
+        assertThat(updatedStaff.isActive()).isFalse();
+    }
+
+    @Test
     void bookingFlowCanListActiveStaffRecords() throws Exception {
         mockMvc.perform(get("/api/staff"))
             .andExpect(status().isOk())
@@ -242,6 +288,66 @@ class BackendHappyPathIntegrationTest {
 
         Booking savedBooking = bookingRepository.findById(bookingId).orElseThrow();
         assertThat(savedBooking.getStatus()).isEqualTo("Confirmed");
+    }
+
+    @Test
+    void rescheduleBookingCanUseRealStaffSelection() throws Exception {
+        registerUser("jamie@example.com");
+        ClinicService service = clinicServiceRepository.findByActiveTrueOrderByCategoryAscNameAsc().stream()
+            .findFirst()
+            .orElseThrow();
+        Staff staff = staffRepository.findAllByOrderByActiveDescNameAsc().stream()
+            .findFirst()
+            .orElseThrow();
+
+        MvcResult createResult = mockMvc.perform(post("/api/bookings")
+                .header("X-User-Email", "jamie@example.com")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "petName": "Milo",
+                      "serviceId": %d,
+                      "service": "%s",
+                      "date": "May 10, 2026",
+                      "time": "10:30 AM",
+                      "status": "Upcoming",
+                      "clinic": "PawCare Hub Clinic",
+                      "staffId": %d,
+                      "staff": "%s"
+                    }
+                    """.formatted(service.getId(), service.getName(), staff.getId(), staff.getName())))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        JsonNode bookingJson = objectMapper.readTree(createResult.getResponse().getContentAsString());
+        long bookingId = bookingJson.get("id").asLong();
+
+        Staff nextStaff = staffRepository.findAllByOrderByActiveDescNameAsc().stream()
+            .filter(candidate -> !candidate.getId().equals(staff.getId()))
+            .findFirst()
+            .orElseThrow();
+
+        mockMvc.perform(patch("/api/bookings/{id}/reschedule", bookingId)
+                .header("X-User-Email", "jamie@example.com")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "date": "May 12, 2026",
+                      "time": "1:15 PM",
+                      "staffId": %d,
+                      "staff": "%s"
+                    }
+                    """.formatted(nextStaff.getId(), nextStaff.getName())))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(bookingId))
+            .andExpect(jsonPath("$.date").value("May 12, 2026"))
+            .andExpect(jsonPath("$.time").value("1:15 PM"))
+            .andExpect(jsonPath("$.staffId").value(nextStaff.getId()))
+            .andExpect(jsonPath("$.staff").value(nextStaff.getName()));
+
+        Booking updatedBooking = bookingRepository.findById(bookingId).orElseThrow();
+        assertThat(updatedBooking.getStaffRecord()).isNotNull();
+        assertThat(updatedBooking.getStaffRecord().getId()).isEqualTo(nextStaff.getId());
     }
 
     private void registerUser(String email) throws Exception {

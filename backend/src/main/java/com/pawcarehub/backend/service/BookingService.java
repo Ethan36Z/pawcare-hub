@@ -107,8 +107,8 @@ public class BookingService {
         booking.setDate(normalizeRequiredField(request.date(), "date"));
         booking.setTime(normalizeRequiredField(request.time(), "time"));
 
-        if (StringUtils.hasText(request.staff())) {
-            Staff staffRecord = resolveStaffRecord(null, request.staff());
+        if (request.staffId() != null || StringUtils.hasText(request.staff())) {
+            Staff staffRecord = resolveStaffRecord(request.staffId(), request.staff());
             booking.setStaff(resolveStaffName(request.staff(), staffRecord));
             booking.setStaffRecord(staffRecord);
         }

@@ -16,4 +16,6 @@ public interface StaffRepository extends JpaRepository<Staff, Long> {
     Optional<Staff> findFirstByNameIgnoreCaseAndActiveTrue(String name);
 
     boolean existsByNameIgnoreCaseAndRoleIgnoreCase(String name, String role);
+
+    boolean existsByNameIgnoreCaseAndRoleIgnoreCaseAndIdNot(String name, String role, Long id);
 }

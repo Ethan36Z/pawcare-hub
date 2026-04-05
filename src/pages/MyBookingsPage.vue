@@ -30,6 +30,7 @@ const rescheduleBookingId = ref(null)
 const rescheduleForm = ref({
   date: '',
   time: '',
+  staffId: null,
   staff: '',
 })
 const createForm = ref({
@@ -146,6 +147,7 @@ function openRescheduleDialog(booking) {
   rescheduleForm.value = {
     date: booking.date,
     time: booking.time,
+    staffId: resolveStaffIdForBooking(booking),
     staff: booking.staff,
   }
   isRescheduleDialogOpen.value = true
@@ -209,8 +211,18 @@ function resetRescheduleForm() {
   rescheduleForm.value = {
     date: '',
     time: '',
+    staffId: null,
     staff: '',
   }
+}
+
+function resolveStaffIdForBooking(booking) {
+  if (booking?.staffId) {
+    return booking.staffId
+  }
+
+  const matchedStaff = staffRecords.value.find((staff) => staff.name === booking?.staff)
+  return matchedStaff?.id ?? null
 }
 
 async function handleCreateBooking() {
@@ -276,10 +288,15 @@ async function handleRescheduleBooking() {
   errorMessage.value = ''
 
   try {
+    const selectedStaff = staffRecords.value.find((staff) => staff.id === rescheduleForm.value.staffId)
     const { data } = await bookingsApi.reschedule(
       authStore.user.email,
       rescheduleBookingId.value,
-      rescheduleForm.value,
+      {
+        ...rescheduleForm.value,
+        staffId: rescheduleForm.value.staffId,
+        staff: selectedStaff?.name || rescheduleForm.value.staff,
+      },
     )
 
     isRescheduleDialogOpen.value = false
@@ -500,7 +517,19 @@ onMounted(() => {
             <el-input v-model="rescheduleForm.time" placeholder="e.g. 10:30 AM" />
           </el-form-item>
           <el-form-item label="Staff">
-            <el-input v-model="rescheduleForm.staff" placeholder="Assigned staff" />
+            <el-select
+              v-model="rescheduleForm.staffId"
+              placeholder="Select a staff member"
+              filterable
+              class="booking-service-select"
+            >
+              <el-option
+                v-for="staff in staffOptions"
+                :key="staff.value"
+                :label="staff.label"
+                :value="staff.value"
+              />
+            </el-select>
           </el-form-item>
         </el-form>
 
