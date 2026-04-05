@@ -16,6 +16,9 @@ export const authApi = {
   changePassword(payload) {
     return http.patch('/auth/change-password', payload)
   },
+  changeEmail(payload) {
+    return http.patch('/auth/change-email', payload)
+  },
   deleteAccount() {
     return http.patch('/auth/delete-account')
   },

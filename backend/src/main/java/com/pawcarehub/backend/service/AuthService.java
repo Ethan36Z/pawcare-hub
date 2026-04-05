@@ -1,7 +1,9 @@
 package com.pawcarehub.backend.service;
 
+import com.pawcarehub.backend.dto.auth.ActionResponse;
 import com.pawcarehub.backend.dto.auth.AuthenticatedUser;
 import com.pawcarehub.backend.dto.auth.AuthResponse;
+import com.pawcarehub.backend.dto.auth.ChangeEmailRequest;
 import com.pawcarehub.backend.dto.auth.ChangePasswordRequest;
 import com.pawcarehub.backend.dto.auth.LoginRequest;
 import com.pawcarehub.backend.dto.auth.RegisterRequest;
@@ -137,6 +139,29 @@ public class AuthService {
 
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
+    }
+
+    public ActionResponse changeEmail(ChangeEmailRequest request) {
+        User user = getAuthenticatedUserEntity();
+        String currentPassword = normalizeRequiredField(request.currentPassword(), "currentPassword");
+        String newEmail = normalizeEmail(request.newEmail());
+
+        if (!passwordMatches(user, currentPassword)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Current password is incorrect");
+        }
+
+        if (user.getEmail().equalsIgnoreCase(newEmail)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "New email must be different from the current email");
+        }
+
+        if (userRepository.existsByEmail(newEmail)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "That email address is already in use");
+        }
+
+        user.setRole(UserRoles.normalize(user.getRole()));
+        user.setEmail(newEmail);
+        userRepository.save(user);
+        return new ActionResponse("Email updated successfully. Please sign in again.");
     }
 
     public void deactivateCurrentUser() {

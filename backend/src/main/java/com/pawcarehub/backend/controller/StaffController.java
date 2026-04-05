@@ -1,5 +1,6 @@
 package com.pawcarehub.backend.controller;
 
+import com.pawcarehub.backend.dto.staff.PublicStaffProfileResponse;
 import com.pawcarehub.backend.dto.staff.StaffResponse;
 import com.pawcarehub.backend.dto.staffavailability.ResolvedStaffAvailabilityResponse;
 import com.pawcarehub.backend.service.StaffAvailabilityService;
@@ -27,6 +28,11 @@ public class StaffController {
     @GetMapping
     public List<StaffResponse> getActiveStaff() {
         return staffService.getActiveStaff();
+    }
+
+    @GetMapping("/homepage")
+    public List<PublicStaffProfileResponse> getHomepageStaff() {
+        return staffService.getHomepageStaff();
     }
 
     @GetMapping("/{staffId}/availability")

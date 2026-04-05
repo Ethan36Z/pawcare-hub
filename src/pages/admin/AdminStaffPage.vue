@@ -38,11 +38,21 @@ const createForm = ref({
   name: '',
   role: '',
   active: true,
+  displayName: '',
+  specialty: '',
+  bio: '',
+  photoUrl: '',
+  showOnHomepage: false,
 })
 const editForm = ref({
   name: '',
   role: '',
   active: true,
+  displayName: '',
+  specialty: '',
+  bio: '',
+  photoUrl: '',
+  showOnHomepage: false,
 })
 const availabilityForm = ref({
   dayOfWeek: 'MONDAY',
@@ -133,6 +143,11 @@ function openEditDialog(staff) {
     name: staff.name,
     role: staff.role,
     active: staff.active,
+    displayName: staff.displayName || '',
+    specialty: staff.specialty || '',
+    bio: staff.bio || '',
+    photoUrl: staff.photoUrl || '',
+    showOnHomepage: !!staff.showOnHomepage,
   }
   isEditDialogOpen.value = true
 }
@@ -174,6 +189,11 @@ function resetCreateForm() {
     name: '',
     role: '',
     active: true,
+    displayName: '',
+    specialty: '',
+    bio: '',
+    photoUrl: '',
+    showOnHomepage: false,
   }
 }
 
@@ -184,6 +204,11 @@ function resetEditForm() {
     name: '',
     role: '',
     active: true,
+    displayName: '',
+    specialty: '',
+    bio: '',
+    photoUrl: '',
+    showOnHomepage: false,
   }
 }
 
@@ -364,6 +389,13 @@ onMounted(() => {
       <el-table-column prop="id" label="ID" min-width="80" />
       <el-table-column prop="name" label="Name" min-width="220" />
       <el-table-column prop="role" label="Role" min-width="180" />
+      <el-table-column label="Homepage" min-width="160">
+        <template #default="{ row }">
+          <el-tag :type="row.showOnHomepage && row.active ? 'success' : 'info'" effect="plain">
+            {{ row.showOnHomepage && row.active ? 'Visible' : 'Hidden' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="Status" min-width="140">
         <template #default="{ row }">
           <el-tag :type="row.active ? 'success' : 'info'" effect="plain">
@@ -407,7 +439,7 @@ onMounted(() => {
     <el-dialog
       v-model="isCreateDialogOpen"
       title="Add Staff"
-      width="min(520px, 92vw)"
+      width="min(640px, 92vw)"
       @closed="resetCreateForm"
     >
       <el-alert
@@ -425,8 +457,30 @@ onMounted(() => {
         <el-form-item label="Role">
           <el-input v-model="createForm.role" placeholder="Veterinarian, Nurse, Reception..." />
         </el-form-item>
+        <el-form-item label="Public display name">
+          <el-input v-model="createForm.displayName" placeholder="Shown on the homepage team section" />
+        </el-form-item>
+        <el-form-item label="Title or specialty">
+          <el-input v-model="createForm.specialty" placeholder="Small Animal Veterinarian" />
+        </el-form-item>
+        <el-form-item label="Short bio">
+          <el-input
+            v-model="createForm.bio"
+            type="textarea"
+            :rows="3"
+            maxlength="280"
+            show-word-limit
+            placeholder="A short introduction for families visiting the clinic website"
+          />
+        </el-form-item>
+        <el-form-item label="Photo URL">
+          <el-input v-model="createForm.photoUrl" placeholder="https://example.com/staff-photo.jpg" />
+        </el-form-item>
         <el-form-item label="Available for bookings">
           <el-switch v-model="createForm.active" />
+        </el-form-item>
+        <el-form-item label="Show on homepage">
+          <el-switch v-model="createForm.showOnHomepage" />
         </el-form-item>
       </el-form>
 
@@ -441,7 +495,7 @@ onMounted(() => {
     <el-dialog
       v-model="isEditDialogOpen"
       title="Edit Staff"
-      width="min(520px, 92vw)"
+      width="min(640px, 92vw)"
       @closed="resetEditForm"
     >
       <el-alert
@@ -459,8 +513,30 @@ onMounted(() => {
         <el-form-item label="Role">
           <el-input v-model="editForm.role" placeholder="Veterinarian, Nurse, Reception..." />
         </el-form-item>
+        <el-form-item label="Public display name">
+          <el-input v-model="editForm.displayName" placeholder="Shown on the homepage team section" />
+        </el-form-item>
+        <el-form-item label="Title or specialty">
+          <el-input v-model="editForm.specialty" placeholder="Small Animal Veterinarian" />
+        </el-form-item>
+        <el-form-item label="Short bio">
+          <el-input
+            v-model="editForm.bio"
+            type="textarea"
+            :rows="3"
+            maxlength="280"
+            show-word-limit
+            placeholder="A short introduction for families visiting the clinic website"
+          />
+        </el-form-item>
+        <el-form-item label="Photo URL">
+          <el-input v-model="editForm.photoUrl" placeholder="https://example.com/staff-photo.jpg" />
+        </el-form-item>
         <el-form-item label="Available for bookings">
           <el-switch v-model="editForm.active" />
+        </el-form-item>
+        <el-form-item label="Show on homepage">
+          <el-switch v-model="editForm.showOnHomepage" />
         </el-form-item>
       </el-form>
 

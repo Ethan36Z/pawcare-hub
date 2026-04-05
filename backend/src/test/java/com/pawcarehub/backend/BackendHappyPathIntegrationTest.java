@@ -140,6 +140,46 @@ class BackendHappyPathIntegrationTest {
     }
 
     @Test
+    void changeEmailRequiresCurrentPasswordAndUpdatesLoginIdentity() throws Exception {
+        registerUser("jamie@example.com");
+
+        String jwtToken = loginAndGetToken("jamie@example.com", "Secret123!");
+
+        mockMvc.perform(patch("/api/auth/change-email")
+                .header("Authorization", "Bearer " + jwtToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "currentPassword": "Secret123!",
+                      "newEmail": "jamie.updated@example.com"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.message").value("Email updated successfully. Please sign in again."));
+
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "email": "jamie@example.com",
+                      "password": "Secret123!"
+                    }
+                    """))
+            .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "email": "jamie.updated@example.com",
+                      "password": "Secret123!"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.email").value("jamie.updated@example.com"));
+    }
+
+    @Test
     void createPetAddsPetForCurrentUser() throws Exception {
         registerUser("jamie@example.com");
 
@@ -799,13 +839,21 @@ class BackendHappyPathIntegrationTest {
                     {
                       "name": "Dr. Lopez",
                       "role": "Veterinarian",
-                      "active": true
+                      "active": true,
+                      "displayName": "Dr. Sofia Lopez",
+                      "specialty": "Preventive Care Veterinarian",
+                      "bio": "Helps families stay on top of routine wellness visits.",
+                      "photoUrl": "https://example.com/dr-lopez.jpg",
+                      "showOnHomepage": true
                     }
                     """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.name").value("Dr. Lopez"))
             .andExpect(jsonPath("$.role").value("Veterinarian"))
-            .andExpect(jsonPath("$.active").value(true));
+            .andExpect(jsonPath("$.active").value(true))
+            .andExpect(jsonPath("$.displayName").value("Dr. Sofia Lopez"))
+            .andExpect(jsonPath("$.specialty").value("Preventive Care Veterinarian"))
+            .andExpect(jsonPath("$.showOnHomepage").value(true));
 
         assertThat(staffRepository.existsByNameIgnoreCaseAndRoleIgnoreCase("Dr. Lopez", "Veterinarian")).isTrue();
     }
@@ -823,19 +871,29 @@ class BackendHappyPathIntegrationTest {
                     {
                       "name": "Dr. Rivera Updated",
                       "role": "Lead Veterinarian",
-                      "active": false
+                      "active": false,
+                      "displayName": "Dr. Elena Rivera",
+                      "specialty": "Internal Medicine",
+                      "bio": "Supports more complex follow-up conversations with pet owners.",
+                      "photoUrl": "https://example.com/dr-rivera.jpg",
+                      "showOnHomepage": true
                     }
                     """))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(staff.getId()))
             .andExpect(jsonPath("$.name").value("Dr. Rivera Updated"))
             .andExpect(jsonPath("$.role").value("Lead Veterinarian"))
-            .andExpect(jsonPath("$.active").value(false));
+            .andExpect(jsonPath("$.active").value(false))
+            .andExpect(jsonPath("$.displayName").value("Dr. Elena Rivera"))
+            .andExpect(jsonPath("$.specialty").value("Internal Medicine"))
+            .andExpect(jsonPath("$.showOnHomepage").value(true));
 
         Staff updatedStaff = staffRepository.findById(staff.getId()).orElseThrow();
         assertThat(updatedStaff.getName()).isEqualTo("Dr. Rivera Updated");
         assertThat(updatedStaff.getRole()).isEqualTo("Lead Veterinarian");
         assertThat(updatedStaff.isActive()).isFalse();
+        assertThat(updatedStaff.getDisplayName()).isEqualTo("Dr. Elena Rivera");
+        assertThat(updatedStaff.isShowOnHomepage()).isTrue();
     }
 
     @Test
@@ -846,6 +904,33 @@ class BackendHappyPathIntegrationTest {
             .andExpect(jsonPath("$[0].name").isNotEmpty())
             .andExpect(jsonPath("$[0].role").isNotEmpty())
             .andExpect(jsonPath("$[0].active").value(true));
+    }
+
+    @Test
+    void homepageStaffListOnlyShowsActiveStaffMarkedForHomepage() throws Exception {
+        Staff visibleStaff = staffRepository.save(new Staff("Dr. Harper", "Veterinarian", true));
+        visibleStaff.setDisplayName("Dr. Olive Harper");
+        visibleStaff.setSpecialty("Feline Medicine");
+        visibleStaff.setBio("Introduces calm, cat-friendly care for routine visits.");
+        visibleStaff.setShowOnHomepage(true);
+        staffRepository.save(visibleStaff);
+
+        Staff hiddenStaff = staffRepository.save(new Staff("Dr. Hidden", "Veterinarian", true));
+        hiddenStaff.setDisplayName("Dr. Hidden");
+        hiddenStaff.setShowOnHomepage(false);
+        staffRepository.save(hiddenStaff);
+
+        Staff inactiveStaff = staffRepository.save(new Staff("Dr. Inactive", "Veterinarian", false));
+        inactiveStaff.setDisplayName("Dr. Inactive");
+        inactiveStaff.setShowOnHomepage(true);
+        staffRepository.save(inactiveStaff);
+
+        mockMvc.perform(get("/api/staff/homepage"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.displayName=='Dr. Olive Harper')].title")
+                .value(org.hamcrest.Matchers.hasItem("Feline Medicine")))
+            .andExpect(jsonPath("$[?(@.displayName=='Dr. Hidden')]").isEmpty())
+            .andExpect(jsonPath("$[?(@.displayName=='Dr. Inactive')]").isEmpty());
     }
 
     @Test
@@ -1123,5 +1208,20 @@ class BackendHappyPathIntegrationTest {
                     }
                     """.formatted(email)))
             .andExpect(status().isCreated());
+    }
+
+    private String loginAndGetToken(String email, String password) throws Exception {
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "email": "%s",
+                      "password": "%s"
+                    }
+                    """.formatted(email, password)))
+            .andExpect(status().isOk())
+            .andReturn();
+
+        return objectMapper.readTree(loginResult.getResponse().getContentAsString()).get("token").asText();
     }
 }

@@ -1,7 +1,9 @@
 package com.pawcarehub.backend.controller;
 
+import com.pawcarehub.backend.dto.auth.ActionResponse;
 import com.pawcarehub.backend.dto.auth.AuthResponse;
 import com.pawcarehub.backend.dto.auth.ChangePasswordRequest;
+import com.pawcarehub.backend.dto.auth.ChangeEmailRequest;
 import com.pawcarehub.backend.dto.auth.LoginRequest;
 import com.pawcarehub.backend.dto.auth.RegisterRequest;
 import com.pawcarehub.backend.dto.auth.UpdateUserProfileRequest;
@@ -57,6 +59,14 @@ public class AuthController {
     ) {
         authService.changePassword(request);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/change-email")
+    public ResponseEntity<ActionResponse> changeEmail(
+        @RequestBody ChangeEmailRequest request
+    ) {
+        ActionResponse response = authService.changeEmail(request);
+        return ResponseEntity.ok(response);
     }
 
     @PatchMapping("/delete-account")

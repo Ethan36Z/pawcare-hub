@@ -11,6 +11,8 @@ public interface StaffRepository extends JpaRepository<Staff, Long> {
 
     List<Staff> findByActiveTrueOrderByNameAsc();
 
+    List<Staff> findByActiveTrueAndShowOnHomepageTrueOrderByNameAsc();
+
     Optional<Staff> findByIdAndActiveTrue(Long id);
 
     Optional<Staff> findFirstByNameIgnoreCaseAndActiveTrue(String name);

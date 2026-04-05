@@ -21,7 +21,8 @@ const profile = reactive({
 const editForm = reactive({
   phone: '',
   address: '',
-  contactMethod: '',
+  newEmail: '',
+  currentPassword: '',
 })
 
 const passwordForm = reactive({
@@ -40,6 +41,7 @@ const isDeletingAccount = ref(false)
 const isEditDialogOpen = ref(false)
 const isPasswordDialogOpen = ref(false)
 const passwordErrorMessage = ref('')
+const editErrorMessage = ref('')
 const errorMessage = ref('')
 const successMessage = ref('')
 
@@ -66,7 +68,9 @@ function applyProfileData(data) {
 function resetEditForm() {
   editForm.phone = profile.phone
   editForm.address = profile.address
-  editForm.contactMethod = profile.contactMethod
+  editForm.newEmail = ''
+  editForm.currentPassword = ''
+  editErrorMessage.value = ''
 }
 
 function resetPasswordForm() {
@@ -117,22 +121,44 @@ async function handleSaveProfile() {
 
   isSavingProfile.value = true
   errorMessage.value = ''
+  editErrorMessage.value = ''
   successMessage.value = ''
 
   try {
     const { data } = await authApi.updateProfile({
       phone: editForm.phone,
       address: editForm.address,
-      preferredContactMethod: editForm.contactMethod,
+      preferredContactMethod: profile.contactMethod,
       emailReminders: profile.emailReminders,
       textReminders: profile.textReminders,
     })
 
     applyProfileData(data)
+
+    const nextEmail = editForm.newEmail.trim()
+
+    if (nextEmail) {
+      const response = await authApi.changeEmail({
+        currentPassword: editForm.currentPassword,
+        newEmail: nextEmail,
+      })
+
+      isEditDialogOpen.value = false
+      authStore.logout()
+      router.push({
+        path: '/login',
+        query: {
+          email: nextEmail,
+          emailChanged: '1',
+        },
+      })
+      return response
+    }
+
     isEditDialogOpen.value = false
     successMessage.value = 'Profile details updated.'
   } catch (error) {
-    errorMessage.value = getApiErrorMessage(error, 'Unable to save your profile right now.')
+    editErrorMessage.value = getApiErrorMessage(error, 'Unable to save your profile right now.')
   } finally {
     isSavingProfile.value = false
   }
@@ -390,6 +416,14 @@ function handleLogout() {
         width="min(560px, 92vw)"
         @closed="resetEditForm"
       >
+        <el-alert
+          v-if="editErrorMessage"
+          :title="editErrorMessage"
+          type="error"
+          :closable="false"
+          class="password-alert"
+        />
+
         <el-form label-position="top">
           <el-form-item label="Phone number">
             <el-input v-model="editForm.phone" placeholder="Phone number" />
@@ -397,15 +431,21 @@ function handleLogout() {
           <el-form-item label="Address">
             <el-input v-model="editForm.address" type="textarea" :rows="3" placeholder="Address" />
           </el-form-item>
-          <el-form-item label="Preferred contact method">
-            <el-select v-model="editForm.contactMethod" placeholder="Select a contact method">
-              <el-option
-                v-for="option in contactOptions"
-                :key="option"
-                :label="option"
-                :value="option"
-              />
-            </el-select>
+          <el-form-item label="New email">
+            <el-input
+              v-model="editForm.newEmail"
+              type="email"
+              placeholder="Enter a new email address"
+            />
+            <p class="dialog-helper">Leave blank if you are not changing your email.</p>
+          </el-form-item>
+          <el-form-item label="Current password">
+            <el-input
+              v-model="editForm.currentPassword"
+              type="password"
+              show-password
+              placeholder="Required to change your email"
+            />
           </el-form-item>
         </el-form>
 
@@ -645,6 +685,13 @@ function handleLogout() {
 
 .password-alert {
   margin-bottom: 16px;
+}
+
+.dialog-helper {
+  margin: 8px 0 0;
+  color: #6b7480;
+  font-size: 0.92rem;
+  line-height: 1.55;
 }
 
 .settings-card :deep(.el-button--primary) {

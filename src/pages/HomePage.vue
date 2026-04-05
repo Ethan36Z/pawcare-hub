@@ -1,5 +1,7 @@
 <script setup>
+import { computed, onMounted, ref } from 'vue'
 import PageContainer from '@/components/common/PageContainer.vue'
+import { staffApi } from '@/api/staff'
 
 const featuredServices = [
   {
@@ -63,6 +65,37 @@ const trustSignals = [
   'Friendly support for everyday pet care needs',
   'Designed for dependable small-clinic operations',
 ]
+
+const homepageStaff = ref([])
+const isLoadingStaff = ref(false)
+
+const hasHomepageStaff = computed(() => homepageStaff.value.length > 0)
+
+function getInitials(name) {
+  return (name || '')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('')
+}
+
+async function loadHomepageStaff() {
+  isLoadingStaff.value = true
+
+  try {
+    const { data } = await staffApi.listHomepage()
+    homepageStaff.value = Array.isArray(data) ? data : []
+  } catch {
+    homepageStaff.value = []
+  } finally {
+    isLoadingStaff.value = false
+  }
+}
+
+onMounted(() => {
+  loadHomepageStaff()
+})
 </script>
 
 <template>
@@ -145,6 +178,52 @@ const trustSignals = [
             <p>{{ step.description }}</p>
           </el-card>
         </div>
+      </section>
+
+      <section class="content-section team-section">
+        <div class="section-heading">
+          <span>Our team</span>
+          <h2>Meet the clinic professionals behind each visit.</h2>
+          <p>
+            A lightweight team introduction helps families feel more confident about the people
+            caring for their pets.
+          </p>
+        </div>
+
+        <el-skeleton v-if="isLoadingStaff" :rows="4" animated />
+
+        <div v-else-if="hasHomepageStaff" class="team-grid">
+          <el-card
+            v-for="staffMember in homepageStaff"
+            :key="staffMember.id"
+            class="team-card"
+            shadow="hover"
+          >
+            <div class="team-card__header">
+              <el-avatar
+                v-if="staffMember.photoUrl"
+                :src="staffMember.photoUrl"
+                :size="68"
+              />
+              <div v-else class="team-avatar-fallback" aria-hidden="true">
+                {{ getInitials(staffMember.displayName) }}
+              </div>
+              <div>
+                <h3>{{ staffMember.displayName }}</h3>
+                <p class="team-card__title">{{ staffMember.title }}</p>
+              </div>
+            </div>
+            <p class="team-card__bio">{{ staffMember.bio }}</p>
+          </el-card>
+        </div>
+
+        <el-card v-else class="team-empty-card" shadow="never">
+          <h3>Meet our care team</h3>
+          <p>
+            The clinic can spotlight veterinarians and care staff here as public staff profiles are
+            prepared.
+          </p>
+        </el-card>
       </section>
 
       <section class="content-section trust-section">
@@ -362,7 +441,8 @@ const trustSignals = [
 }
 
 .card-grid,
-.flow-grid {
+.flow-grid,
+.team-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 18px;
@@ -370,6 +450,8 @@ const trustSignals = [
 
 .info-card,
 .flow-card,
+.team-card,
+.team-empty-card,
 .signals-card,
 .testimonial-card {
   border: 1px solid rgba(28, 60, 88, 0.12);
@@ -404,6 +486,60 @@ const trustSignals = [
 
 .flow-card {
   overflow: hidden;
+}
+
+.team-card {
+  min-height: 100%;
+}
+
+.team-card__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.team-card__header h3,
+.team-empty-card h3 {
+  margin: 0;
+  color: #173047;
+  font-size: 1.12rem;
+}
+
+.team-card__title {
+  margin: 6px 0 0;
+  color: #557084;
+  font-weight: 600;
+}
+
+.team-card__bio,
+.team-empty-card p {
+  margin: 0;
+  color: #556b7c;
+  line-height: 1.7;
+}
+
+.team-avatar-fallback {
+  width: 68px;
+  height: 68px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #dceadf 0%, #c7dbd0 100%);
+  color: #2f6150;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.team-empty-card {
+  padding: 28px;
+  background: linear-gradient(180deg, #f6f8f8 0%, #eef2f1 100%);
+}
+
+.team-empty-card p {
+  margin-top: 12px;
 }
 
 .flow-number {

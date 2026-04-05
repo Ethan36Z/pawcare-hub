@@ -18,9 +18,27 @@ public class StaffInitializationService {
     @PostConstruct
     public void initializeDefaults() {
         List<Staff> defaultStaff = List.of(
-            new Staff("Dr. Rivera", "Veterinarian", true),
-            new Staff("Nurse Patel", "Veterinary Nurse", true),
-            new Staff("Dr. Chen", "Veterinarian", true)
+            createDefaultStaff(
+                "Dr. Rivera",
+                "Veterinarian",
+                "Dr. Elena Rivera",
+                "Small Animal Veterinarian",
+                "Focused on preventive care, wellness visits, and clear follow-up guidance for families."
+            ),
+            createDefaultStaff(
+                "Nurse Patel",
+                "Veterinary Nurse",
+                "Asha Patel",
+                "Veterinary Nurse",
+                "Supports calm check-ins, patient comfort, and practical day-of-visit care coordination."
+            ),
+            createDefaultStaff(
+                "Dr. Chen",
+                "Veterinarian",
+                "Dr. Marcus Chen",
+                "Companion Animal Veterinarian",
+                "Enjoys helping pet owners understand treatment plans and next steps with confidence."
+            )
         );
 
         List<Staff> staffToCreate = defaultStaff.stream()
@@ -30,5 +48,20 @@ public class StaffInitializationService {
         if (!staffToCreate.isEmpty()) {
             staffRepository.saveAll(staffToCreate);
         }
+    }
+
+    private Staff createDefaultStaff(
+        String name,
+        String role,
+        String displayName,
+        String specialty,
+        String bio
+    ) {
+        Staff staff = new Staff(name, role, true);
+        staff.setDisplayName(displayName);
+        staff.setSpecialty(specialty);
+        staff.setBio(bio);
+        staff.setShowOnHomepage(true);
+        return staff;
     }
 }

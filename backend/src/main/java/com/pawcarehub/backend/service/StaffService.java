@@ -1,6 +1,7 @@
 package com.pawcarehub.backend.service;
 
 import com.pawcarehub.backend.dto.admin.CreateStaffRequest;
+import com.pawcarehub.backend.dto.staff.PublicStaffProfileResponse;
 import com.pawcarehub.backend.dto.staff.StaffResponse;
 import com.pawcarehub.backend.entity.Staff;
 import com.pawcarehub.backend.repository.StaffRepository;
@@ -23,23 +24,26 @@ public class StaffService {
     @Transactional(readOnly = true)
     public List<StaffResponse> getAllStaff() {
         return staffRepository.findAllByOrderByActiveDescNameAsc().stream()
-            .map(staff -> new StaffResponse(
-                staff.getId(),
-                staff.getName(),
-                staff.getRole(),
-                staff.isActive()
-            ))
+            .map(this::toResponse)
             .toList();
     }
 
     @Transactional(readOnly = true)
     public List<StaffResponse> getActiveStaff() {
         return staffRepository.findByActiveTrueOrderByNameAsc().stream()
-            .map(staff -> new StaffResponse(
+            .map(this::toResponse)
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<PublicStaffProfileResponse> getHomepageStaff() {
+        return staffRepository.findByActiveTrueAndShowOnHomepageTrueOrderByNameAsc().stream()
+            .map(staff -> new PublicStaffProfileResponse(
                 staff.getId(),
-                staff.getName(),
-                staff.getRole(),
-                staff.isActive()
+                getPublicDisplayName(staff),
+                getPublicTitle(staff),
+                staff.getBio(),
+                staff.getPhotoUrl()
             ))
             .toList();
     }
@@ -58,6 +62,8 @@ public class StaffService {
             role,
             request.active() == null || request.active()
         ));
+        applyPublicProfileFields(savedStaff, request);
+        savedStaff = staffRepository.save(savedStaff);
 
         return toResponse(savedStaff);
     }
@@ -77,6 +83,7 @@ public class StaffService {
         staff.setName(name);
         staff.setRole(role);
         staff.setActive(request.active() == null || request.active());
+        applyPublicProfileFields(staff, request);
 
         Staff savedStaff = staffRepository.save(staff);
         return toResponse(savedStaff);
@@ -97,8 +104,33 @@ public class StaffService {
             staff.getId(),
             staff.getName(),
             staff.getRole(),
-            staff.isActive()
+            staff.isActive(),
+            getPublicDisplayName(staff),
+            getPublicTitle(staff),
+            staff.getBio(),
+            staff.getPhotoUrl(),
+            staff.isShowOnHomepage()
         );
+    }
+
+    private void applyPublicProfileFields(Staff staff, CreateStaffRequest request) {
+        staff.setDisplayName(normalizeOptionalField(request.displayName()));
+        staff.setSpecialty(normalizeOptionalField(request.specialty()));
+        staff.setBio(normalizeOptionalField(request.bio()));
+        staff.setPhotoUrl(normalizeOptionalField(request.photoUrl()));
+        staff.setShowOnHomepage(Boolean.TRUE.equals(request.showOnHomepage()));
+    }
+
+    private String normalizeOptionalField(String value) {
+        return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    private String getPublicDisplayName(Staff staff) {
+        return StringUtils.hasText(staff.getDisplayName()) ? staff.getDisplayName() : staff.getName();
+    }
+
+    private String getPublicTitle(Staff staff) {
+        return StringUtils.hasText(staff.getSpecialty()) ? staff.getSpecialty() : staff.getRole();
     }
 
     private String normalizeRequiredField(String value, String fieldName) {
