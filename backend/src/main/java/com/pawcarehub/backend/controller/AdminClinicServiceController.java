@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -33,41 +32,33 @@ public class AdminClinicServiceController {
 
     @GetMapping
     public List<AdminClinicServiceResponse> getServices(
-        @RequestHeader("X-User-Email") String userEmailHeader,
         @RequestParam(required = false) Boolean active,
         @RequestParam(required = false) String category,
         @RequestParam(required = false) String name,
         @RequestParam(defaultValue = "name-asc") String sort
     ) {
-        roleAccessService.requireAnyRole(userEmailHeader, UserRoles.ADMIN);
+        roleAccessService.requireAnyRole(UserRoles.ADMIN);
         return adminClinicServiceService.getAllServices(active, category, name, sort);
     }
 
     @PostMapping
-    public AdminClinicServiceResponse createService(
-        @RequestHeader("X-User-Email") String userEmailHeader,
-        @RequestBody CreateClinicServiceRequest request
-    ) {
-        roleAccessService.requireAnyRole(userEmailHeader, UserRoles.ADMIN);
+    public AdminClinicServiceResponse createService(@RequestBody CreateClinicServiceRequest request) {
+        roleAccessService.requireAnyRole(UserRoles.ADMIN);
         return adminClinicServiceService.createService(request);
     }
 
     @PatchMapping("/{id}")
     public AdminClinicServiceResponse updateService(
-        @RequestHeader("X-User-Email") String userEmailHeader,
         @PathVariable Long id,
         @RequestBody CreateClinicServiceRequest request
     ) {
-        roleAccessService.requireAnyRole(userEmailHeader, UserRoles.ADMIN);
+        roleAccessService.requireAnyRole(UserRoles.ADMIN);
         return adminClinicServiceService.updateService(id, request);
     }
 
     @PatchMapping("/{id}/toggle")
-    public AdminClinicServiceResponse toggleService(
-        @RequestHeader("X-User-Email") String userEmailHeader,
-        @PathVariable Long id
-    ) {
-        roleAccessService.requireAnyRole(userEmailHeader, UserRoles.ADMIN);
+    public AdminClinicServiceResponse toggleService(@PathVariable Long id) {
+        roleAccessService.requireAnyRole(UserRoles.ADMIN);
         return adminClinicServiceService.toggleServiceAvailability(id);
     }
 }

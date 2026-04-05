@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -28,42 +27,37 @@ public class AdminStaffController {
     }
 
     @GetMapping
-    public List<StaffResponse> getStaff(@RequestHeader("X-User-Email") String userEmailHeader) {
-        roleAccessService.requireAnyRole(userEmailHeader, UserRoles.ADMIN);
+    public List<StaffResponse> getStaff() {
+        roleAccessService.requireAnyRole(UserRoles.ADMIN);
         return staffService.getAllStaff();
     }
 
     @GetMapping("/operations-list")
-    public List<StaffResponse> getOperationsStaff(@RequestHeader("X-User-Email") String userEmailHeader) {
-        roleAccessService.requireAnyRole(userEmailHeader, UserRoles.ADMIN, UserRoles.FRONT_DESK);
+    public List<StaffResponse> getOperationsStaff() {
+        roleAccessService.requireAnyRole(UserRoles.ADMIN, UserRoles.FRONT_DESK);
         return staffService.getAllStaff();
     }
 
     @PostMapping
     public StaffResponse createStaff(
-        @RequestHeader("X-User-Email") String userEmailHeader,
         @RequestBody CreateStaffRequest request
     ) {
-        roleAccessService.requireAnyRole(userEmailHeader, UserRoles.ADMIN);
+        roleAccessService.requireAnyRole(UserRoles.ADMIN);
         return staffService.createStaff(request);
     }
 
     @PatchMapping("/{id}")
     public StaffResponse updateStaff(
-        @RequestHeader("X-User-Email") String userEmailHeader,
         @PathVariable Long id,
         @RequestBody CreateStaffRequest request
     ) {
-        roleAccessService.requireAnyRole(userEmailHeader, UserRoles.ADMIN);
+        roleAccessService.requireAnyRole(UserRoles.ADMIN);
         return staffService.updateStaff(id, request);
     }
 
     @PatchMapping("/{id}/toggle")
-    public StaffResponse toggleStaff(
-        @RequestHeader("X-User-Email") String userEmailHeader,
-        @PathVariable Long id
-    ) {
-        roleAccessService.requireAnyRole(userEmailHeader, UserRoles.ADMIN);
+    public StaffResponse toggleStaff(@PathVariable Long id) {
+        roleAccessService.requireAnyRole(UserRoles.ADMIN);
         return staffService.toggleStaff(id);
     }
 }

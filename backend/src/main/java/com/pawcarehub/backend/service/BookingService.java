@@ -48,16 +48,16 @@ public class BookingService {
     }
 
     @Transactional(readOnly = true)
-    public List<BookingResponse> getCurrentUserBookings(String userEmailHeader) {
-        AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
+    public List<BookingResponse> getCurrentUserBookings() {
+        AuthenticatedUser user = authService.getAuthenticatedUser();
         return bookingRepository.findByOwnerEmailOrderByIdAsc(user.email()).stream()
             .map(booking -> toBookingResponse(booking, user.email()))
             .toList();
     }
 
     @Transactional(readOnly = true)
-    public BookingResponse getCurrentUserBooking(String userEmailHeader, Long bookingId) {
-        AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
+    public BookingResponse getCurrentUserBooking(Long bookingId) {
+        AuthenticatedUser user = authService.getAuthenticatedUser();
         Booking booking = bookingRepository.findByIdAndOwnerEmail(bookingId, user.email())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
 
@@ -65,8 +65,8 @@ public class BookingService {
     }
 
     @Transactional
-    public BookingResponse createBooking(String userEmailHeader, CreateBookingRequest request) {
-        User owner = authService.getAuthenticatedUserEntity(userEmailHeader);
+    public BookingResponse createBooking(CreateBookingRequest request) {
+        User owner = authService.getAuthenticatedUserEntity();
         ClinicService serviceRecord = resolveServiceRecord(request.serviceId());
         Staff staffRecord = resolveStaffRecord(request.staffId(), request.staff());
         String serviceName = resolveServiceName(request, serviceRecord);
@@ -95,8 +95,8 @@ public class BookingService {
     }
 
     @Transactional
-    public BookingResponse cancelBooking(String userEmailHeader, Long bookingId) {
-        AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
+    public BookingResponse cancelBooking(Long bookingId) {
+        AuthenticatedUser user = authService.getAuthenticatedUser();
         Booking booking = bookingRepository.findByIdAndOwnerEmail(bookingId, user.email())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
 
@@ -114,8 +114,8 @@ public class BookingService {
     }
 
     @Transactional
-    public BookingResponse rescheduleBooking(String userEmailHeader, Long bookingId, RescheduleBookingRequest request) {
-        AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
+    public BookingResponse rescheduleBooking(Long bookingId, RescheduleBookingRequest request) {
+        AuthenticatedUser user = authService.getAuthenticatedUser();
         Booking booking = bookingRepository.findByIdAndOwnerEmail(bookingId, user.email())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Booking not found"));
 

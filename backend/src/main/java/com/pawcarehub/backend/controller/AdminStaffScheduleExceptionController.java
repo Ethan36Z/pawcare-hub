@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -34,41 +33,37 @@ public class AdminStaffScheduleExceptionController {
 
     @GetMapping
     public List<StaffScheduleExceptionResponse> getScheduleExceptions(
-        @RequestHeader("X-User-Email") String userEmailHeader,
         @PathVariable Long staffId
     ) {
-        roleAccessService.requireAnyRole(userEmailHeader, UserRoles.ADMIN, UserRoles.FRONT_DESK);
+        roleAccessService.requireAnyRole(UserRoles.ADMIN, UserRoles.FRONT_DESK);
         return staffScheduleExceptionService.getScheduleExceptions(staffId);
     }
 
     @PostMapping
     public StaffScheduleExceptionResponse createScheduleException(
-        @RequestHeader("X-User-Email") String userEmailHeader,
         @PathVariable Long staffId,
         @RequestBody UpsertStaffScheduleExceptionRequest request
     ) {
-        roleAccessService.requireAnyRole(userEmailHeader, UserRoles.ADMIN, UserRoles.FRONT_DESK);
+        roleAccessService.requireAnyRole(UserRoles.ADMIN, UserRoles.FRONT_DESK);
         return staffScheduleExceptionService.createScheduleException(staffId, request);
     }
 
     @PatchMapping("/{exceptionId}")
     public StaffScheduleExceptionResponse updateScheduleException(
-        @RequestHeader("X-User-Email") String userEmailHeader,
         @PathVariable Long staffId,
         @PathVariable Long exceptionId,
         @RequestBody UpsertStaffScheduleExceptionRequest request
     ) {
-        roleAccessService.requireAnyRole(userEmailHeader, UserRoles.ADMIN, UserRoles.FRONT_DESK);
+        roleAccessService.requireAnyRole(UserRoles.ADMIN, UserRoles.FRONT_DESK);
         return staffScheduleExceptionService.updateScheduleException(staffId, exceptionId, request);
     }
 
     @DeleteMapping("/{exceptionId}")
     public ResponseEntity<Void> deleteScheduleException(
-        @RequestHeader("X-User-Email") String userEmailHeader,
         @PathVariable Long staffId,
         @PathVariable Long exceptionId
     ) {
-        roleAccessService.requireAnyRole(userEmailHeader, UserRoles.ADMIN, UserRoles.FRONT_DESK);
+        roleAccessService.requireAnyRole(UserRoles.ADMIN, UserRoles.FRONT_DESK);
         staffScheduleExceptionService.deleteScheduleException(staffId, exceptionId);
         return ResponseEntity.noContent().build();
     }

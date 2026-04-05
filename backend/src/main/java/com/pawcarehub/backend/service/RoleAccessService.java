@@ -16,8 +16,8 @@ public class RoleAccessService {
         this.authService = authService;
     }
 
-    public User requireAnyRole(String userEmailHeader, String... allowedRoles) {
-        User user = authService.getAuthenticatedUserEntity(userEmailHeader);
+    public User requireAnyRole(String... allowedRoles) {
+        User user = authService.getAuthenticatedUserEntity();
         String normalizedRole = UserRoles.normalize(user.getRole());
         Set<String> allowed = Set.copyOf(Arrays.asList(allowedRoles));
 

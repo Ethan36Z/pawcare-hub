@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,55 +29,42 @@ public class PetController {
     }
 
     @GetMapping("/me")
-    public List<PetResponse> getCurrentUserPets(
-        @RequestHeader("X-User-Email") String userEmailHeader
-    ) {
-        return petService.getCurrentUserPets(userEmailHeader);
+    public List<PetResponse> getCurrentUserPets() {
+        return petService.getCurrentUserPets();
     }
 
     @GetMapping("/{id}")
-    public PetResponse getCurrentUserPet(
-        @RequestHeader("X-User-Email") String userEmailHeader,
-        @PathVariable Long id
-    ) {
-        return petService.getCurrentUserPet(userEmailHeader, id);
+    public PetResponse getCurrentUserPet(@PathVariable Long id) {
+        return petService.getCurrentUserPet(id);
     }
 
     @PostMapping
-    public ResponseEntity<PetResponse> createPet(
-        @RequestHeader("X-User-Email") String userEmailHeader,
-        @RequestBody CreatePetRequest request
-    ) {
-        PetResponse response = petService.createPet(userEmailHeader, request);
+    public ResponseEntity<PetResponse> createPet(@RequestBody CreatePetRequest request) {
+        PetResponse response = petService.createPet(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PatchMapping("/{id}")
     public ResponseEntity<PetResponse> updatePet(
-        @RequestHeader("X-User-Email") String userEmailHeader,
         @PathVariable Long id,
         @RequestBody UpdatePetRequest request
     ) {
-        PetResponse response = petService.updatePet(userEmailHeader, id, request);
+        PetResponse response = petService.updatePet(id, request);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/{id}/medical-notes")
     public ResponseEntity<PetMedicalNoteResponse> addMedicalNote(
-        @RequestHeader("X-User-Email") String userEmailHeader,
         @PathVariable Long id,
         @RequestBody PetMedicalNoteRequest request
     ) {
-        PetMedicalNoteResponse response = petService.addMedicalNote(userEmailHeader, id, request);
+        PetMedicalNoteResponse response = petService.addMedicalNote(id, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deletePet(
-        @RequestHeader("X-User-Email") String userEmailHeader,
-        @PathVariable Long id
-    ) {
-        petService.deletePet(userEmailHeader, id);
+    public ResponseEntity<Void> deletePet(@PathVariable Long id) {
+        petService.deletePet(id);
         return ResponseEntity.noContent().build();
     }
 }

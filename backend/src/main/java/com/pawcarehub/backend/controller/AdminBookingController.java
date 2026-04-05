@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -32,41 +31,33 @@ public class AdminBookingController {
 
     @GetMapping
     public List<AdminBookingResponse> getBookings(
-        @RequestHeader("X-User-Email") String userEmailHeader,
         @RequestParam(required = false) String status,
         @RequestParam(required = false) String service,
         @RequestParam(required = false) String owner,
         @RequestParam(defaultValue = "latest") String sort
     ) {
-        roleAccessService.requireAnyRole(userEmailHeader, UserRoles.ADMIN, UserRoles.FRONT_DESK, UserRoles.DOCTOR);
+        roleAccessService.requireAnyRole(UserRoles.ADMIN, UserRoles.FRONT_DESK, UserRoles.DOCTOR);
         return adminBookingService.getAllBookings(status, service, owner, sort);
     }
 
     @PatchMapping("/{id}/confirm")
-    public AdminBookingResponse confirmBooking(
-        @RequestHeader("X-User-Email") String userEmailHeader,
-        @PathVariable Long id
-    ) {
-        roleAccessService.requireAnyRole(userEmailHeader, UserRoles.ADMIN, UserRoles.FRONT_DESK);
+    public AdminBookingResponse confirmBooking(@PathVariable Long id) {
+        roleAccessService.requireAnyRole(UserRoles.ADMIN, UserRoles.FRONT_DESK);
         return adminBookingService.confirmBooking(id);
     }
 
     @PatchMapping("/{id}/cancel")
-    public AdminBookingResponse cancelBooking(
-        @RequestHeader("X-User-Email") String userEmailHeader,
-        @PathVariable Long id
-    ) {
-        roleAccessService.requireAnyRole(userEmailHeader, UserRoles.ADMIN, UserRoles.FRONT_DESK);
+    public AdminBookingResponse cancelBooking(@PathVariable Long id) {
+        roleAccessService.requireAnyRole(UserRoles.ADMIN, UserRoles.FRONT_DESK);
         return adminBookingService.cancelBooking(id);
     }
 
     @PatchMapping("/{id}/complete")
     public AdminBookingResponse completeBooking(
-        @RequestHeader("X-User-Email") String userEmailHeader,
         @PathVariable Long id,
         @RequestBody CompleteBookingRequest request
     ) {
-        roleAccessService.requireAnyRole(userEmailHeader, UserRoles.ADMIN, UserRoles.DOCTOR);
+        roleAccessService.requireAnyRole(UserRoles.ADMIN, UserRoles.DOCTOR);
         return adminBookingService.completeBooking(id, request);
     }
 }

@@ -46,23 +46,23 @@ public class PetService {
         this.petMedicalNoteRepository = petMedicalNoteRepository;
     }
 
-    public List<PetResponse> getCurrentUserPets(String userEmailHeader) {
-        AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
+    public List<PetResponse> getCurrentUserPets() {
+        AuthenticatedUser user = authService.getAuthenticatedUser();
         return petRepository.findByOwnerEmailOrderByIdAsc(user.email()).stream()
             .map(pet -> toPetResponse(pet, user.email(), false))
             .toList();
     }
 
-    public PetResponse getCurrentUserPet(String userEmailHeader, Long petId) {
-        AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
+    public PetResponse getCurrentUserPet(Long petId) {
+        AuthenticatedUser user = authService.getAuthenticatedUser();
         Pet pet = petRepository.findByIdAndOwnerEmail(petId, user.email())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pet not found"));
 
         return toPetResponse(pet, user.email(), true);
     }
 
-    public PetResponse createPet(String userEmailHeader, CreatePetRequest request) {
-        User owner = authService.getAuthenticatedUserEntity(userEmailHeader);
+    public PetResponse createPet(CreatePetRequest request) {
+        User owner = authService.getAuthenticatedUserEntity();
 
         Pet savedPet = petRepository.save(new Pet(
             normalizeRequiredField(request.name(), "name"),
@@ -87,8 +87,8 @@ public class PetService {
         return toPetResponse(savedPet, owner.getEmail(), true);
     }
 
-    public PetResponse updatePet(String userEmailHeader, Long petId, UpdatePetRequest request) {
-        AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
+    public PetResponse updatePet(Long petId, UpdatePetRequest request) {
+        AuthenticatedUser user = authService.getAuthenticatedUser();
         Pet pet = petRepository.findByIdAndOwnerEmail(petId, user.email())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pet not found"));
 
@@ -114,11 +114,10 @@ public class PetService {
     }
 
     public PetMedicalNoteResponse addMedicalNote(
-        String userEmailHeader,
         Long petId,
         PetMedicalNoteRequest request
     ) {
-        AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
+        AuthenticatedUser user = authService.getAuthenticatedUser();
         Pet pet = petRepository.findByIdAndOwnerEmail(petId, user.email())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pet not found"));
 
@@ -146,8 +145,8 @@ public class PetService {
         return toMedicalNoteResponse(savedNote);
     }
 
-    public void deletePet(String userEmailHeader, Long petId) {
-        AuthenticatedUser user = authService.getAuthenticatedUser(userEmailHeader);
+    public void deletePet(Long petId) {
+        AuthenticatedUser user = authService.getAuthenticatedUser();
         Pet pet = petRepository.findByIdAndOwnerEmail(petId, user.email())
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pet not found"));
 

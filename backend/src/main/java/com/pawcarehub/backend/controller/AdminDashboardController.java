@@ -6,7 +6,6 @@ import com.pawcarehub.backend.service.UserRoles;
 import com.pawcarehub.backend.service.AdminDashboardService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -25,10 +24,8 @@ public class AdminDashboardController {
     }
 
     @GetMapping("/stats")
-    public AdminDashboardStatsResponse getStats(
-        @RequestHeader("X-User-Email") String userEmailHeader
-    ) {
-        roleAccessService.requireAnyRole(userEmailHeader, UserRoles.ADMIN, UserRoles.FRONT_DESK, UserRoles.DOCTOR);
+    public AdminDashboardStatsResponse getStats() {
+        roleAccessService.requireAnyRole(UserRoles.ADMIN, UserRoles.FRONT_DESK, UserRoles.DOCTOR);
         return adminDashboardService.getStats();
     }
 }

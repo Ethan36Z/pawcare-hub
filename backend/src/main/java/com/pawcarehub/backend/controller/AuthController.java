@@ -13,7 +13,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -40,35 +39,29 @@ public class AuthController {
     }
 
     @GetMapping("/profile")
-    public UserProfileResponse getProfile(
-        @RequestHeader("X-User-Email") String userEmailHeader
-    ) {
-        return authService.getProfile(userEmailHeader);
+    public UserProfileResponse getProfile() {
+        return authService.getProfile();
     }
 
     @PatchMapping("/profile")
     public ResponseEntity<UserProfileResponse> updateProfile(
-        @RequestHeader("X-User-Email") String userEmailHeader,
         @RequestBody UpdateUserProfileRequest request
     ) {
-        UserProfileResponse response = authService.updateProfile(userEmailHeader, request);
+        UserProfileResponse response = authService.updateProfile(request);
         return ResponseEntity.ok(response);
     }
 
     @PatchMapping("/change-password")
     public ResponseEntity<Void> changePassword(
-        @RequestHeader("X-User-Email") String userEmailHeader,
         @RequestBody ChangePasswordRequest request
     ) {
-        authService.changePassword(userEmailHeader, request);
+        authService.changePassword(request);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/delete-account")
-    public ResponseEntity<Void> deleteAccount(
-        @RequestHeader("X-User-Email") String userEmailHeader
-    ) {
-        authService.deactivateCurrentUser(userEmailHeader);
+    public ResponseEntity<Void> deleteAccount() {
+        authService.deactivateCurrentUser();
         return ResponseEntity.noContent().build();
     }
 }

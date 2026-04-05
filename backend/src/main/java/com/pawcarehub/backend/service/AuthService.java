@@ -12,6 +12,8 @@ import com.pawcarehub.backend.security.JwtService;
 import com.pawcarehub.backend.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
@@ -94,13 +96,18 @@ public class AuthService {
         return new AuthenticatedUser(user.getName(), user.getEmail(), user.getRole());
     }
 
-    public UserProfileResponse getProfile(String userEmailHeader) {
-        User user = getAuthenticatedUserEntity(userEmailHeader);
+    public AuthenticatedUser getAuthenticatedUser() {
+        User user = getAuthenticatedUserEntity();
+        return new AuthenticatedUser(user.getName(), user.getEmail(), user.getRole());
+    }
+
+    public UserProfileResponse getProfile() {
+        User user = getAuthenticatedUserEntity();
         return toUserProfileResponse(user);
     }
 
-    public UserProfileResponse updateProfile(String userEmailHeader, UpdateUserProfileRequest request) {
-        User user = getAuthenticatedUserEntity(userEmailHeader);
+    public UserProfileResponse updateProfile(UpdateUserProfileRequest request) {
+        User user = getAuthenticatedUserEntity();
 
         user.setPhone(normalizeOptionalField(request.phone()));
         user.setAddress(normalizeOptionalField(request.address()));
@@ -112,8 +119,8 @@ public class AuthService {
         return toUserProfileResponse(savedUser);
     }
 
-    public void changePassword(String userEmailHeader, ChangePasswordRequest request) {
-        User user = getAuthenticatedUserEntity(userEmailHeader);
+    public void changePassword(ChangePasswordRequest request) {
+        User user = getAuthenticatedUserEntity();
         String currentPassword = normalizeRequiredField(request.currentPassword(), "currentPassword");
         String newPassword = normalizeRequiredField(request.newPassword(), "newPassword");
 
@@ -132,10 +139,20 @@ public class AuthService {
         userRepository.save(user);
     }
 
-    public void deactivateCurrentUser(String userEmailHeader) {
-        User user = getAuthenticatedUserEntity(userEmailHeader);
+    public void deactivateCurrentUser() {
+        User user = getAuthenticatedUserEntity();
         user.setActive(false);
         userRepository.save(user);
+    }
+
+    public User getAuthenticatedUserEntity() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || !StringUtils.hasText(authentication.getName())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User session is not recognized");
+        }
+
+        return getAuthenticatedUserEntity(authentication.getName());
     }
 
     public User getAuthenticatedUserEntity(String email) {
