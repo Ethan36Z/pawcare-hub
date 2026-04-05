@@ -126,65 +126,71 @@ onMounted(() => {
       </div>
     </div>
 
-    <el-skeleton v-if="isLoading" :rows="5" animated />
+    <div class="admin-table-section">
+      <el-skeleton v-if="isLoading" :rows="5" animated />
 
-    <el-empty
-      v-else-if="!users.length"
-      description="No users match the current filters."
-    />
-
-    <el-table
-      v-else
-      :data="paginatedUsers"
-      stripe
-      :row-class-name="getUserRowClassName"
-    >
-      <el-table-column prop="id" label="ID" min-width="80" />
-      <el-table-column label="Name" min-width="200">
-        <template #default="{ row }">
-          <div class="user-name-cell">
-            <strong>{{ row.name }}</strong>
-            <span v-if="!row.active">Inactive account</span>
-          </div>
-        </template>
-      </el-table-column>
-      <el-table-column prop="email" label="Email" min-width="240" />
-      <el-table-column prop="role" label="Role" min-width="120" />
-      <el-table-column label="Status" min-width="140">
-        <template #default="{ row }">
-          <el-tag :type="getStatusTagType(row.active)" effect="plain">
-            {{ row.active ? 'Active' : 'Deactivated' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="Actions" min-width="160" fixed="right">
-        <template #default="{ row }">
-          <el-button
-            plain
-            size="small"
-            @click="router.push({ name: 'admin-user-details', params: { id: row.id } })"
-          >
-            View details
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <div v-if="users.length > pageSize" class="admin-pagination">
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        background
-        layout="total, prev, pager, next, sizes"
-        :total="users.length"
-        :page-sizes="[10, 20, 50]"
+      <el-empty
+        v-else-if="!users.length"
+        description="No users match the current filters."
       />
+
+      <template v-else>
+        <el-table
+          :data="paginatedUsers"
+          stripe
+          :row-class-name="getUserRowClassName"
+        >
+          <el-table-column prop="id" label="ID" min-width="80" />
+          <el-table-column label="Name" min-width="200">
+            <template #default="{ row }">
+              <div class="user-name-cell">
+                <strong>{{ row.name }}</strong>
+                <span v-if="!row.active">Inactive account</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="email" label="Email" min-width="240" />
+          <el-table-column prop="role" label="Role" min-width="120" />
+          <el-table-column label="Status" min-width="140">
+            <template #default="{ row }">
+              <el-tag :type="getStatusTagType(row.active)" effect="plain">
+                {{ row.active ? 'Active' : 'Deactivated' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="Actions" min-width="160" fixed="right">
+            <template #default="{ row }">
+              <el-button
+                plain
+                size="small"
+                @click="router.push({ name: 'admin-user-details', params: { id: row.id } })"
+              >
+                View details
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div v-if="users.length > pageSize" class="admin-pagination">
+          <el-pagination
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            background
+            layout="total, sizes, prev, pager, next"
+            :total="users.length"
+            :page-sizes="[10, 20, 50]"
+          />
+        </div>
+      </template>
     </div>
   </section>
 </template>
 
 <style scoped>
 .admin-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
   padding: 28px;
   border-radius: 24px;
   background: white;
@@ -227,6 +233,12 @@ onMounted(() => {
   color: var(--pc-muted);
 }
 
+.admin-table-section {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
 .user-name-cell {
   display: flex;
   flex-direction: column;
@@ -255,7 +267,16 @@ onMounted(() => {
 .admin-pagination {
   display: flex;
   justify-content: flex-end;
-  margin-top: 18px;
+  margin-top: auto;
+  padding-top: 18px;
+  min-height: 62px;
+}
+
+.admin-pagination :deep(.el-pagination) {
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 10px;
 }
 
 @media (max-width: 960px) {

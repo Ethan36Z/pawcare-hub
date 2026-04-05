@@ -238,91 +238,98 @@ onMounted(() => {
       </div>
     </div>
 
-    <el-skeleton v-if="isLoading" :rows="6" animated />
+    <div class="admin-table-section">
+      <el-skeleton v-if="isLoading" :rows="6" animated />
 
-    <el-empty
-      v-else-if="!bookings.length"
-      description="No bookings match the current filters."
-    />
-
-    <el-table v-else :data="paginatedBookings" stripe>
-      <el-table-column prop="id" label="ID" min-width="80" />
-      <el-table-column prop="petName" label="Pet" min-width="140" />
-      <el-table-column prop="service" label="Service" min-width="180" />
-      <el-table-column label="Schedule" min-width="190">
-        <template #default="{ row }">
-          {{ row.date }} at {{ row.time }}
-        </template>
-      </el-table-column>
-      <el-table-column label="Status" min-width="130">
-        <template #default="{ row }">
-          <el-tag :type="getStatusTagType(row.status)" effect="plain">
-            {{ row.status }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="staff" label="Staff" min-width="160" />
-      <el-table-column prop="clinic" label="Clinic" min-width="180" />
-      <el-table-column label="Owner" min-width="240">
-        <template #default="{ row }">
-          <div class="owner-cell">
-            <strong>{{ row.ownerName }}</strong>
-            <span>{{ row.ownerEmail }}</span>
-          </div>
-        </template>
-      </el-table-column>
-      <el-table-column label="Client message" min-width="260">
-        <template #default="{ row }">
-          <div v-if="row.ownerNote" class="owner-note-cell">
-            {{ row.ownerNote }}
-          </div>
-          <span v-else class="owner-note-cell owner-note-cell--empty">No message</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="Actions" min-width="220" fixed="right">
-        <template #default="{ row }">
-          <div class="actions-cell">
-            <el-button
-              v-if="canManageBookingQueue && row.status !== 'Confirmed' && row.status !== 'Cancelled' && row.status !== 'Completed'"
-              plain
-              size="small"
-              :loading="confirmingBookingId === row.id"
-              @click="handleConfirmBooking(row)"
-            >
-              Confirm
-            </el-button>
-            <el-button
-              v-if="canCompleteVisits && row.status !== 'Cancelled'"
-              plain
-              size="small"
-              :loading="completingBookingId === row.id"
-              @click="openOutcomeDialog(row)"
-            >
-              {{ row.status === 'Completed' ? 'Edit Outcome' : 'Complete Visit' }}
-            </el-button>
-            <el-button
-              v-if="canManageBookingQueue && row.status !== 'Cancelled' && row.status !== 'Completed'"
-              plain
-              size="small"
-              :loading="cancellingBookingId === row.id"
-              @click="handleCancelBooking(row)"
-            >
-              Cancel
-            </el-button>
-          </div>
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <div v-if="bookings.length > pageSize" class="admin-pagination">
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        background
-        layout="total, prev, pager, next, sizes"
-        :total="bookings.length"
-        :page-sizes="[10, 20, 50]"
+      <el-empty
+        v-else-if="!bookings.length"
+        description="No bookings match the current filters."
       />
+
+      <template v-else>
+        <el-table :data="paginatedBookings" stripe>
+          <el-table-column prop="id" label="ID" min-width="80" />
+          <el-table-column prop="petName" label="Pet" min-width="140" />
+          <el-table-column prop="service" label="Service" min-width="180" />
+          <el-table-column label="Schedule" min-width="190">
+            <template #default="{ row }">
+              {{ row.date }} at {{ row.time }}
+            </template>
+          </el-table-column>
+          <el-table-column label="Status" min-width="130">
+            <template #default="{ row }">
+              <el-tag :type="getStatusTagType(row.status)" effect="plain">
+                {{ row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="staff" label="Staff" min-width="160" />
+          <el-table-column prop="clinic" label="Clinic" min-width="180" />
+          <el-table-column label="Owner" min-width="240">
+            <template #default="{ row }">
+              <div class="owner-cell">
+                <strong>{{ row.ownerName }}</strong>
+                <span>{{ row.ownerEmail }}</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="Client message" min-width="260">
+            <template #default="{ row }">
+              <div v-if="row.ownerNote" class="owner-note-cell">
+                {{ row.ownerNote }}
+              </div>
+              <span v-else class="owner-note-cell owner-note-cell--empty">No message</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="Actions" min-width="220" fixed="right">
+            <template #default="{ row }">
+              <div class="actions-cell actions-cell--booking">
+                <el-button
+                  v-if="canManageBookingQueue && row.status !== 'Confirmed' && row.status !== 'Cancelled' && row.status !== 'Completed'"
+                  plain
+                  size="small"
+                  class="actions-cell__button"
+                  :loading="confirmingBookingId === row.id"
+                  @click="handleConfirmBooking(row)"
+                >
+                  Confirm
+                </el-button>
+                <el-button
+                  v-if="canCompleteVisits && row.status !== 'Cancelled'"
+                  plain
+                  size="small"
+                  class="actions-cell__button"
+                  :loading="completingBookingId === row.id"
+                  @click="openOutcomeDialog(row)"
+                >
+                  {{ row.status === 'Completed' ? 'Edit Outcome' : 'Complete Visit' }}
+                </el-button>
+                <el-button
+                  v-if="canManageBookingQueue && row.status !== 'Cancelled' && row.status !== 'Completed'"
+                  plain
+                  size="small"
+                  class="actions-cell__button actions-cell__button--danger"
+                  :loading="cancellingBookingId === row.id"
+                  @click="handleCancelBooking(row)"
+                >
+                  Cancel
+                </el-button>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div v-if="bookings.length > pageSize" class="admin-pagination">
+          <el-pagination
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            background
+            layout="total, sizes, prev, pager, next"
+            :total="bookings.length"
+            :page-sizes="[10, 20, 50]"
+          />
+        </div>
+      </template>
     </div>
 
     <el-dialog
@@ -394,6 +401,9 @@ onMounted(() => {
 
 <style scoped>
 .admin-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
   padding: 28px;
   border-radius: 24px;
   background: white;
@@ -434,6 +444,12 @@ onMounted(() => {
 .admin-page p {
   margin-bottom: 0;
   color: var(--pc-muted);
+}
+
+.admin-table-section {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
 }
 
 .owner-cell,
@@ -493,10 +509,42 @@ onMounted(() => {
   gap: 8px;
 }
 
+.actions-cell--booking {
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 150px;
+}
+
+.actions-cell--booking .el-button + .el-button {
+  margin-left: 0;
+}
+
+.actions-cell__button {
+  justify-content: center;
+  width: 100%;
+}
+
+.actions-cell__button--danger {
+  --el-button-text-color: #b42318;
+  --el-button-border-color: rgba(180, 35, 24, 0.28);
+  --el-button-hover-text-color: #ffffff;
+  --el-button-hover-bg-color: #b42318;
+  --el-button-hover-border-color: #b42318;
+}
+
 .admin-pagination {
   display: flex;
   justify-content: flex-end;
-  margin-top: 18px;
+  margin-top: auto;
+  padding-top: 18px;
+  min-height: 62px;
+}
+
+.admin-pagination :deep(.el-pagination) {
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 10px;
 }
 
 @media (max-width: 1100px) {

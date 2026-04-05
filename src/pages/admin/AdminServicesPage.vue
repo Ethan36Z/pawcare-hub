@@ -246,59 +246,63 @@ onMounted(() => {
       </div>
     </div>
 
-    <el-skeleton v-if="isLoading" :rows="6" animated />
+    <div class="admin-table-section">
+      <el-skeleton v-if="isLoading" :rows="6" animated />
 
-    <el-empty
-      v-else-if="!services.length"
-      description="No services match the current filters."
-    />
-
-    <el-table v-else :data="paginatedServices" stripe>
-      <el-table-column prop="id" label="ID" min-width="80" />
-      <el-table-column prop="name" label="Service" min-width="220" />
-      <el-table-column prop="category" label="Category" min-width="140" />
-      <el-table-column prop="duration" label="Duration" min-width="120" />
-      <el-table-column prop="price" label="Price" min-width="120" />
-      <el-table-column label="Status" min-width="140">
-        <template #default="{ row }">
-          <el-tag :type="row.active ? 'success' : 'info'" effect="plain">
-            {{ row.active ? 'Active' : 'Inactive' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="description" label="Description" min-width="320" show-overflow-tooltip />
-      <el-table-column label="Actions" min-width="220" fixed="right">
-        <template #default="{ row }">
-          <div class="actions-cell">
-            <el-button
-              plain
-              size="small"
-              @click="openEditDialog(row)"
-            >
-              Edit
-            </el-button>
-            <el-button
-              plain
-              size="small"
-              :loading="togglingServiceId === row.id"
-              @click="handleToggleService(row)"
-            >
-              {{ row.active ? 'Disable' : 'Enable' }}
-            </el-button>
-          </div>
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <div v-if="services.length > pageSize" class="admin-pagination">
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        background
-        layout="total, prev, pager, next, sizes"
-        :total="services.length"
-        :page-sizes="[10, 20, 50]"
+      <el-empty
+        v-else-if="!services.length"
+        description="No services match the current filters."
       />
+
+      <template v-else>
+        <el-table :data="paginatedServices" stripe>
+          <el-table-column prop="id" label="ID" min-width="80" />
+          <el-table-column prop="name" label="Service" min-width="220" />
+          <el-table-column prop="category" label="Category" min-width="140" />
+          <el-table-column prop="duration" label="Duration" min-width="120" />
+          <el-table-column prop="price" label="Price" min-width="120" />
+          <el-table-column label="Status" min-width="140">
+            <template #default="{ row }">
+              <el-tag :type="row.active ? 'success' : 'info'" effect="plain">
+                {{ row.active ? 'Active' : 'Inactive' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="description" label="Description" min-width="320" show-overflow-tooltip />
+          <el-table-column label="Actions" min-width="220" fixed="right">
+            <template #default="{ row }">
+              <div class="actions-cell">
+                <el-button
+                  plain
+                  size="small"
+                  @click="openEditDialog(row)"
+                >
+                  Edit
+                </el-button>
+                <el-button
+                  plain
+                  size="small"
+                  :loading="togglingServiceId === row.id"
+                  @click="handleToggleService(row)"
+                >
+                  {{ row.active ? 'Disable' : 'Enable' }}
+                </el-button>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div v-if="services.length > pageSize" class="admin-pagination">
+          <el-pagination
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            background
+            layout="total, sizes, prev, pager, next"
+            :total="services.length"
+            :page-sizes="[10, 20, 50]"
+          />
+        </div>
+      </template>
     </div>
 
     <el-dialog
@@ -401,6 +405,9 @@ onMounted(() => {
 
 <style scoped>
 .admin-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
   padding: 28px;
   border-radius: 24px;
   background: white;
@@ -447,6 +454,12 @@ onMounted(() => {
   color: var(--pc-muted);
 }
 
+.admin-table-section {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
 .actions-cell {
   display: flex;
   flex-wrap: wrap;
@@ -456,7 +469,16 @@ onMounted(() => {
 .admin-pagination {
   display: flex;
   justify-content: flex-end;
-  margin-top: 18px;
+  margin-top: auto;
+  padding-top: 18px;
+  min-height: 62px;
+}
+
+.admin-pagination :deep(.el-pagination) {
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 10px;
 }
 
 .admin-page :deep(.el-button--primary) {

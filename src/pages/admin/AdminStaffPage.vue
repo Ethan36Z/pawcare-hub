@@ -378,62 +378,66 @@ onMounted(() => {
       class="admin-page__alert"
     />
 
-    <el-skeleton v-if="isLoading" :rows="5" animated />
+    <div class="admin-table-section">
+      <el-skeleton v-if="isLoading" :rows="5" animated />
 
-    <el-empty
-      v-else-if="!staffRecords.length"
-      description="No staff records are available yet."
-    />
-
-    <el-table v-else :data="paginatedStaffRecords" stripe>
-      <el-table-column prop="id" label="ID" min-width="80" />
-      <el-table-column prop="name" label="Name" min-width="220" />
-      <el-table-column prop="role" label="Role" min-width="180" />
-      <el-table-column label="Homepage" min-width="160">
-        <template #default="{ row }">
-          <el-tag :type="row.showOnHomepage && row.active ? 'success' : 'info'" effect="plain">
-            {{ row.showOnHomepage && row.active ? 'Visible' : 'Hidden' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="Status" min-width="140">
-        <template #default="{ row }">
-          <el-tag :type="row.active ? 'success' : 'info'" effect="plain">
-            {{ row.active ? 'Active' : 'Inactive' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="Actions" min-width="280" fixed="right">
-        <template #default="{ row }">
-          <div class="actions-cell">
-            <el-button plain size="small" @click="openEditDialog(row)">
-              Edit
-            </el-button>
-            <el-button plain size="small" @click="openAvailabilityDialog(row)">
-              Manage Availability
-            </el-button>
-            <el-button
-              plain
-              size="small"
-              :loading="togglingStaffId === row.id"
-              @click="handleToggleStaff(row)"
-            >
-              {{ row.active ? 'Disable' : 'Enable' }}
-            </el-button>
-          </div>
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <div v-if="staffRecords.length > pageSize" class="admin-pagination">
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        background
-        layout="total, prev, pager, next, sizes"
-        :total="staffRecords.length"
-        :page-sizes="[10, 20, 50]"
+      <el-empty
+        v-else-if="!staffRecords.length"
+        description="No staff records are available yet."
       />
+
+      <template v-else>
+        <el-table :data="paginatedStaffRecords" stripe>
+          <el-table-column prop="id" label="ID" min-width="80" />
+          <el-table-column prop="name" label="Name" min-width="220" />
+          <el-table-column prop="role" label="Role" min-width="180" />
+          <el-table-column label="Homepage" min-width="160">
+            <template #default="{ row }">
+              <el-tag :type="row.showOnHomepage && row.active ? 'success' : 'info'" effect="plain">
+                {{ row.showOnHomepage && row.active ? 'Visible' : 'Hidden' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="Status" min-width="140">
+            <template #default="{ row }">
+              <el-tag :type="row.active ? 'success' : 'info'" effect="plain">
+                {{ row.active ? 'Active' : 'Inactive' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="Actions" min-width="280" fixed="right">
+            <template #default="{ row }">
+              <div class="actions-cell">
+                <el-button plain size="small" @click="openEditDialog(row)">
+                  Edit
+                </el-button>
+                <el-button plain size="small" @click="openAvailabilityDialog(row)">
+                  Manage Availability
+                </el-button>
+                <el-button
+                  plain
+                  size="small"
+                  :loading="togglingStaffId === row.id"
+                  @click="handleToggleStaff(row)"
+                >
+                  {{ row.active ? 'Disable' : 'Enable' }}
+                </el-button>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div v-if="staffRecords.length > pageSize" class="admin-pagination">
+          <el-pagination
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            background
+            layout="total, sizes, prev, pager, next"
+            :total="staffRecords.length"
+            :page-sizes="[10, 20, 50]"
+          />
+        </div>
+      </template>
     </div>
 
     <el-dialog
@@ -683,6 +687,9 @@ onMounted(() => {
 
 <style scoped>
 .admin-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
   padding: 28px;
   border-radius: 24px;
   background: white;
@@ -724,6 +731,12 @@ onMounted(() => {
   color: var(--pc-muted);
 }
 
+.admin-table-section {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
 .actions-cell {
   display: flex;
   flex-wrap: wrap;
@@ -733,7 +746,16 @@ onMounted(() => {
 .admin-pagination {
   display: flex;
   justify-content: flex-end;
-  margin-top: 18px;
+  margin-top: auto;
+  padding-top: 18px;
+  min-height: 62px;
+}
+
+.admin-pagination :deep(.el-pagination) {
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 10px;
 }
 
 .form-select {
