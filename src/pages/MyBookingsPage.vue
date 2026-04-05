@@ -78,7 +78,7 @@ function getApiErrorMessage(error, fallbackMessage) {
 }
 
 function getStatusTagType(status) {
-  if (status === 'Confirmed') {
+  if (status === 'Confirmed' || status === 'Completed') {
     return 'success'
   }
 
@@ -617,13 +617,14 @@ onMounted(() => {
           <div class="booking-actions">
             <el-button type="primary" @click="handleViewDetails(booking)">View Details</el-button>
             <el-button
-              v-if="booking.status !== 'Cancelled'"
+              v-if="booking.status !== 'Cancelled' && booking.status !== 'Completed'"
               plain
               @click="openRescheduleDialog(booking)"
             >
               Reschedule
             </el-button>
             <el-button
+              v-if="booking.status !== 'Completed'"
               plain
               :loading="isCancellingBookingId === booking.id"
               @click="handleCancelBooking(booking)"
@@ -690,6 +691,34 @@ onMounted(() => {
           <div>
             <span>Account</span>
             <strong>{{ selectedBooking.ownerEmail }}</strong>
+          </div>
+          <div
+            v-if="selectedBooking.status === 'Completed' && selectedBooking.visitSummary"
+            class="details-grid__full"
+          >
+            <span>Visit summary</span>
+            <p>{{ selectedBooking.visitSummary }}</p>
+          </div>
+          <div
+            v-if="selectedBooking.status === 'Completed' && selectedBooking.diagnosisAssessment"
+            class="details-grid__full"
+          >
+            <span>Diagnosis / assessment</span>
+            <p>{{ selectedBooking.diagnosisAssessment }}</p>
+          </div>
+          <div
+            v-if="selectedBooking.status === 'Completed' && selectedBooking.treatmentRecommendation"
+            class="details-grid__full"
+          >
+            <span>Treatment / recommendation</span>
+            <p>{{ selectedBooking.treatmentRecommendation }}</p>
+          </div>
+          <div
+            v-if="selectedBooking.status === 'Completed' && selectedBooking.followUpNote"
+            class="details-grid__full"
+          >
+            <span>Follow-up note</span>
+            <p>{{ selectedBooking.followUpNote }}</p>
           </div>
         </div>
       </el-dialog>
@@ -1022,6 +1051,16 @@ onMounted(() => {
 
 .create-alert {
   margin-bottom: 16px;
+}
+
+.details-grid__full {
+  grid-column: 1 / -1;
+}
+
+.details-grid__full p {
+  margin: 8px 0 0;
+  color: #5f7484;
+  line-height: 1.7;
 }
 
 .time-slot-hint {

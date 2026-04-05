@@ -68,11 +68,23 @@ public class PetMedicalNote {
         return author;
     }
 
+    public void setAuthor(String author) {
+        this.author = author;
+    }
+
     public Long getRelatedBookingId() {
         return relatedBookingId;
     }
 
     public String getNoteText() {
         return noteText;
+    }
+
+    public void setNoteText(String noteText) {
+        this.noteText = noteText;
+    }
+
+    public void setNoteDate(LocalDate noteDate) {
+        this.noteDate = noteDate;
     }
 }

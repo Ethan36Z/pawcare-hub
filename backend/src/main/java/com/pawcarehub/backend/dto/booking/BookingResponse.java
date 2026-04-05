@@ -11,6 +11,10 @@ public record BookingResponse(
     String clinic,
     Long staffId,
     String staff,
-    String ownerEmail
+    String ownerEmail,
+    String visitSummary,
+    String diagnosisAssessment,
+    String treatmentRecommendation,
+    String followUpNote
 ) {
 }

@@ -10,4 +10,7 @@ export const adminBookingsApi = {
   cancel(id) {
     return http.patch(`/admin/bookings/${id}/cancel`)
   },
+  complete(id, payload) {
+    return http.patch(`/admin/bookings/${id}/complete`, payload)
+  },
 }

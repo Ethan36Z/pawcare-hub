@@ -13,6 +13,10 @@ public class AdminBookingResponse {
     private final Long ownerId;
     private final String ownerName;
     private final String ownerEmail;
+    private final String visitSummary;
+    private final String diagnosisAssessment;
+    private final String treatmentRecommendation;
+    private final String followUpNote;
 
     public AdminBookingResponse(
         Long id,
@@ -25,7 +29,11 @@ public class AdminBookingResponse {
         String staff,
         Long ownerId,
         String ownerName,
-        String ownerEmail
+        String ownerEmail,
+        String visitSummary,
+        String diagnosisAssessment,
+        String treatmentRecommendation,
+        String followUpNote
     ) {
         this.id = id;
         this.petName = petName;
@@ -38,6 +46,10 @@ public class AdminBookingResponse {
         this.ownerId = ownerId;
         this.ownerName = ownerName;
         this.ownerEmail = ownerEmail;
+        this.visitSummary = visitSummary;
+        this.diagnosisAssessment = diagnosisAssessment;
+        this.treatmentRecommendation = treatmentRecommendation;
+        this.followUpNote = followUpNote;
     }
 
     public Long getId() {
@@ -82,5 +94,21 @@ public class AdminBookingResponse {
 
     public String getOwnerEmail() {
         return ownerEmail;
+    }
+
+    public String getVisitSummary() {
+        return visitSummary;
+    }
+
+    public String getDiagnosisAssessment() {
+        return diagnosisAssessment;
+    }
+
+    public String getTreatmentRecommendation() {
+        return treatmentRecommendation;
+    }
+
+    public String getFollowUpNote() {
+        return followUpNote;
     }
 }

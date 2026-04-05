@@ -102,6 +102,10 @@ public class BookingService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Booking is already cancelled");
         }
 
+        if ("Completed".equalsIgnoreCase(booking.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Completed bookings cannot be cancelled");
+        }
+
         booking.setStatus("Cancelled");
         Booking savedBooking = bookingRepository.save(booking);
         return toBookingResponse(savedBooking, user.email());
@@ -115,6 +119,10 @@ public class BookingService {
 
         if ("Cancelled".equalsIgnoreCase(booking.getStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cancelled bookings cannot be rescheduled");
+        }
+
+        if ("Completed".equalsIgnoreCase(booking.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Completed bookings cannot be rescheduled");
         }
 
         String appointmentDate = normalizeRequiredField(request.date(), "date");
@@ -150,7 +158,11 @@ public class BookingService {
             booking.getClinic(),
             booking.getStaffRecord() != null ? booking.getStaffRecord().getId() : null,
             booking.getResolvedStaffName(),
-            ownerEmail
+            ownerEmail,
+            booking.getVisitSummary(),
+            booking.getDiagnosisAssessment(),
+            booking.getTreatmentRecommendation(),
+            booking.getFollowUpNote()
         );
     }
 

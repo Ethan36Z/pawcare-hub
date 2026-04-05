@@ -7,6 +7,17 @@ const isLoading = ref(false)
 const errorMessage = ref('')
 const confirmingBookingId = ref(null)
 const cancellingBookingId = ref(null)
+const completingBookingId = ref(null)
+const isOutcomeDialogOpen = ref(false)
+const isSavingOutcome = ref(false)
+const outcomeErrorMessage = ref('')
+const selectedOutcomeBooking = ref(null)
+const outcomeForm = ref({
+  visitSummary: '',
+  diagnosisAssessment: '',
+  treatmentRecommendation: '',
+  followUpNote: '',
+})
 const filters = ref({
   status: '',
   service: '',
@@ -19,7 +30,7 @@ function getApiErrorMessage(error, fallbackMessage) {
 }
 
 function getStatusTagType(status) {
-  if (status === 'Confirmed') {
+  if (status === 'Confirmed' || status === 'Completed') {
     return 'success'
   }
 
@@ -32,6 +43,17 @@ function getStatusTagType(status) {
   }
 
   return 'info'
+}
+
+function resetOutcomeForm() {
+  selectedOutcomeBooking.value = null
+  outcomeErrorMessage.value = ''
+  outcomeForm.value = {
+    visitSummary: '',
+    diagnosisAssessment: '',
+    treatmentRecommendation: '',
+    followUpNote: '',
+  }
 }
 
 async function loadBookings() {
@@ -90,6 +112,40 @@ async function handleCancelBooking(booking) {
   }
 }
 
+function openOutcomeDialog(booking) {
+  selectedOutcomeBooking.value = booking
+  outcomeErrorMessage.value = ''
+  outcomeForm.value = {
+    visitSummary: booking.visitSummary || '',
+    diagnosisAssessment: booking.diagnosisAssessment || '',
+    treatmentRecommendation: booking.treatmentRecommendation || '',
+    followUpNote: booking.followUpNote || '',
+  }
+  isOutcomeDialogOpen.value = true
+}
+
+async function handleSaveOutcome() {
+  if (!selectedOutcomeBooking.value?.id) {
+    return
+  }
+
+  isSavingOutcome.value = true
+  completingBookingId.value = selectedOutcomeBooking.value.id
+  outcomeErrorMessage.value = ''
+
+  try {
+    await adminBookingsApi.complete(selectedOutcomeBooking.value.id, outcomeForm.value)
+    isOutcomeDialogOpen.value = false
+    resetOutcomeForm()
+    await loadBookings()
+  } catch (error) {
+    outcomeErrorMessage.value = getApiErrorMessage(error, 'Unable to save the visit outcome right now.')
+  } finally {
+    isSavingOutcome.value = false
+    completingBookingId.value = null
+  }
+}
+
 function handleApplyFilters() {
   loadBookings()
 }
@@ -135,6 +191,7 @@ onMounted(() => {
       >
         <el-option label="Upcoming" value="Upcoming" />
         <el-option label="Confirmed" value="Confirmed" />
+        <el-option label="Completed" value="Completed" />
         <el-option label="Cancelled" value="Cancelled" />
       </el-select>
 
@@ -207,7 +264,7 @@ onMounted(() => {
         <template #default="{ row }">
           <div class="actions-cell">
             <el-button
-              v-if="row.status !== 'Confirmed' && row.status !== 'Cancelled'"
+              v-if="row.status !== 'Confirmed' && row.status !== 'Cancelled' && row.status !== 'Completed'"
               plain
               size="small"
               :loading="confirmingBookingId === row.id"
@@ -219,6 +276,15 @@ onMounted(() => {
               v-if="row.status !== 'Cancelled'"
               plain
               size="small"
+              :loading="completingBookingId === row.id"
+              @click="openOutcomeDialog(row)"
+            >
+              {{ row.status === 'Completed' ? 'Edit Outcome' : 'Complete Visit' }}
+            </el-button>
+            <el-button
+              v-if="row.status !== 'Cancelled' && row.status !== 'Completed'"
+              plain
+              size="small"
               :loading="cancellingBookingId === row.id"
               @click="handleCancelBooking(row)"
             >
@@ -228,6 +294,68 @@ onMounted(() => {
         </template>
       </el-table-column>
     </el-table>
+
+    <el-dialog
+      v-model="isOutcomeDialogOpen"
+      title="Visit Outcome"
+      width="min(640px, 94vw)"
+      @closed="resetOutcomeForm"
+    >
+      <el-alert
+        v-if="outcomeErrorMessage"
+        :title="outcomeErrorMessage"
+        type="error"
+        :closable="false"
+        class="admin-page__alert"
+      />
+
+      <div v-if="selectedOutcomeBooking" class="outcome-summary">
+        <strong>{{ selectedOutcomeBooking.petName }}</strong>
+        <span>{{ selectedOutcomeBooking.service }} | {{ selectedOutcomeBooking.date }} at {{ selectedOutcomeBooking.time }}</span>
+      </div>
+
+      <el-form :model="outcomeForm" label-position="top">
+        <el-form-item label="Visit summary">
+          <el-input
+            v-model="outcomeForm.visitSummary"
+            type="textarea"
+            :rows="3"
+            placeholder="Brief summary of how the visit went"
+          />
+        </el-form-item>
+        <el-form-item label="Diagnosis or assessment">
+          <el-input
+            v-model="outcomeForm.diagnosisAssessment"
+            type="textarea"
+            :rows="3"
+            placeholder="Clinical impression or assessment"
+          />
+        </el-form-item>
+        <el-form-item label="Treatment or recommendation">
+          <el-input
+            v-model="outcomeForm.treatmentRecommendation"
+            type="textarea"
+            :rows="3"
+            placeholder="Treatment provided or recommended next steps"
+          />
+        </el-form-item>
+        <el-form-item label="Follow-up note">
+          <el-input
+            v-model="outcomeForm.followUpNote"
+            type="textarea"
+            :rows="3"
+            placeholder="Optional follow-up reminder or note"
+          />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="isOutcomeDialogOpen = false">Cancel</el-button>
+        <el-button type="primary" :loading="isSavingOutcome" @click="handleSaveOutcome">
+          Save and Mark Complete
+        </el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
@@ -278,6 +406,22 @@ onMounted(() => {
 .owner-cell,
 .actions-cell {
   display: flex;
+}
+
+.outcome-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--pc-border);
+  border-radius: 16px;
+  background: rgba(255, 251, 244, 0.72);
+}
+
+.outcome-summary span {
+  color: var(--pc-muted);
+  font-size: 0.95rem;
 }
 
 .owner-cell {

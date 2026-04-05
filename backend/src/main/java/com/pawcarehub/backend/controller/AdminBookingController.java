@@ -1,8 +1,10 @@
 package com.pawcarehub.backend.controller;
 
 import com.pawcarehub.backend.dto.admin.AdminBookingResponse;
+import com.pawcarehub.backend.dto.admin.CompleteBookingRequest;
 import com.pawcarehub.backend.service.AdminBookingService;
 import java.util.List;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,5 +40,13 @@ public class AdminBookingController {
     @PatchMapping("/{id}/cancel")
     public AdminBookingResponse cancelBooking(@PathVariable Long id) {
         return adminBookingService.cancelBooking(id);
+    }
+
+    @PatchMapping("/{id}/complete")
+    public AdminBookingResponse completeBooking(
+        @PathVariable Long id,
+        @RequestBody CompleteBookingRequest request
+    ) {
+        return adminBookingService.completeBooking(id, request);
     }
 }

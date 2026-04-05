@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pawcarehub.backend.entity.Booking;
 import com.pawcarehub.backend.entity.ClinicService;
+import com.pawcarehub.backend.entity.PetMedicalNote;
 import com.pawcarehub.backend.entity.Staff;
 import com.pawcarehub.backend.entity.StaffAvailability;
 import com.pawcarehub.backend.entity.User;
@@ -746,6 +747,88 @@ class BackendHappyPathIntegrationTest {
 
         Booking savedBooking = bookingRepository.findById(bookingId).orElseThrow();
         assertThat(savedBooking.getStatus()).isEqualTo("Confirmed");
+    }
+
+    @Test
+    void adminCanCompleteBookingAndCreatePetMedicalNote() throws Exception {
+        registerUser("jamie@example.com");
+        ClinicService service = clinicServiceRepository.findByActiveTrueOrderByCategoryAscNameAsc().stream()
+            .findFirst()
+            .orElseThrow();
+
+        mockMvc.perform(post("/api/pets")
+                .header("X-User-Email", "jamie@example.com")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "name": "Milo",
+                      "species": "Dog",
+                      "breed": "Corgi",
+                      "age": "3 years",
+                      "weight": "28 lbs",
+                      "note": "Friendly during checkups",
+                      "sex": "Male",
+                      "color": "Golden and white",
+                      "microchipNumber": "MC-1001",
+                      "allergies": "None reported",
+                      "status": "Healthy"
+                    }
+                    """))
+            .andExpect(status().isCreated());
+
+        MvcResult createResult = mockMvc.perform(post("/api/bookings")
+                .header("X-User-Email", "jamie@example.com")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "petName": "Milo",
+                      "serviceId": %d,
+                      "service": "%s",
+                      "date": "May 10, 2026",
+                      "time": "10:30 AM",
+                      "status": "Confirmed",
+                      "clinic": "PawCare Hub Clinic",
+                      "staff": "Dr. Rivera"
+                    }
+                    """.formatted(service.getId(), service.getName())))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        long bookingId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
+
+        mockMvc.perform(patch("/api/admin/bookings/{id}/complete", bookingId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "visitSummary": "Wellness exam completed with no urgent concerns.",
+                      "diagnosisAssessment": "Mild seasonal skin irritation.",
+                      "treatmentRecommendation": "Use the prescribed medicated shampoo twice weekly.",
+                      "followUpNote": "Recheck in 4 weeks if itching continues."
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("Completed"))
+            .andExpect(jsonPath("$.visitSummary").value("Wellness exam completed with no urgent concerns."))
+            .andExpect(jsonPath("$.diagnosisAssessment").value("Mild seasonal skin irritation."))
+            .andExpect(jsonPath("$.treatmentRecommendation").value("Use the prescribed medicated shampoo twice weekly."))
+            .andExpect(jsonPath("$.followUpNote").value("Recheck in 4 weeks if itching continues."));
+
+        mockMvc.perform(get("/api/bookings/{id}", bookingId)
+                .header("X-User-Email", "jamie@example.com"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("Completed"))
+            .andExpect(jsonPath("$.visitSummary").value("Wellness exam completed with no urgent concerns."))
+            .andExpect(jsonPath("$.diagnosisAssessment").value("Mild seasonal skin irritation."));
+
+        Booking completedBooking = bookingRepository.findById(bookingId).orElseThrow();
+        assertThat(completedBooking.getStatus()).isEqualTo("Completed");
+        assertThat(completedBooking.getFollowUpNote()).isEqualTo("Recheck in 4 weeks if itching continues.");
+
+        PetMedicalNote savedNote = petMedicalNoteRepository.findFirstByRelatedBookingId(bookingId).orElse(null);
+        assertThat(savedNote).isNotNull();
+        assertThat(savedNote.getAuthor()).isEqualTo("Dr. Rivera");
+        assertThat(savedNote.getNoteText()).contains("Visit summary: Wellness exam completed with no urgent concerns.");
+        assertThat(savedNote.getNoteText()).contains("Assessment: Mild seasonal skin irritation.");
     }
 
     @Test

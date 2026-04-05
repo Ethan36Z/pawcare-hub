@@ -49,6 +49,18 @@ public class Booking {
     @JoinColumn(name = "staff_id")
     private Staff staffRecord;
 
+    @Column(length = 2000)
+    private String visitSummary;
+
+    @Column(length = 2000)
+    private String diagnosisAssessment;
+
+    @Column(length = 2000)
+    private String treatmentRecommendation;
+
+    @Column(length = 2000)
+    private String followUpNote;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
@@ -153,6 +165,38 @@ public class Booking {
 
     public ClinicService getServiceRecord() {
         return serviceRecord;
+    }
+
+    public String getVisitSummary() {
+        return visitSummary;
+    }
+
+    public void setVisitSummary(String visitSummary) {
+        this.visitSummary = visitSummary;
+    }
+
+    public String getDiagnosisAssessment() {
+        return diagnosisAssessment;
+    }
+
+    public void setDiagnosisAssessment(String diagnosisAssessment) {
+        this.diagnosisAssessment = diagnosisAssessment;
+    }
+
+    public String getTreatmentRecommendation() {
+        return treatmentRecommendation;
+    }
+
+    public void setTreatmentRecommendation(String treatmentRecommendation) {
+        this.treatmentRecommendation = treatmentRecommendation;
+    }
+
+    public String getFollowUpNote() {
+        return followUpNote;
+    }
+
+    public void setFollowUpNote(String followUpNote) {
+        this.followUpNote = followUpNote;
     }
 
     @PrePersist
