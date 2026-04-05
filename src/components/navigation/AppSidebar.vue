@@ -7,6 +7,7 @@ const adminLinks = [
   { label: 'Services', to: '/admin/services' },
   { label: 'Bookings', to: '/admin/bookings' },
   { label: 'Staff', to: '/admin/staff' },
+  { label: 'Clinic Operations', to: '/admin/operations' },
   { label: 'Users', to: '/admin/users' },
 ]
 

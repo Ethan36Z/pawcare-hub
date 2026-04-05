@@ -24,6 +24,8 @@ const isCreating = ref(false)
 const createErrorMessage = ref('')
 const services = ref([])
 const staffRecords = ref([])
+const createAvailabilitySlots = ref([])
+const rescheduleAvailabilitySlots = ref([])
 const isCancellingBookingId = ref(null)
 const isDetailsDialogOpen = ref(false)
 const isLoadingDetails = ref(false)
@@ -60,8 +62,16 @@ const serviceOptions = computed(() => services.value.map((service) => ({
   value: service.id,
 })))
 
-const createTimeOptions = computed(() => buildAvailableTimeOptions(createForm.value.date))
-const rescheduleTimeOptions = computed(() => buildAvailableTimeOptions(rescheduleForm.value.date))
+const createTimeOptions = computed(() => buildAvailableTimeOptions(
+  createForm.value.date,
+  createAvailabilitySlots.value,
+  createForm.value.staffId,
+))
+const rescheduleTimeOptions = computed(() => buildAvailableTimeOptions(
+  rescheduleForm.value.date,
+  rescheduleAvailabilitySlots.value,
+  rescheduleForm.value.staffId,
+))
 
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
@@ -175,11 +185,39 @@ function isTimeSlotDisabled(selectedDate, slotMinutes) {
   return slotMinutes < (threshold.getHours() * 60) + threshold.getMinutes()
 }
 
-function buildAvailableTimeOptions(selectedDate) {
-  return TIME_SLOT_OPTIONS.map((slot) => ({
-    ...slot,
-    disabled: isTimeSlotDisabled(selectedDate, slot.minutes),
-  }))
+function getMinutesFromAvailabilityTime(time) {
+  if (!time) {
+    return null
+  }
+
+  const [hours, minutes] = time.split(':').map(Number)
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return null
+  }
+
+  return (hours * 60) + minutes
+}
+
+function isWithinAvailability(slotMinutes, availabilitySlots) {
+  return availabilitySlots.some((slot) => {
+    const startMinutes = getMinutesFromAvailabilityTime(slot.startTime)
+    const endMinutes = getMinutesFromAvailabilityTime(slot.endTime)
+
+    if (startMinutes === null || endMinutes === null) {
+      return false
+    }
+
+    return slotMinutes >= startMinutes && slotMinutes < endMinutes
+  })
+}
+
+function buildAvailableTimeOptions(selectedDate, availabilitySlots, staffId) {
+  return TIME_SLOT_OPTIONS
+    .filter((slot) => !staffId || !selectedDate || isWithinAvailability(slot.minutes, availabilitySlots))
+    .map((slot) => ({
+      ...slot,
+      disabled: isTimeSlotDisabled(selectedDate, slot.minutes),
+    }))
 }
 
 function ensureValidSelectedTime(formRef, timeOptions) {
@@ -273,6 +311,7 @@ function openRescheduleDialog(booking) {
 }
 
 function resetCreateForm() {
+  createAvailabilitySlots.value = []
   createForm.value = {
     petName: '',
     serviceId: null,
@@ -327,11 +366,26 @@ function resetSelectedBooking() {
 function resetRescheduleForm() {
   rescheduleBookingId.value = null
   rescheduleErrorMessage.value = ''
+  rescheduleAvailabilitySlots.value = []
   rescheduleForm.value = {
     date: '',
     time: '',
     staffId: null,
     staff: '',
+  }
+}
+
+async function loadAvailabilityForBooking(date, staffId, availabilityRef) {
+  if (!date || !staffId) {
+    availabilityRef.value = []
+    return
+  }
+
+  try {
+    const { data } = await staffApi.availability(staffId, date)
+    availabilityRef.value = data
+  } catch {
+    availabilityRef.value = []
   }
 }
 
@@ -471,15 +525,25 @@ watch(
 )
 
 watch(
-  () => createForm.value.date,
-  () => {
+  [() => createForm.value.date, () => createForm.value.staffId],
+  async () => {
+    await loadAvailabilityForBooking(
+      createForm.value.date,
+      createForm.value.staffId,
+      createAvailabilitySlots,
+    )
     ensureValidSelectedTime(createForm, createTimeOptions)
   }
 )
 
 watch(
-  () => rescheduleForm.value.date,
-  () => {
+  [() => rescheduleForm.value.date, () => rescheduleForm.value.staffId],
+  async () => {
+    await loadAvailabilityForBooking(
+      rescheduleForm.value.date,
+      rescheduleForm.value.staffId,
+      rescheduleAvailabilitySlots,
+    )
     ensureValidSelectedTime(rescheduleForm, rescheduleTimeOptions)
   }
 )
@@ -660,7 +724,7 @@ onMounted(() => {
             <el-select
               v-model="rescheduleForm.time"
               placeholder="Select appointment time"
-              :disabled="!rescheduleForm.date"
+              :disabled="!rescheduleForm.date || !rescheduleTimeOptions.length"
               class="booking-service-select"
             >
               <el-option
@@ -671,6 +735,12 @@ onMounted(() => {
                 :disabled="slot.disabled"
               />
             </el-select>
+            <p
+              v-if="rescheduleForm.date && rescheduleForm.staffId && !rescheduleTimeOptions.length"
+              class="time-slot-hint"
+            >
+              No active availability is set for this staff member on the selected day.
+            </p>
           </el-form-item>
           <el-form-item label="Staff">
             <el-select
@@ -745,7 +815,7 @@ onMounted(() => {
             <el-select
               v-model="createForm.time"
               placeholder="Select appointment time"
-              :disabled="!createForm.date"
+              :disabled="!createForm.date || !createTimeOptions.length"
               class="booking-service-select"
             >
               <el-option
@@ -756,6 +826,12 @@ onMounted(() => {
                 :disabled="slot.disabled"
               />
             </el-select>
+            <p
+              v-if="createForm.date && createForm.staffId && !createTimeOptions.length"
+              class="time-slot-hint"
+            >
+              No active availability is set for this staff member on the selected day.
+            </p>
           </el-form-item>
           <el-form-item label="Clinic">
             <el-input v-model="createForm.clinic" placeholder="Clinic name" />
@@ -946,6 +1022,12 @@ onMounted(() => {
 
 .create-alert {
   margin-bottom: 16px;
+}
+
+.time-slot-hint {
+  margin: 8px 0 0;
+  color: #8b6f54;
+  font-size: 0.88rem;
 }
 
 .details-grid {

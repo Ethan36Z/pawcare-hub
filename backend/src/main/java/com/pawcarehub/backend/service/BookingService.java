@@ -31,17 +31,20 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final ClinicServiceRepository clinicServiceRepository;
     private final StaffRepository staffRepository;
+    private final StaffAvailabilityService staffAvailabilityService;
 
     public BookingService(
         AuthService authService,
         BookingRepository bookingRepository,
         ClinicServiceRepository clinicServiceRepository,
-        StaffRepository staffRepository
+        StaffRepository staffRepository,
+        StaffAvailabilityService staffAvailabilityService
     ) {
         this.authService = authService;
         this.bookingRepository = bookingRepository;
         this.clinicServiceRepository = clinicServiceRepository;
         this.staffRepository = staffRepository;
+        this.staffAvailabilityService = staffAvailabilityService;
     }
 
     @Transactional(readOnly = true)
@@ -71,7 +74,7 @@ public class BookingService {
         String appointmentDate = normalizeRequiredField(request.date(), "date");
         String appointmentTime = normalizeRequiredField(request.time(), "time");
 
-        validateAppointmentTiming(appointmentDate, appointmentTime);
+        validateAppointmentTiming(appointmentDate, appointmentTime, staffRecord);
 
         Booking savedBooking = bookingRepository.save(new Booking(
             normalizeRequiredField(request.petName(), "petName"),
@@ -117,16 +120,19 @@ public class BookingService {
         String appointmentDate = normalizeRequiredField(request.date(), "date");
         String appointmentTime = normalizeRequiredField(request.time(), "time");
 
-        validateAppointmentTiming(appointmentDate, appointmentTime);
-
-        booking.setDate(appointmentDate);
-        booking.setTime(appointmentTime);
+        Staff resolvedStaffRecord = booking.getStaffRecord();
 
         if (request.staffId() != null || StringUtils.hasText(request.staff())) {
             Staff staffRecord = resolveStaffRecord(request.staffId(), request.staff());
             booking.setStaff(resolveStaffName(request.staff(), staffRecord));
             booking.setStaffRecord(staffRecord);
+            resolvedStaffRecord = staffRecord;
         }
+
+        validateAppointmentTiming(appointmentDate, appointmentTime, resolvedStaffRecord);
+
+        booking.setDate(appointmentDate);
+        booking.setTime(appointmentTime);
 
         Booking savedBooking = bookingRepository.save(booking);
         return toBookingResponse(savedBooking, user.email());
@@ -198,7 +204,7 @@ public class BookingService {
         return value.trim();
     }
 
-    private void validateAppointmentTiming(String date, String time) {
+    private void validateAppointmentTiming(String date, String time, Staff staffRecord) {
         LocalDateTime appointmentDateTime;
 
         try {
@@ -211,6 +217,17 @@ public class BookingService {
             throw new ResponseStatusException(
                 HttpStatus.BAD_REQUEST,
                 "Appointments must be scheduled at least 1 hour in advance"
+            );
+        }
+
+        if (staffRecord != null && !staffAvailabilityService.isWithinActiveAvailability(
+            staffRecord.getId(),
+            appointmentDateTime.toLocalDate(),
+            appointmentDateTime.toLocalTime()
+        )) {
+            throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "Selected appointment time is outside this staff member's availability"
             );
         }
     }
