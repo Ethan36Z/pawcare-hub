@@ -7,32 +7,16 @@ export const authApi = {
   register(payload) {
     return http.post('/auth/register', payload)
   },
-  profile(email) {
-    return http.get('/auth/profile', {
-      headers: {
-        'X-User-Email': email,
-      },
-    })
+  profile() {
+    return http.get('/auth/profile')
   },
-  updateProfile(email, payload) {
-    return http.patch('/auth/profile', payload, {
-      headers: {
-        'X-User-Email': email,
-      },
-    })
+  updateProfile(payload) {
+    return http.patch('/auth/profile', payload)
   },
-  changePassword(email, payload) {
-    return http.patch('/auth/change-password', payload, {
-      headers: {
-        'X-User-Email': email,
-      },
-    })
+  changePassword(payload) {
+    return http.patch('/auth/change-password', payload)
   },
-  deleteAccount(email) {
-    return http.patch('/auth/delete-account', null, {
-      headers: {
-        'X-User-Email': email,
-      },
-    })
+  deleteAccount() {
+    return http.patch('/auth/delete-account')
   },
 }

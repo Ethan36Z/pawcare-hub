@@ -1,42 +1,22 @@
 import http from './http'
 
 export const bookingsApi = {
-  me(email) {
-    return http.get('/bookings/me', {
-      headers: {
-        'X-User-Email': email,
-      },
-    })
+  me() {
+    return http.get('/bookings/me')
   },
-  detail(email, id) {
-    return http.get(`/bookings/${id}`, {
-      headers: {
-        'X-User-Email': email,
-      },
-    })
+  detail(id) {
+    return http.get(`/bookings/${id}`)
   },
   list() {
     return http.get('/bookings')
   },
-  create(email, payload) {
-    return http.post('/bookings', payload, {
-      headers: {
-        'X-User-Email': email,
-      },
-    })
+  create(payload) {
+    return http.post('/bookings', payload)
   },
-  cancel(email, id) {
-    return http.patch(`/bookings/${id}/cancel`, null, {
-      headers: {
-        'X-User-Email': email,
-      },
-    })
+  cancel(id) {
+    return http.patch(`/bookings/${id}/cancel`)
   },
-  reschedule(email, id, payload) {
-    return http.patch(`/bookings/${id}/reschedule`, payload, {
-      headers: {
-        'X-User-Email': email,
-      },
-    })
+  reschedule(id, payload) {
+    return http.patch(`/bookings/${id}/reschedule`, payload)
   },
 }

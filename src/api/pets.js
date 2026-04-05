@@ -1,49 +1,25 @@
 import http from './http'
 
 export const petsApi = {
-  me(email) {
-    return http.get('/pets/me', {
-      headers: {
-        'X-User-Email': email,
-      },
-    })
+  me() {
+    return http.get('/pets/me')
   },
-  detail(email, id) {
-    return http.get(`/pets/${id}`, {
-      headers: {
-        'X-User-Email': email,
-      },
-    })
+  detail(id) {
+    return http.get(`/pets/${id}`)
   },
   list() {
     return http.get('/pets')
   },
-  create(email, payload) {
-    return http.post('/pets', payload, {
-      headers: {
-        'X-User-Email': email,
-      },
-    })
+  create(payload) {
+    return http.post('/pets', payload)
   },
-  update(email, id, payload) {
-    return http.patch(`/pets/${id}`, payload, {
-      headers: {
-        'X-User-Email': email,
-      },
-    })
+  update(id, payload) {
+    return http.patch(`/pets/${id}`, payload)
   },
-  addMedicalNote(email, id, payload) {
-    return http.post(`/pets/${id}/medical-notes`, payload, {
-      headers: {
-        'X-User-Email': email,
-      },
-    })
+  addMedicalNote(id, payload) {
+    return http.post(`/pets/${id}/medical-notes`, payload)
   },
-  remove(email, id) {
-    return http.delete(`/pets/${id}`, {
-      headers: {
-        'X-User-Email': email,
-      },
-    })
+  remove(id) {
+    return http.delete(`/pets/${id}`)
   },
 }

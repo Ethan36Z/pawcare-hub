@@ -171,7 +171,7 @@ async function loadPets() {
   errorMessage.value = ''
 
   try {
-    const { data } = await petsApi.me(authStore.user.email)
+    const { data } = await petsApi.me()
     pets.value = data
   } catch (error) {
     errorMessage.value = getApiErrorMessage(error, 'Unable to load pet profiles right now.')
@@ -190,7 +190,7 @@ async function loadPetDetail(petId) {
   profileErrorMessage.value = ''
 
   try {
-    const { data } = await petsApi.detail(authStore.user.email, petId)
+    const { data } = await petsApi.detail(petId)
     selectedPet.value = data
   } catch (error) {
     profileErrorMessage.value = getApiErrorMessage(error, 'Unable to load this pet profile right now.')
@@ -258,7 +258,7 @@ async function handleCreatePet() {
   createErrorMessage.value = ''
 
   try {
-    await petsApi.create(authStore.user.email, createForm.value)
+    await petsApi.create(createForm.value)
     isCreateDialogOpen.value = false
     resetCreateForm()
     await loadPets()
@@ -289,7 +289,7 @@ async function handleEditPet() {
   errorMessage.value = ''
 
   try {
-    const { data } = await petsApi.update(authStore.user.email, editingPetId.value, editForm.value)
+    const { data } = await petsApi.update(editingPetId.value, editForm.value)
     isEditDialogOpen.value = false
     await loadPets()
 
@@ -317,7 +317,7 @@ async function handleDeletePet(pet) {
   errorMessage.value = ''
 
   try {
-    await petsApi.remove(authStore.user.email, pet.id)
+    await petsApi.remove(pet.id)
     await loadPets()
 
     if (selectedPet.value?.id === pet.id) {

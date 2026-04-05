@@ -242,7 +242,7 @@ async function loadBookings() {
   errorMessage.value = ''
 
   try {
-    const { data } = await bookingsApi.me(authStore.user.email)
+    const { data } = await bookingsApi.me()
     bookings.value = data
   } catch (error) {
     errorMessage.value = getApiErrorMessage(error, 'Unable to load bookings right now.')
@@ -416,7 +416,7 @@ async function handleCreateBooking() {
     const selectedService = services.value.find((service) => service.id === createForm.value.serviceId)
     const selectedStaff = staffRecords.value.find((staff) => staff.id === createForm.value.staffId)
 
-    await bookingsApi.create(authStore.user.email, {
+    await bookingsApi.create({
       ...createForm.value,
       date: formatDateInputForApi(createForm.value.date),
       serviceId: createForm.value.serviceId,
@@ -445,7 +445,7 @@ async function handleViewDetails(booking) {
   selectedBooking.value = null
 
   try {
-    const { data } = await bookingsApi.detail(authStore.user.email, booking.id)
+    const { data } = await bookingsApi.detail(booking.id)
     selectedBooking.value = data
   } catch (error) {
     detailsErrorMessage.value = getApiErrorMessage(error, 'Unable to load booking details right now.')
@@ -465,16 +465,12 @@ async function handleRescheduleBooking() {
 
   try {
     const selectedStaff = staffRecords.value.find((staff) => staff.id === rescheduleForm.value.staffId)
-    const { data } = await bookingsApi.reschedule(
-      authStore.user.email,
-      rescheduleBookingId.value,
-      {
-        ...rescheduleForm.value,
-        date: formatDateInputForApi(rescheduleForm.value.date),
-        staffId: rescheduleForm.value.staffId,
-        staff: selectedStaff?.name || rescheduleForm.value.staff,
-      },
-    )
+    const { data } = await bookingsApi.reschedule(rescheduleBookingId.value, {
+      ...rescheduleForm.value,
+      date: formatDateInputForApi(rescheduleForm.value.date),
+      staffId: rescheduleForm.value.staffId,
+      staff: selectedStaff?.name || rescheduleForm.value.staff,
+    })
 
     isRescheduleDialogOpen.value = false
     await loadBookings()
@@ -503,7 +499,7 @@ async function handleCancelBooking(booking) {
   errorMessage.value = ''
 
   try {
-    await bookingsApi.cancel(authStore.user.email, booking.id)
+    await bookingsApi.cancel(booking.id)
     await loadBookings()
 
     if (selectedBooking.value?.id === booking.id) {

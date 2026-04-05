@@ -85,7 +85,7 @@ async function loadProfile() {
   errorMessage.value = ''
 
   try {
-    const { data } = await authApi.profile(authStore.user.email)
+    const { data } = await authApi.profile()
     applyProfileData(data)
   } catch (error) {
     errorMessage.value = getApiErrorMessage(error, 'Unable to load your profile right now.')
@@ -120,7 +120,7 @@ async function handleSaveProfile() {
   successMessage.value = ''
 
   try {
-    const { data } = await authApi.updateProfile(authStore.user.email, {
+    const { data } = await authApi.updateProfile({
       phone: editForm.phone,
       address: editForm.address,
       preferredContactMethod: editForm.contactMethod,
@@ -148,7 +148,7 @@ async function handleSavePreferences() {
   successMessage.value = ''
 
   try {
-    const { data } = await authApi.updateProfile(authStore.user.email, {
+    const { data } = await authApi.updateProfile({
       phone: profile.phone,
       address: profile.address,
       preferredContactMethod: profile.contactMethod,
@@ -182,7 +182,7 @@ async function handleChangePassword() {
   isChangingPassword.value = true
 
   try {
-    await authApi.changePassword(authStore.user.email, {
+    await authApi.changePassword({
       currentPassword: passwordForm.currentPassword,
       newPassword: passwordForm.newPassword,
     })
@@ -215,7 +215,7 @@ async function handleDeleteAccount() {
   successMessage.value = ''
 
   try {
-    await authApi.deleteAccount(authStore.user.email)
+    await authApi.deleteAccount()
     authStore.logout()
     router.push('/login')
   } catch (error) {
