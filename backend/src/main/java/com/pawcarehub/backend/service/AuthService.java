@@ -8,6 +8,7 @@ import com.pawcarehub.backend.dto.auth.RegisterRequest;
 import com.pawcarehub.backend.dto.auth.UpdateUserProfileRequest;
 import com.pawcarehub.backend.dto.auth.UserProfileResponse;
 import com.pawcarehub.backend.entity.User;
+import com.pawcarehub.backend.security.JwtService;
 import com.pawcarehub.backend.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -23,15 +24,18 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PetInitializationService petInitializationService;
     private final BookingInitializationService bookingInitializationService;
+    private final JwtService jwtService;
 
     public AuthService(
         UserRepository userRepository,
         PetInitializationService petInitializationService,
-        BookingInitializationService bookingInitializationService
+        BookingInitializationService bookingInitializationService,
+        JwtService jwtService
     ) {
         this.userRepository = userRepository;
         this.petInitializationService = petInitializationService;
         this.bookingInitializationService = bookingInitializationService;
+        this.jwtService = jwtService;
     }
 
     public AuthResponse register(RegisterRequest request) {
@@ -49,7 +53,13 @@ public class AuthService {
         savedUser = userRepository.save(savedUser);
         petInitializationService.createDefaultPetsForUser(savedUser);
         bookingInitializationService.createDefaultBookingsForUser(savedUser);
-        return new AuthResponse("Registration successful", savedUser.getEmail(), savedUser.getName(), savedUser.getRole());
+        return new AuthResponse(
+            "Registration successful",
+            savedUser.getEmail(),
+            savedUser.getName(),
+            savedUser.getRole(),
+            jwtService.generateToken(savedUser)
+        );
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -68,7 +78,13 @@ public class AuthService {
         }
 
         user = ensureRole(user);
-        return new AuthResponse("Login successful", user.getEmail(), user.getName(), user.getRole());
+        return new AuthResponse(
+            "Login successful",
+            user.getEmail(),
+            user.getName(),
+            user.getRole(),
+            jwtService.generateToken(user)
+        );
     }
 
     public AuthenticatedUser getAuthenticatedUser(String email) {

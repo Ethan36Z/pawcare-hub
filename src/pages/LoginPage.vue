@@ -39,6 +39,7 @@ async function handleLogin() {
       email: data.email,
       name: data.name,
       role: data.role,
+      token: data.token,
     })
 
     const redirectTarget =

@@ -14,3 +14,8 @@ spring:
 
 server:
   port: 0
+
+security:
+  jwt:
+    secret: pawcarehub-test-jwt-secret-key-for-integration-tests-2026
+    expiration-ms: 86400000

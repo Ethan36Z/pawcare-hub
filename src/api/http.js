@@ -9,9 +9,15 @@ const http = axios.create({
 http.interceptors.request.use((config) => {
   const authStore = useAuthStore()
   const userEmail = authStore.user?.email
+  const token = authStore.token
+
+  config.headers = config.headers ?? {}
+
+  if (token && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
 
   if (userEmail) {
-    config.headers = config.headers ?? {}
     if (!config.headers['X-User-Email']) {
       config.headers['X-User-Email'] = userEmail
     }

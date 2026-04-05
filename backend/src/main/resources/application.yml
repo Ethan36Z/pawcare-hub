@@ -17,3 +17,8 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+
+security:
+  jwt:
+    secret: ${JWT_SECRET:pawcarehub-jwt-secret-key-for-v3-first-pass-2026}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}

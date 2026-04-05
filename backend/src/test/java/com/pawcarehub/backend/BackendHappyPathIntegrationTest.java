@@ -114,7 +114,7 @@ class BackendHappyPathIntegrationTest {
     void loginReturnsAuthenticatedUserForValidCredentials() throws Exception {
         registerUser("jamie@example.com");
 
-        mockMvc.perform(post("/api/auth/login")
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -126,7 +126,17 @@ class BackendHappyPathIntegrationTest {
             .andExpect(jsonPath("$.message").value("Login successful"))
             .andExpect(jsonPath("$.email").value("jamie@example.com"))
             .andExpect(jsonPath("$.name").value("Jamie Parker"))
-            .andExpect(jsonPath("$.role").value(UserRoles.USER));
+            .andExpect(jsonPath("$.role").value(UserRoles.USER))
+            .andExpect(jsonPath("$.token").isNotEmpty())
+            .andReturn();
+
+        String jwtToken = objectMapper.readTree(loginResult.getResponse().getContentAsString()).get("token").asText();
+
+        mockMvc.perform(get("/api/auth/profile")
+                .header("Authorization", "Bearer " + jwtToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.email").value("jamie@example.com"))
+            .andExpect(jsonPath("$.name").value("Jamie Parker"));
     }
 
     @Test
