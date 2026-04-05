@@ -1,8 +1,24 @@
 # PawCare Hub
 
-PawCare Hub is a full-stack pet clinic booking and care management project. It includes a Vue-based client, a Spring Boot backend, and a MySQL database, with real persistence across users, pets, bookings, services, and admin views.
+PawCare Hub is a full-stack pet clinic booking and care management system built as a staged portfolio project. It combines real user flows, clinic/admin workflows, persistent relational data, scheduling foundations, lightweight medical-record direction, and an incremental migration toward a more standard Spring Security + JWT authentication model.
 
-The project is no longer an early prototype. V1 is complete, V2 is in late-stage polish, and the current codebase already supports a solid set of end-to-end flows for both users and admins.
+The project is no longer positioned as an early prototype. V1, V2, and V3 have been completed as deliberate milestones, and the current repository represents a substantial end-to-end application rather than a CRUD demo.
+
+## Project Overview
+
+PawCare Hub is designed around two sides of a pet clinic product:
+
+- The user-facing side for pet owners managing pets, bookings, profiles, and appointment context
+- The clinic-facing side for staff operating bookings, services, staffing, scheduling, and visit outcomes
+
+The current V3 state includes:
+
+- real user registration and login flows
+- database-backed pets, services, bookings, staff, and clinic operations data
+- scheduling foundations with weekly availability and date-specific exceptions
+- lightweight pet medical-record / visit-history direction
+- role-aware admin and clinic workflows
+- Spring Security + JWT migration work with JWT as the primary frontend auth path
 
 ## Tech Stack
 
@@ -10,119 +26,196 @@ The project is no longer an early prototype. V1 is complete, V2 is in late-stage
 - Backend: Java 17, Spring Boot 3, Spring Web, Spring Data JPA
 - Database: MySQL
 - Testing: JUnit 5, Spring Boot Test, MockMvc, H2 (test profile)
+- Security/Auth: Spring Security + JWT
 
-## User-Facing Features
+## Core Implemented Features
 
-- Real registration and login backed by the database
+### User-Facing Features
+
+- Registration and login backed by the database
+- JWT-based authenticated frontend session flow
 - Password hashing for stored credentials
-- Automatic migration of legacy plain-text passwords to hashed passwords on login
-- Profile page with real persisted profile fields and communication preferences
+- Legacy plain-text password upgrade to bcrypt on successful login where needed
+- Profile and communication preferences management
 - Change password flow
 - Logout flow
-- Soft delete / account deactivation flow:
-  - deactivated users are logged out immediately
-  - deactivated users can no longer log in
-  - account history remains in the database
-- Pet management with real persistence:
+- Account deactivation flow
+- Pet management:
   - list pets
   - create pet
   - edit pet
   - delete pet
-  - view pet details
-- Data-driven pet status badges
-- Booking management with real persistence:
-  - list current user bookings
+  - view profile / details
+- Lightweight pet profile and clinic-style record presentation
+- Service browsing backed by real service records
+- Booking management:
   - create booking
   - view booking details
   - reschedule booking
   - cancel booking
-- Active services page backed by real service records from the backend
-- Minimal service-to-booking handoff:
-  - `Book Now` on Services routes into the booking flow
-  - the selected service is carried into the booking form
-- First step toward a formal booking-to-service relationship:
-  - new bookings can reference a real service record
-  - backward compatibility is preserved for older bookings
+- Structured appointment input using date picker + time slot selection
+- Future-time validation for appointments
+- Real staff selection during booking and rescheduling
+- Optional client message / owner note on booking creation
+- Read-only pet medical / visit-history visibility in the pet profile
 
-## Admin Features
+### Admin / Clinic Features
 
-- Admin dashboard with real database-backed summary stats
-- Admin users:
-  - real user list
-  - search by name or email
-  - role filter
-  - active/deactivated filter
-  - real user details view
-  - clearer inactive/deactivated user visibility in the UI
-- Admin bookings:
-  - real bookings list
-  - confirm booking
-  - cancel booking
-  - search/filter/sort controls
-- Admin services:
-  - real services list
-  - create service
-  - edit service
-  - enable / disable service availability
-  - search/filter/sort controls
+- Admin dashboard with real database-backed operational stats
+- Users management:
+  - user list
+  - filters
+  - details view
+  - active/deactivated visibility
+- Bookings management:
+  - bookings list
+  - confirm
+  - cancel
+  - complete visit
+  - visit outcome entry
+- Services management:
+  - list
+  - create
+  - edit
+  - enable / disable
+- Staff management:
+  - list
+  - create
+  - edit
+  - active / inactive toggle
+- Clinic Operations area for scheduling management
+- Role-based clinic access boundaries for:
+  - `admin`
+  - `front_desk`
+  - `doctor`
 
-## Backend, Data, and Testing
+### Scheduling / Operational Features
 
-- Spring Data JPA entities and repositories for users, pets, bookings, and services
-- MySQL-backed persistence for the main application flows
-- Header-based lightweight current-user resolution is still used instead of full Spring Security
-- Service availability drives what appears on the public services page
-- Booking creation now prefers real service records from the backend when available
-- Minimal backend happy-path integration test suite is in place and passing
+- Real staff records persisted in MySQL
+- Active/inactive staff state
+- Booking and reschedule flows use real staff records
+- Weekly staff availability model
+- Date-specific schedule exceptions / overrides
+- Editable weekly default template availability
+- Exception-first, weekly-fallback scheduling behavior
+- Booking-side availability filtering based on selected staff and date
+- Backend validation that enforces availability rules during create/reschedule
+- Clinic Operations visibility for:
+  - selected staff
+  - selected date
+  - weekly default availability
+  - active exception / override state
+  - current effective scheduling rule
 
-Current backend test coverage includes:
+### Pet Medical Record Direction
 
-- register
-- login
-- create pet
-- create booking
-- admin confirm booking
+- Extended pet profile fields that move beyond a minimal pet card
+- Pet medical notes / visit-history timeline
+- Medical notes linked to related booking / visit context where applicable
+- Visit history display includes booking-related context such as:
+  - visit date
+  - service
+  - clinician / staff
+  - visit outcome details
+- Booking completion can contribute lightweight visit-history context
+- Clear separation between:
+  - clinic-side medical / visit notes
+  - user-facing booking client messages / owner notes
 
-Run backend tests with:
+### Security / Authentication
+
+- Spring Security introduced as part of the backend security foundation
+- JWT returned on successful login
+- Frontend uses `Authorization: Bearer ...` as the primary authenticated request path
+- Backend resolves authenticated users via Spring Security `SecurityContext`
+- Role information remains usable across current app flows
+- A narrow internal legacy compatibility bridge still exists in the authentication filter for transitional stability, but normal frontend requests no longer depend on the old `X-User-Email` pattern
+
+## Testing
+
+The backend includes a focused happy-path integration suite using:
+
+- JUnit 5
+- Spring Boot Test
+- MockMvc
+- H2 with a dedicated test profile
+
+The current integration coverage focuses on major end-to-end flows such as:
+
+- registration and login
+- profile and account lifecycle flows
+- pet creation, update, retrieval, and medical-note visibility
+- booking creation, rescheduling, cancellation, and completion
+- real staff selection
+- staff availability and schedule exceptions
+- admin role-protected operations
+- dashboard data responses
+- JWT login and token-authenticated profile access
+
+Run backend tests:
 
 ```bash
 cd backend
-mvn test
+mvn clean test
 ```
 
-## Project Stage
+Run the frontend build:
+
+```bash
+npm run build
+```
+
+## Project Stage and Architecture Notes
 
 ### V1
 
-V1 is complete. The project already has real database-backed CRUD-style flows for the main user and admin surfaces, along with working authentication, password hashing, profile management, service management, and booking management.
+V1 established the initial full-stack application shape: users, pets, bookings, services, admin pages, and persistent CRUD-oriented flows.
 
 ### V2
 
-V2 is nearly complete and is currently in late-stage polish. The remaining work is mostly about tightening relationships between existing data models, improving UI clarity, adding more test coverage, and smoothing edge cases rather than building the core application from scratch.
+V2 deepened the data-backed product behavior, improved user/admin workflows, and pushed the project beyond a basic demo into a more coherent clinic-management application.
 
 ### V3
 
-V3 should be treated as future-facing expansion rather than current scope. It is the right place for deeper clinic operations, richer authorization, and more advanced product features.
+V3 completed the major portfolio-stage expansion:
 
-## Future Improvements (V3 Direction)
+- real staff as first-class records
+- scheduling foundations
+- clinic operations workflows
+- lightweight medical-record direction
+- visit outcomes
+- richer dashboard visibility
+- role layering
+- Spring Security + JWT migration work
 
-- Doctor and staff management as first-class records instead of loose staff strings
-- Real scheduling, availability, and calendar-based booking constraints
-- Pet medical record direction:
-  - visit notes
-  - vaccination history
-  - diagnoses
-  - medications
-- Richer dashboard reporting and charting
-- Finer-grained permissions beyond the current lightweight user/admin split
-- Better authentication and authorization architecture:
-  - Spring Security
-  - token/session handling
-  - stronger ownership enforcement
-- Location, map, membership, or payment-related extensions if the project grows in that direction
+This staged evolution is intentional. The project reflects iterative product and architecture growth rather than a single all-at-once rewrite.
 
-## Notes
+At the same time, the implementation remains pragmatic in places:
 
-- This is a serious portfolio project with real persistence and real CRUD-oriented flows, but it is not presented as production-ready clinic software.
-- Some architecture choices are intentionally lightweight for learning and iteration speed, especially around authentication/session handling and authorization depth.
-- The project summary above reflects what is actually implemented now, not an aspirational roadmap.
+- some security migration compatibility behavior is still intentionally retained internally
+- scheduling is foundation-first rather than a full calendar engine
+- medical-record functionality is lightweight, not a full EMR/EHR system
+- deployment, observability, and production hardening are not yet the focus of this repository
+
+That balance is deliberate for a portfolio project: the application is substantial and realistic, but it does not claim to be production-ready clinic software.
+
+## Future Improvements
+
+- richer scheduling and calendar UX
+- deeper medical-record and visit workflow support
+- stronger reporting and analytics
+- full removal of remaining compatibility bridge behavior in auth
+- production-hardening, deployment, and operational readiness work
+
+## Repository Structure
+
+```text
+.
+|-- backend/   Spring Boot API, persistence, security, tests
+|-- src/       Vue frontend pages, stores, API clients, layouts
+|-- README.md
+```
+
+## Summary
+
+PawCare Hub is a serious full-stack portfolio project centered on pet clinic booking and care management. Its current V3 state demonstrates database-backed application design, multi-role workflows, scheduling logic, lightweight medical-record direction, and incremental security modernization without overstating unimplemented features.
