@@ -13,6 +13,7 @@ public class AdminBookingResponse {
     private final Long ownerId;
     private final String ownerName;
     private final String ownerEmail;
+    private final String ownerNote;
     private final String visitSummary;
     private final String diagnosisAssessment;
     private final String treatmentRecommendation;
@@ -30,6 +31,7 @@ public class AdminBookingResponse {
         Long ownerId,
         String ownerName,
         String ownerEmail,
+        String ownerNote,
         String visitSummary,
         String diagnosisAssessment,
         String treatmentRecommendation,
@@ -46,6 +48,7 @@ public class AdminBookingResponse {
         this.ownerId = ownerId;
         this.ownerName = ownerName;
         this.ownerEmail = ownerEmail;
+        this.ownerNote = ownerNote;
         this.visitSummary = visitSummary;
         this.diagnosisAssessment = diagnosisAssessment;
         this.treatmentRecommendation = treatmentRecommendation;
@@ -94,6 +97,10 @@ public class AdminBookingResponse {
 
     public String getOwnerEmail() {
         return ownerEmail;
+    }
+
+    public String getOwnerNote() {
+        return ownerNote;
     }
 
     public String getVisitSummary() {

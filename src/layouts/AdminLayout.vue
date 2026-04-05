@@ -13,18 +13,28 @@ import AppSidebar from '@/components/navigation/AppSidebar.vue'
 
 <style scoped>
 .admin-layout {
-  min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-columns: 260px 1fr;
+  overflow: hidden;
 }
 
 .admin-layout__content {
   padding: 32px 24px 48px;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 @media (max-width: 900px) {
   .admin-layout {
+    height: auto;
+    min-height: 100vh;
     grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .admin-layout__content {
+    overflow: visible;
   }
 }
 </style>

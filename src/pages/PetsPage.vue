@@ -29,15 +29,6 @@ function createEmptyPetForm() {
   }
 }
 
-function createEmptyMedicalNoteForm() {
-  return {
-    date: new Date().toISOString().slice(0, 10),
-    author: '',
-    relatedBookingId: null,
-    noteText: '',
-  }
-}
-
 const pets = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
@@ -53,12 +44,8 @@ const isLoadingProfile = ref(false)
 const profileErrorMessage = ref('')
 const selectedPet = ref(null)
 const isDeletingPetId = ref(null)
-const isNoteDialogOpen = ref(false)
-const isSavingMedicalNote = ref(false)
-const medicalNoteErrorMessage = ref('')
 const createForm = ref(createEmptyPetForm())
 const editForm = ref(createEmptyPetForm())
-const medicalNoteForm = ref(createEmptyMedicalNoteForm())
 
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
@@ -101,6 +88,45 @@ function formatMedicalNoteDate(value) {
       day: 'numeric',
       year: 'numeric',
     })
+}
+
+function formatMedicalNoteTimestamp(value) {
+  if (!value) {
+    return 'Timestamp unavailable'
+  }
+
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime())
+    ? value
+    : parsed.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+}
+
+function getMedicalNoteTitle(noteItem) {
+  if (noteItem.relatedBookingId) {
+    return `Visit-linked note #${noteItem.relatedBookingId}`
+  }
+
+  return 'Care update'
+}
+
+function getMedicalNoteMeta(noteItem) {
+  const author = formatOptionalValue(noteItem.author, 'Clinic team')
+  const recordedAt = formatMedicalNoteTimestamp(noteItem.createdAt)
+  const updatedAt = noteItem.updatedAt && noteItem.updatedAt !== noteItem.createdAt
+    ? `Updated ${formatMedicalNoteTimestamp(noteItem.updatedAt)}`
+    : null
+
+  return {
+    author,
+    recordedAt,
+    updatedAt,
+  }
 }
 
 const ownerName = computed(() => authStore.user?.fullName || 'your pets')
@@ -193,11 +219,6 @@ function resetSelectedPet() {
   profileErrorMessage.value = ''
 }
 
-function resetMedicalNoteForm() {
-  medicalNoteForm.value = createEmptyMedicalNoteForm()
-  medicalNoteErrorMessage.value = ''
-}
-
 async function handleCreatePet() {
   if (!authStore.user?.email) {
     return
@@ -280,38 +301,6 @@ async function handleDeletePet(pet) {
     )
   } finally {
     isDeletingPetId.value = null
-  }
-}
-
-function openMedicalNoteDialog() {
-  if (!selectedPet.value?.id) {
-    return
-  }
-
-  resetMedicalNoteForm()
-  isNoteDialogOpen.value = true
-}
-
-async function handleAddMedicalNote() {
-  if (!authStore.user?.email || !selectedPet.value?.id) {
-    return
-  }
-
-  isSavingMedicalNote.value = true
-  medicalNoteErrorMessage.value = ''
-
-  try {
-    await petsApi.addMedicalNote(authStore.user.email, selectedPet.value.id, medicalNoteForm.value)
-    isNoteDialogOpen.value = false
-    resetMedicalNoteForm()
-    await loadPetDetail(selectedPet.value.id)
-  } catch (error) {
-    medicalNoteErrorMessage.value = getApiErrorMessage(
-      error,
-      'Unable to save this medical note right now.'
-    )
-  } finally {
-    isSavingMedicalNote.value = false
   }
 }
 </script>
@@ -518,9 +507,6 @@ async function handleAddMedicalNote() {
                 <h3>Visit Notes</h3>
                 <p>A simple timeline for follow-ups, observations, and care updates.</p>
               </div>
-              <el-button type="primary" plain @click="openMedicalNoteDialog">
-                Add Note
-              </el-button>
             </div>
 
             <div v-if="selectedPet.medicalNotes?.length" class="note-timeline">
@@ -529,80 +515,34 @@ async function handleAddMedicalNote() {
                 :key="noteItem.id"
                 class="note-card"
               >
+                <div class="note-card__pin" aria-hidden="true"></div>
                 <div class="note-card__meta">
-                  <strong>{{ formatMedicalNoteDate(noteItem.date) }}</strong>
-                  <span>{{ formatOptionalValue(noteItem.author, 'Clinic team') }}</span>
+                  <div class="note-card__meta-primary">
+                    <strong>{{ formatMedicalNoteDate(noteItem.date) }}</strong>
+                    <span class="note-card__title">{{ getMedicalNoteTitle(noteItem) }}</span>
+                  </div>
+                  <div class="note-card__meta-secondary">
+                    <span>{{ getMedicalNoteMeta(noteItem).author }}</span>
+                    <span>{{ getMedicalNoteMeta(noteItem).recordedAt }}</span>
+                  </div>
                 </div>
                 <p>{{ noteItem.noteText }}</p>
-                <small v-if="noteItem.relatedBookingId">
-                  Related booking #{{ noteItem.relatedBookingId }}
-                </small>
+                <div class="note-card__footer">
+                  <small v-if="noteItem.relatedBookingId">
+                    Related booking #{{ noteItem.relatedBookingId }}
+                  </small>
+                  <small v-if="getMedicalNoteMeta(noteItem).updatedAt">
+                    {{ getMedicalNoteMeta(noteItem).updatedAt }}
+                  </small>
+                </div>
               </article>
             </div>
             <el-empty
               v-else
-              description="No medical notes yet. Add one to start a simple care timeline."
+              description="No medical notes have been recorded yet."
             />
           </section>
         </div>
-      </el-dialog>
-
-      <el-dialog
-        v-model="isNoteDialogOpen"
-        title="Add Medical Note"
-        width="min(560px, 92vw)"
-        @closed="resetMedicalNoteForm"
-      >
-        <el-alert
-          v-if="medicalNoteErrorMessage"
-          :title="medicalNoteErrorMessage"
-          type="error"
-          :closable="false"
-          class="create-alert"
-        />
-
-        <el-form :model="medicalNoteForm" label-position="top">
-          <div class="form-grid form-grid--compact">
-            <el-form-item label="Date">
-              <el-date-picker
-                v-model="medicalNoteForm.date"
-                type="date"
-                value-format="YYYY-MM-DD"
-                placeholder="Select note date"
-                class="full-width"
-              />
-            </el-form-item>
-            <el-form-item label="Author or source">
-              <el-input v-model="medicalNoteForm.author" placeholder="Dr. Rivera, Front desk, Owner" />
-            </el-form-item>
-          </div>
-
-          <el-form-item label="Related booking ID">
-            <el-input-number
-              v-model="medicalNoteForm.relatedBookingId"
-              :min="1"
-              :controls="false"
-              placeholder="Optional booking reference"
-              class="full-width"
-            />
-          </el-form-item>
-
-          <el-form-item label="Note">
-            <el-input
-              v-model="medicalNoteForm.noteText"
-              type="textarea"
-              :rows="5"
-              placeholder="Add a brief clinic note, follow-up detail, or observation"
-            />
-          </el-form-item>
-        </el-form>
-
-        <template #footer>
-          <el-button @click="isNoteDialogOpen = false">Cancel</el-button>
-          <el-button type="primary" :loading="isSavingMedicalNote" @click="handleAddMedicalNote">
-            Save Note
-          </el-button>
-        </template>
       </el-dialog>
 
       <el-dialog
@@ -968,21 +908,72 @@ async function handleAddMedicalNote() {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  position: relative;
+  padding-left: 12px;
+}
+
+.note-timeline::before {
+  content: '';
+  position: absolute;
+  left: 19px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: rgba(63, 114, 93, 0.14);
 }
 
 .note-card {
+  position: relative;
   padding: 16px;
   border: 1px solid rgba(28, 60, 88, 0.08);
   border-radius: 18px;
   background: #fff;
+  margin-left: 18px;
+}
+
+.note-card__pin {
+  position: absolute;
+  left: -24px;
+  top: 22px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #3f725d;
+  box-shadow: 0 0 0 5px #f7fbf8;
 }
 
 .note-card__meta {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+  align-items: flex-start;
+  gap: 16px;
   color: #5f685e;
+}
+
+.note-card__meta-primary,
+.note-card__meta-secondary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.note-card__title {
+  color: #355f4d;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.note-card__meta-secondary {
+  text-align: right;
+  color: #7a817f;
+  font-size: 0.86rem;
+}
+
+.note-card__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .note-card small {
@@ -1023,6 +1014,14 @@ async function handleAddMedicalNote() {
   .pets-grid {
     grid-template-columns: 1fr;
     gap: 18px;
+  }
+
+  .note-card__meta {
+    flex-direction: column;
+  }
+
+  .note-card__meta-secondary {
+    text-align: left;
   }
 }
 

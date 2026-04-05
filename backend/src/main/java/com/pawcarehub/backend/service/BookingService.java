@@ -88,6 +88,8 @@ public class BookingService {
             staffRecord,
             owner
         ));
+        savedBooking.setOwnerNote(normalizeOptionalField(request.ownerNote()));
+        savedBooking = bookingRepository.save(savedBooking);
 
         return toBookingResponse(savedBooking, owner.getEmail());
     }
@@ -159,6 +161,7 @@ public class BookingService {
             booking.getStaffRecord() != null ? booking.getStaffRecord().getId() : null,
             booking.getResolvedStaffName(),
             ownerEmail,
+            booking.getOwnerNote(),
             booking.getVisitSummary(),
             booking.getDiagnosisAssessment(),
             booking.getTreatmentRecommendation(),
@@ -211,6 +214,14 @@ public class BookingService {
     private String normalizeRequiredField(String value, String fieldName) {
         if (!StringUtils.hasText(value)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " is required");
+        }
+
+        return value.trim();
+    }
+
+    private String normalizeOptionalField(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
         }
 
         return value.trim();

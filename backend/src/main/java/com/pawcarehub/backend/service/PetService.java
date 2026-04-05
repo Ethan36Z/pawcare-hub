@@ -195,7 +195,9 @@ public class PetService {
             note.getNoteDate().toString(),
             note.getAuthor(),
             note.getRelatedBookingId(),
-            note.getNoteText()
+            note.getNoteText(),
+            note.getCreatedAt() != null ? note.getCreatedAt().toString() : null,
+            note.getUpdatedAt() != null ? note.getUpdatedAt().toString() : null
         );
     }
 

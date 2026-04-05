@@ -5,6 +5,8 @@ public record PetMedicalNoteResponse(
     String date,
     String author,
     Long relatedBookingId,
-    String noteText
+    String noteText,
+    String createdAt,
+    String updatedAt
 ) {
 }

@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { usersApi } from '@/api/users'
 
@@ -11,6 +11,12 @@ const filters = ref({
   search: '',
   role: '',
   active: '',
+})
+const currentPage = ref(1)
+const pageSize = ref(10)
+const paginatedUsers = computed(() => {
+  const startIndex = (currentPage.value - 1) * pageSize.value
+  return users.value.slice(startIndex, startIndex + pageSize.value)
 })
 
 function getApiErrorMessage(error, fallbackMessage) {
@@ -36,6 +42,7 @@ async function loadUsers() {
       active: filters.value.active === '' ? undefined : filters.value.active,
     })
     users.value = data
+    currentPage.value = 1
   } catch (error) {
     errorMessage.value = getApiErrorMessage(error, 'Unable to load users right now.')
     users.value = []
@@ -128,7 +135,7 @@ onMounted(() => {
 
     <el-table
       v-else
-      :data="users"
+      :data="paginatedUsers"
       stripe
       :row-class-name="getUserRowClassName"
     >
@@ -162,6 +169,17 @@ onMounted(() => {
         </template>
       </el-table-column>
     </el-table>
+
+    <div v-if="users.length > pageSize" class="admin-pagination">
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        background
+        layout="total, prev, pager, next, sizes"
+        :total="users.length"
+        :page-sizes="[10, 20, 50]"
+      />
+    </div>
   </section>
 </template>
 
@@ -232,6 +250,12 @@ onMounted(() => {
 
 .admin-page :deep(.admin-users__row--inactive td) {
   color: #7a5a5a;
+}
+
+.admin-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
 }
 
 @media (max-width: 960px) {

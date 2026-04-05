@@ -12,6 +12,7 @@ public record BookingResponse(
     Long staffId,
     String staff,
     String ownerEmail,
+    String ownerNote,
     String visitSummary,
     String diagnosisAssessment,
     String treatmentRecommendation,

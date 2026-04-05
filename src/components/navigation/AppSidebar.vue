@@ -68,12 +68,17 @@ function handleLogout() {
 
 <style scoped>
 .app-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   gap: 20px;
   padding: 22px 18px 18px;
   background: #16324f;
   color: white;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .app-sidebar__eyebrow {
@@ -95,6 +100,9 @@ function handleLogout() {
   gap: 8px;
   flex: 1;
   align-content: start;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .app-sidebar__link {
@@ -120,8 +128,16 @@ function handleLogout() {
 
 @media (max-width: 900px) {
   .app-sidebar {
+    position: static;
+    height: auto;
+    overflow: visible;
     gap: 16px;
     padding: 18px 16px 12px;
+  }
+
+  .app-sidebar__nav {
+    overflow: visible;
+    padding-right: 0;
   }
 }
 </style>

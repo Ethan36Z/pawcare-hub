@@ -53,6 +53,12 @@ const availabilityForm = ref({
 const availabilityDialogTitle = computed(() =>
   editingAvailabilityId.value ? 'Edit Availability' : 'Add Availability'
 )
+const currentPage = ref(1)
+const pageSize = ref(10)
+const paginatedStaffRecords = computed(() => {
+  const startIndex = (currentPage.value - 1) * pageSize.value
+  return staffRecords.value.slice(startIndex, startIndex + pageSize.value)
+})
 
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
@@ -86,6 +92,7 @@ async function loadStaff() {
   try {
     const { data } = await adminStaffApi.list()
     staffRecords.value = data
+    currentPage.value = 1
   } catch (error) {
     errorMessage.value = getApiErrorMessage(error, 'Unable to load staff records right now.')
     staffRecords.value = []
@@ -353,7 +360,7 @@ onMounted(() => {
       description="No staff records are available yet."
     />
 
-    <el-table v-else :data="staffRecords" stripe>
+    <el-table v-else :data="paginatedStaffRecords" stripe>
       <el-table-column prop="id" label="ID" min-width="80" />
       <el-table-column prop="name" label="Name" min-width="220" />
       <el-table-column prop="role" label="Role" min-width="180" />
@@ -385,6 +392,17 @@ onMounted(() => {
         </template>
       </el-table-column>
     </el-table>
+
+    <div v-if="staffRecords.length > pageSize" class="admin-pagination">
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        background
+        layout="total, prev, pager, next, sizes"
+        :total="staffRecords.length"
+        :page-sizes="[10, 20, 50]"
+      />
+    </div>
 
     <el-dialog
       v-model="isCreateDialogOpen"
@@ -634,6 +652,12 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.admin-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
 }
 
 .form-select {

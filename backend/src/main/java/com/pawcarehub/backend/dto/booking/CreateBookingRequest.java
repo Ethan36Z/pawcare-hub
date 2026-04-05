@@ -9,6 +9,7 @@ public record CreateBookingRequest(
     String status,
     String clinic,
     Long staffId,
-    String staff
+    String staff,
+    String ownerNote
 ) {
 }

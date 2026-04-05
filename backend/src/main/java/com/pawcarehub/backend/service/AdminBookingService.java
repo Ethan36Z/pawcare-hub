@@ -144,6 +144,7 @@ public class AdminBookingService {
             booking.getOwner().getId(),
             booking.getOwner().getName(),
             booking.getOwner().getEmail(),
+            booking.getOwnerNote(),
             booking.getVisitSummary(),
             booking.getDiagnosisAssessment(),
             booking.getTreatmentRecommendation(),

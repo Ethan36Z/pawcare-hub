@@ -49,6 +49,7 @@ const createForm = ref({
   time: '',
   status: 'Upcoming',
   clinic: 'PawCare Hub Clinic',
+  ownerNote: '',
   staffId: null,
   staff: '',
 })
@@ -320,6 +321,7 @@ function resetCreateForm() {
     time: '',
     status: 'Upcoming',
     clinic: 'PawCare Hub Clinic',
+    ownerNote: '',
     staffId: null,
     staff: '',
   }
@@ -693,6 +695,13 @@ onMounted(() => {
             <strong>{{ selectedBooking.ownerEmail }}</strong>
           </div>
           <div
+            v-if="selectedBooking.ownerNote"
+            class="details-grid__full"
+          >
+            <span>Message for the clinic</span>
+            <p>{{ selectedBooking.ownerNote }}</p>
+          </div>
+          <div
             v-if="selectedBooking.status === 'Completed' && selectedBooking.visitSummary"
             class="details-grid__full"
           >
@@ -879,6 +888,16 @@ onMounted(() => {
                 :value="staff.value"
               />
             </el-select>
+          </el-form-item>
+          <el-form-item label="Message for the clinic">
+            <el-input
+              v-model="createForm.ownerNote"
+              type="textarea"
+              :rows="3"
+              maxlength="2000"
+              show-word-limit
+              placeholder="Optional note to help the clinic prepare for this visit"
+            />
           </el-form-item>
         </el-form>
 

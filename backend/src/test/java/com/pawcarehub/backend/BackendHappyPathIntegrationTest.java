@@ -240,7 +240,9 @@ class BackendHappyPathIntegrationTest {
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.date").value("2026-04-04"))
             .andExpect(jsonPath("$.author").value("Dr. Rivera"))
-            .andExpect(jsonPath("$.noteText").value("Follow-up exam showed stable breathing."));
+            .andExpect(jsonPath("$.noteText").value("Follow-up exam showed stable breathing."))
+            .andExpect(jsonPath("$.createdAt").isNotEmpty())
+            .andExpect(jsonPath("$.updatedAt").isNotEmpty());
 
         mockMvc.perform(get("/api/pets/{id}", petId)
                 .header("X-User-Email", "jamie@example.com"))
@@ -248,7 +250,9 @@ class BackendHappyPathIntegrationTest {
             .andExpect(jsonPath("$.microchipNumber").value("MC-2222"))
             .andExpect(jsonPath("$.generalMedicalNotes").value("Monitor breathing after exercise and grooming"))
             .andExpect(jsonPath("$.medicalNotes[0].author").value("Dr. Rivera"))
-            .andExpect(jsonPath("$.medicalNotes[0].noteText").value("Follow-up exam showed stable breathing."));
+            .andExpect(jsonPath("$.medicalNotes[0].noteText").value("Follow-up exam showed stable breathing."))
+            .andExpect(jsonPath("$.medicalNotes[0].createdAt").isNotEmpty())
+            .andExpect(jsonPath("$.medicalNotes[0].updatedAt").isNotEmpty());
     }
 
     @Test
@@ -273,6 +277,7 @@ class BackendHappyPathIntegrationTest {
                       "time": "10:30 AM",
                       "status": "Upcoming",
                       "clinic": "PawCare Hub Clinic",
+                      "ownerNote": "Please be gentle around the front paw.",
                       "staffId": %d,
                       "staff": "%s"
                     }
@@ -284,6 +289,7 @@ class BackendHappyPathIntegrationTest {
             .andExpect(jsonPath("$.staffId").value(staff.getId()))
             .andExpect(jsonPath("$.staff").value(staff.getName()))
             .andExpect(jsonPath("$.status").value("Upcoming"))
+            .andExpect(jsonPath("$.ownerNote").value("Please be gentle around the front paw."))
             .andReturn();
 
         JsonNode bookingJson = objectMapper.readTree(createResult.getResponse().getContentAsString());
@@ -292,6 +298,7 @@ class BackendHappyPathIntegrationTest {
         assertThat(savedBooking.getServiceRecord()).isNotNull();
         assertThat(savedBooking.getStaffRecord()).isNotNull();
         assertThat(savedBooking.getStaffRecord().getId()).isEqualTo(staff.getId());
+        assertThat(savedBooking.getOwnerNote()).isEqualTo("Please be gentle around the front paw.");
     }
 
     @Test

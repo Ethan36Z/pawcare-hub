@@ -11,16 +11,23 @@ const EXCEPTION_MODE_OPTIONS = [
 const staffRecords = ref([])
 const selectedStaffId = ref(null)
 const selectedDate = ref('')
+const weeklyAvailability = ref([])
 const scheduleExceptions = ref([])
 const isLoadingStaff = ref(false)
+const isLoadingWeeklyAvailability = ref(false)
 const isLoadingExceptions = ref(false)
 const errorMessage = ref('')
 const isExceptionDialogOpen = ref(false)
 const isSavingException = ref(false)
 const exceptionFormErrorMessage = ref('')
+const isWeeklyDialogOpen = ref(false)
+const isSavingWeeklyAvailability = ref(false)
+const weeklyFormErrorMessage = ref('')
 const editingExceptionId = ref(null)
 const deletingExceptionId = ref(null)
 const exceptionForm = ref(buildDefaultExceptionForm())
+const weeklyForm = ref(buildDefaultWeeklyForm())
+const editingWeeklyDay = ref(null)
 
 const selectedStaff = computed(() =>
   staffRecords.value.find((staff) => staff.id === selectedStaffId.value) || null
@@ -28,11 +35,98 @@ const selectedStaff = computed(() =>
 const selectedDateException = computed(() =>
   scheduleExceptions.value.find((item) => item.date === selectedDate.value) || null
 )
+const selectedDateWeekday = computed(() => {
+  if (!selectedDate.value) {
+    return ''
+  }
+
+  return new Date(`${selectedDate.value}T00:00:00`).toLocaleDateString('en-US', {
+    weekday: 'long',
+  })
+})
+const weeklyAvailabilityByDay = computed(() => {
+  const dayOrder = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
+  const labels = {
+    MONDAY: 'Monday',
+    TUESDAY: 'Tuesday',
+    WEDNESDAY: 'Wednesday',
+    THURSDAY: 'Thursday',
+    FRIDAY: 'Friday',
+    SATURDAY: 'Saturday',
+    SUNDAY: 'Sunday',
+  }
+
+  return dayOrder.map((dayKey) => {
+    const slots = weeklyAvailability.value
+      .filter((item) => item.dayOfWeek === dayKey)
+      .sort((left, right) => left.startTime.localeCompare(right.startTime))
+
+    return {
+      key: dayKey,
+      label: labels[dayKey],
+      slots,
+      hasActiveSlots: slots.some((slot) => slot.active),
+    }
+  })
+})
+const selectedDateWeeklySlots = computed(() => {
+  if (!selectedDate.value) {
+    return []
+  }
+
+  const dayKey = new Date(`${selectedDate.value}T00:00:00`)
+    .toLocaleDateString('en-US', { weekday: 'long' })
+    .toUpperCase()
+
+  return weeklyAvailability.value
+    .filter((item) => item.dayOfWeek === dayKey && item.active)
+    .sort((left, right) => left.startTime.localeCompare(right.startTime))
+})
+const activeRuleSummary = computed(() => {
+  if (selectedDateException.value) {
+    return {
+      tagType: selectedDateException.value.available ? 'warning' : 'danger',
+      tagLabel: selectedDateException.value.available ? 'Custom working hours' : 'Unavailable all day',
+      description: selectedDateException.value.available
+        ? `Override active for ${selectedDateWeekday.value}: ${getExceptionSummary(selectedDateException.value)}`
+        : `Override active for ${selectedDateWeekday.value}: this staff member is unavailable all day.`,
+      detail: 'This exception takes priority over the weekly template.',
+    }
+  }
+
+  if (selectedDateWeeklySlots.value.length) {
+    return {
+      tagType: 'success',
+      tagLabel: 'Weekly fallback',
+      description: `Using the weekly default for ${selectedDateWeekday.value}: ${formatAvailabilitySlots(selectedDateWeeklySlots.value)}`,
+      detail: 'No date-specific override exists for the selected date.',
+    }
+  }
+
+  if (selectedDate.value) {
+    return {
+      tagType: 'info',
+      tagLabel: 'No working hours',
+      description: `No active weekly availability is set for ${selectedDateWeekday.value}.`,
+      detail: 'Add a weekly template or a date-specific override to open time on this date.',
+    }
+  }
+
+  return {
+    tagType: 'info',
+    tagLabel: 'Select a date',
+    description: 'Choose a date to see which scheduling rule applies.',
+    detail: '',
+  }
+})
 const sortedExceptions = computed(() =>
   [...scheduleExceptions.value].sort((left, right) => left.date.localeCompare(right.date))
 )
 const exceptionDialogTitle = computed(() =>
   editingExceptionId.value ? 'Edit Schedule Exception' : 'Add Schedule Exception'
+)
+const weeklyDialogTitle = computed(() =>
+  editingWeeklyDay.value ? `Edit ${editingWeeklyDay.value.label} Template` : 'Edit Weekly Template'
 )
 
 function buildDefaultExceptionForm() {
@@ -41,6 +135,14 @@ function buildDefaultExceptionForm() {
     mode: 'unavailable',
     customStartTime: '09:00',
     customEndTime: '17:00',
+  }
+}
+
+function buildDefaultWeeklyForm() {
+  return {
+    isOpen: true,
+    startTime: '09:00',
+    endTime: '17:00',
   }
 }
 
@@ -81,6 +183,21 @@ function getExceptionSummary(exceptionItem) {
   }
 
   return `${formatTime(exceptionItem.customStartTime)} - ${formatTime(exceptionItem.customEndTime)}`
+}
+
+function formatAvailabilitySlots(slots) {
+  if (!slots.length) {
+    return 'No active hours'
+  }
+
+  return slots
+    .filter((slot) => slot.active)
+    .map((slot) => `${formatTime(slot.startTime)} - ${formatTime(slot.endTime)}`)
+    .join(', ')
+}
+
+function getPrimaryWeeklySlot(day) {
+  return day?.slots?.[0] ?? null
 }
 
 function isPastDateDisabled(date) {
@@ -132,6 +249,26 @@ async function loadScheduleExceptions() {
   }
 }
 
+async function loadWeeklyAvailability() {
+  if (!selectedStaffId.value) {
+    weeklyAvailability.value = []
+    return
+  }
+
+  isLoadingWeeklyAvailability.value = true
+  errorMessage.value = ''
+
+  try {
+    const { data } = await adminStaffApi.listAvailability(selectedStaffId.value)
+    weeklyAvailability.value = data
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, 'Unable to load weekly availability right now.')
+    weeklyAvailability.value = []
+  } finally {
+    isLoadingWeeklyAvailability.value = false
+  }
+}
+
 function openCreateExceptionDialog() {
   if (!selectedStaffId.value || !selectedDate.value) {
     return
@@ -162,6 +299,12 @@ function resetExceptionForm() {
   editingExceptionId.value = null
   exceptionFormErrorMessage.value = ''
   exceptionForm.value = buildDefaultExceptionForm()
+}
+
+function resetWeeklyForm() {
+  editingWeeklyDay.value = null
+  weeklyFormErrorMessage.value = ''
+  weeklyForm.value = buildDefaultWeeklyForm()
 }
 
 async function handleSaveException() {
@@ -223,13 +366,62 @@ async function handleDeleteException(exceptionItem) {
   }
 }
 
+function openWeeklyTemplateDialog(day) {
+  editingWeeklyDay.value = day
+  weeklyFormErrorMessage.value = ''
+
+  const primarySlot = getPrimaryWeeklySlot(day)
+  weeklyForm.value = {
+    isOpen: day.hasActiveSlots,
+    startTime: primarySlot?.startTime?.slice(0, 5) || '09:00',
+    endTime: primarySlot?.endTime?.slice(0, 5) || '17:00',
+  }
+
+  isWeeklyDialogOpen.value = true
+}
+
+async function handleSaveWeeklyTemplate() {
+  if (!selectedStaffId.value || !editingWeeklyDay.value) {
+    return
+  }
+
+  isSavingWeeklyAvailability.value = true
+  weeklyFormErrorMessage.value = ''
+
+  const primarySlot = getPrimaryWeeklySlot(editingWeeklyDay.value)
+  const payload = {
+    dayOfWeek: editingWeeklyDay.value.key,
+    startTime: weeklyForm.value.startTime,
+    endTime: weeklyForm.value.endTime,
+    active: weeklyForm.value.isOpen,
+  }
+
+  try {
+    if (primarySlot?.id) {
+      await adminStaffApi.updateAvailability(selectedStaffId.value, primarySlot.id, payload)
+    } else {
+      await adminStaffApi.createAvailability(selectedStaffId.value, payload)
+    }
+
+    isWeeklyDialogOpen.value = false
+    resetWeeklyForm()
+    await loadWeeklyAvailability()
+  } catch (error) {
+    weeklyFormErrorMessage.value = getApiErrorMessage(error, 'Unable to save weekly template availability right now.')
+  } finally {
+    isSavingWeeklyAvailability.value = false
+  }
+}
+
 watch(selectedStaffId, async () => {
+  await loadWeeklyAvailability()
   await loadScheduleExceptions()
 })
 
 onMounted(async () => {
   selectedDate.value = new Date().toISOString().slice(0, 10)
   await loadStaff()
+  await loadWeeklyAvailability()
   await loadScheduleExceptions()
 })
 </script>
@@ -293,24 +485,60 @@ onMounted(async () => {
 
       <div class="selected-date-card">
         <div>
-          <span class="selected-date-card__label">Selected date</span>
+          <span class="selected-date-card__label">Selected staff and date</span>
           <strong>{{ selectedDate ? formatExceptionDate(selectedDate) : 'Choose a date' }}</strong>
           <p v-if="selectedStaff">
             {{ selectedStaff.name }} · {{ selectedStaff.role }}
           </p>
         </div>
 
-        <div v-if="selectedDateException" class="selected-date-card__status">
-          <el-tag :type="selectedDateException.available ? 'warning' : 'danger'" effect="plain">
-            {{ selectedDateException.available ? 'Custom working hours' : 'Unavailable all day' }}
+        <div class="selected-date-card__status" :class="{ 'selected-date-card__status--fallback': activeRuleSummary.tagLabel === 'Weekly fallback' }">
+          <el-tag :type="activeRuleSummary.tagType" effect="plain">
+            {{ activeRuleSummary.tagLabel }}
           </el-tag>
-          <span>{{ getExceptionSummary(selectedDateException) }}</span>
-        </div>
-        <div v-else class="selected-date-card__status selected-date-card__status--fallback">
-          <el-tag type="success" effect="plain">Weekly fallback</el-tag>
-          <span>No exception exists for this date. Weekly availability will be used.</span>
+          <strong class="selected-date-card__headline">Active rule</strong>
+          <span>{{ activeRuleSummary.description }}</span>
+          <small v-if="activeRuleSummary.detail">{{ activeRuleSummary.detail }}</small>
         </div>
       </div>
+
+      <section class="operations-subpanel operations-subpanel--weekly">
+        <div class="operations-subpanel__header">
+          <div>
+            <span class="operations-subpanel__eyebrow">Weekly Default</span>
+            <h2>Template availability</h2>
+          </div>
+          <p v-if="selectedStaff">
+            Default working hours for {{ selectedStaff.name }}.
+          </p>
+        </div>
+
+        <el-skeleton v-if="isLoadingWeeklyAvailability" :rows="6" animated />
+
+        <div v-else class="weekly-availability-list">
+          <article
+            v-for="day in weeklyAvailabilityByDay"
+            :key="day.key"
+            class="weekly-availability-card"
+            :class="{ 'weekly-availability-card--selected': day.label === selectedDateWeekday }"
+          >
+            <div>
+              <strong>{{ day.label }}</strong>
+              <span>
+                {{ day.hasActiveSlots ? formatAvailabilitySlots(day.slots) : 'Unavailable by default' }}
+              </span>
+            </div>
+            <div class="weekly-availability-card__actions">
+              <el-tag :type="day.hasActiveSlots ? 'success' : 'info'" effect="plain">
+                {{ day.hasActiveSlots ? 'Open by default' : 'Closed by default' }}
+              </el-tag>
+              <el-button plain size="small" @click="openWeeklyTemplateDialog(day)">
+                Edit default
+              </el-button>
+            </div>
+          </article>
+        </div>
+      </section>
 
       <el-skeleton v-if="isLoadingExceptions" :rows="5" animated />
 
@@ -333,7 +561,7 @@ onMounted(async () => {
         <el-table-column label="Type" min-width="180">
           <template #default="{ row }">
             <el-tag :type="row.available ? 'warning' : 'danger'" effect="plain">
-              {{ row.available ? 'Custom hours' : 'Unavailable' }}
+              {{ row.available ? 'Custom working hours' : 'Unavailable all day' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -425,6 +653,65 @@ onMounted(async () => {
         </el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="isWeeklyDialogOpen"
+      :title="weeklyDialogTitle"
+      width="min(520px, 92vw)"
+      @closed="resetWeeklyForm"
+    >
+      <el-alert
+        v-if="weeklyFormErrorMessage"
+        :title="weeklyFormErrorMessage"
+        type="error"
+        :closable="false"
+        class="operations-alert"
+      />
+
+      <el-form :model="weeklyForm" label-position="top">
+        <el-form-item label="Default status">
+          <el-radio-group v-model="weeklyForm.isOpen" class="exception-mode-group">
+            <el-radio-button :value="true">Open</el-radio-button>
+            <el-radio-button :value="false">Closed</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+
+        <template v-if="weeklyForm.isOpen">
+          <p class="exception-helper">
+            These hours will be used as the weekly fallback when no date-specific override exists.
+          </p>
+          <el-form-item label="Start time">
+            <el-time-select
+              v-model="weeklyForm.startTime"
+              start="06:00"
+              step="00:30"
+              end="22:00"
+              class="operations-field"
+            />
+          </el-form-item>
+          <el-form-item label="End time">
+            <el-time-select
+              v-model="weeklyForm.endTime"
+              start="06:30"
+              step="00:30"
+              end="22:30"
+              class="operations-field"
+            />
+          </el-form-item>
+        </template>
+
+        <p v-else class="exception-helper">
+          This weekday will be treated as closed by default unless a date-specific override is added.
+        </p>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="isWeeklyDialogOpen = false">Cancel</el-button>
+        <el-button type="primary" :loading="isSavingWeeklyAvailability" @click="handleSaveWeeklyTemplate">
+          Save Weekly Default
+        </el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
@@ -489,6 +776,39 @@ onMounted(async () => {
   width: 100%;
 }
 
+.operations-subpanel {
+  margin-bottom: 18px;
+  border: 1px solid var(--pc-border);
+  border-radius: 20px;
+  padding: 20px;
+  background: #fcfdfc;
+}
+
+.operations-subpanel__header {
+  margin-bottom: 16px;
+}
+
+.operations-subpanel__eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  color: #72807c;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.operations-subpanel__header h2 {
+  margin: 0;
+  color: #173047;
+  font-size: 1.08rem;
+}
+
+.operations-subpanel__header p {
+  margin: 8px 0 0;
+  color: #66747f;
+  line-height: 1.55;
+}
+
 .selected-date-card {
   display: flex;
   justify-content: space-between;
@@ -528,8 +848,58 @@ onMounted(async () => {
   text-align: right;
 }
 
+.selected-date-card__headline {
+  color: #173047;
+  font-size: 0.95rem;
+}
+
+.selected-date-card__status small {
+  color: #72807c;
+  font-size: 0.82rem;
+}
+
 .selected-date-card__status--fallback {
   color: #67746f;
+}
+
+.weekly-availability-list {
+  display: grid;
+  gap: 10px;
+}
+
+.weekly-availability-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: white;
+  border: 1px solid rgba(63, 114, 93, 0.12);
+}
+
+.weekly-availability-card--selected {
+  border-color: rgba(63, 114, 93, 0.28);
+  background: #f4faf6;
+}
+
+.weekly-availability-card strong {
+  display: block;
+  color: #173047;
+}
+
+.weekly-availability-card span {
+  display: block;
+  margin-top: 6px;
+  color: #66747f;
+  line-height: 1.45;
+}
+
+.weekly-availability-card__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
 }
 
 .operations-actions {

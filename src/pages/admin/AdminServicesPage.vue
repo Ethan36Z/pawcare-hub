@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { adminServicesApi } from '@/api/adminServices'
 
 const services = ref([])
@@ -19,6 +19,8 @@ const filters = ref({
   name: '',
   sort: 'name-asc',
 })
+const currentPage = ref(1)
+const pageSize = ref(10)
 const createForm = ref({
   name: '',
   category: '',
@@ -34,6 +36,10 @@ const editForm = ref({
   duration: '',
   price: '',
   active: true,
+})
+const paginatedServices = computed(() => {
+  const startIndex = (currentPage.value - 1) * pageSize.value
+  return services.value.slice(startIndex, startIndex + pageSize.value)
 })
 
 function getApiErrorMessage(error, fallbackMessage) {
@@ -52,6 +58,7 @@ async function loadServices() {
       sort: filters.value.sort,
     })
     services.value = data
+    currentPage.value = 1
   } catch (error) {
     errorMessage.value = getApiErrorMessage(error, 'Unable to load services right now.')
     services.value = []
@@ -246,7 +253,7 @@ onMounted(() => {
       description="No services match the current filters."
     />
 
-    <el-table v-else :data="services" stripe>
+    <el-table v-else :data="paginatedServices" stripe>
       <el-table-column prop="id" label="ID" min-width="80" />
       <el-table-column prop="name" label="Service" min-width="220" />
       <el-table-column prop="category" label="Category" min-width="140" />
@@ -282,6 +289,17 @@ onMounted(() => {
         </template>
       </el-table-column>
     </el-table>
+
+    <div v-if="services.length > pageSize" class="admin-pagination">
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        background
+        layout="total, prev, pager, next, sizes"
+        :total="services.length"
+        :page-sizes="[10, 20, 50]"
+      />
+    </div>
 
     <el-dialog
       v-model="isCreateDialogOpen"
@@ -433,6 +451,12 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.admin-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
 }
 
 .admin-page :deep(.el-button--primary) {

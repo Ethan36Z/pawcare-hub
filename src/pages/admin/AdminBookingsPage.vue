@@ -25,9 +25,15 @@ const filters = ref({
   owner: '',
   sort: 'latest',
 })
+const currentPage = ref(1)
+const pageSize = ref(10)
 const authStore = useAuthStore()
 const canManageBookingQueue = computed(() => authStore.isAdmin || authStore.isFrontDesk)
 const canCompleteVisits = computed(() => authStore.isAdmin || authStore.isDoctor)
+const paginatedBookings = computed(() => {
+  const startIndex = (currentPage.value - 1) * pageSize.value
+  return bookings.value.slice(startIndex, startIndex + pageSize.value)
+})
 
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
@@ -72,6 +78,7 @@ async function loadBookings() {
       sort: filters.value.sort,
     })
     bookings.value = data
+    currentPage.value = 1
   } catch (error) {
     errorMessage.value = getApiErrorMessage(error, 'Unable to load admin bookings right now.')
     bookings.value = []
@@ -238,7 +245,7 @@ onMounted(() => {
       description="No bookings match the current filters."
     />
 
-    <el-table v-else :data="bookings" stripe>
+    <el-table v-else :data="paginatedBookings" stripe>
       <el-table-column prop="id" label="ID" min-width="80" />
       <el-table-column prop="petName" label="Pet" min-width="140" />
       <el-table-column prop="service" label="Service" min-width="180" />
@@ -262,6 +269,14 @@ onMounted(() => {
             <strong>{{ row.ownerName }}</strong>
             <span>{{ row.ownerEmail }}</span>
           </div>
+        </template>
+      </el-table-column>
+      <el-table-column label="Client message" min-width="260">
+        <template #default="{ row }">
+          <div v-if="row.ownerNote" class="owner-note-cell">
+            {{ row.ownerNote }}
+          </div>
+          <span v-else class="owner-note-cell owner-note-cell--empty">No message</span>
         </template>
       </el-table-column>
       <el-table-column label="Actions" min-width="220" fixed="right">
@@ -299,6 +314,17 @@ onMounted(() => {
       </el-table-column>
     </el-table>
 
+    <div v-if="bookings.length > pageSize" class="admin-pagination">
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        background
+        layout="total, prev, pager, next, sizes"
+        :total="bookings.length"
+        :page-sizes="[10, 20, 50]"
+      />
+    </div>
+
     <el-dialog
       v-model="isOutcomeDialogOpen"
       title="Visit Outcome"
@@ -316,6 +342,9 @@ onMounted(() => {
       <div v-if="selectedOutcomeBooking" class="outcome-summary">
         <strong>{{ selectedOutcomeBooking.petName }}</strong>
         <span>{{ selectedOutcomeBooking.service }} | {{ selectedOutcomeBooking.date }} at {{ selectedOutcomeBooking.time }}</span>
+        <p v-if="selectedOutcomeBooking.ownerNote" class="outcome-summary__note">
+          Client message: {{ selectedOutcomeBooking.ownerNote }}
+        </p>
       </div>
 
       <el-form :model="outcomeForm" label-position="top">
@@ -428,6 +457,12 @@ onMounted(() => {
   font-size: 0.95rem;
 }
 
+.outcome-summary__note {
+  margin: 8px 0 0;
+  color: var(--pc-text);
+  line-height: 1.5;
+}
+
 .owner-cell {
   flex-direction: column;
   line-height: 1.35;
@@ -442,9 +477,26 @@ onMounted(() => {
   word-break: break-word;
 }
 
+.owner-note-cell {
+  color: var(--pc-text);
+  line-height: 1.45;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.owner-note-cell--empty {
+  color: var(--pc-muted);
+}
+
 .actions-cell {
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.admin-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
 }
 
 @media (max-width: 1100px) {

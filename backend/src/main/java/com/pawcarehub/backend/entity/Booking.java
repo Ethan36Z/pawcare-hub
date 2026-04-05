@@ -61,6 +61,9 @@ public class Booking {
     @Column(length = 2000)
     private String followUpNote;
 
+    @Column(length = 2000)
+    private String ownerNote;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
@@ -197,6 +200,14 @@ public class Booking {
 
     public void setFollowUpNote(String followUpNote) {
         this.followUpNote = followUpNote;
+    }
+
+    public String getOwnerNote() {
+        return ownerNote;
+    }
+
+    public void setOwnerNote(String ownerNote) {
+        this.ownerNote = ownerNote;
     }
 
     @PrePersist
