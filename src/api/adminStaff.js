@@ -4,6 +4,9 @@ export const adminStaffApi = {
   list() {
     return http.get('/admin/staff')
   },
+  listForOperations() {
+    return http.get('/admin/staff/operations-list')
+  },
   create(payload) {
     return http.post('/admin/staff', payload)
   },

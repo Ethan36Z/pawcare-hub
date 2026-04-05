@@ -25,6 +25,9 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+    @Column(nullable = false)
+    private String role = "user";
+
     private String phone;
 
     private String address;
@@ -65,6 +68,14 @@ public class User {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
     }
 
     public String getPhone() {
@@ -119,6 +130,10 @@ public class User {
     protected void applyDefaults() {
         if (active == null) {
             active = true;
+        }
+
+        if (role == null) {
+            role = "user";
         }
     }
 }

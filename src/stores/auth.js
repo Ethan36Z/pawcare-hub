@@ -1,11 +1,18 @@
 import { defineStore } from 'pinia'
 
 const STORAGE_KEY = 'pawcarehub-auth'
-const ADMIN_EMAIL_PATTERN = /(admin|staff|clinic|team|manager)/i
 
 function normalizeRole(role) {
   if (role === 'admin') {
     return 'admin'
+  }
+
+  if (role === 'front_desk') {
+    return 'front_desk'
+  }
+
+  if (role === 'doctor') {
+    return 'doctor'
   }
 
   if (role === 'user' || role === 'customer') {
@@ -16,11 +23,23 @@ function normalizeRole(role) {
 }
 
 export function resolveMockRole(email = '') {
-  return ADMIN_EMAIL_PATTERN.test(email) ? 'admin' : 'user'
+  if (/(doctor|dr\.|vet)/i.test(email)) {
+    return 'doctor'
+  }
+
+  if (/(frontdesk|front-desk|reception|receptionist)/i.test(email)) {
+    return 'front_desk'
+  }
+
+  if (/(admin|clinic|team|manager)/i.test(email)) {
+    return 'admin'
+  }
+
+  return 'user'
 }
 
 export function getDefaultRouteForRole(role) {
-  return role === 'admin' ? '/admin' : '/pets'
+  return role === 'admin' || role === 'front_desk' || role === 'doctor' ? '/admin' : '/pets'
 }
 
 function loadStoredSession() {
@@ -68,6 +87,9 @@ export const useAuthStore = defineStore('auth', {
     isAuthenticated: (state) => state.isLoggedIn,
     isUser: (state) => state.role === 'user',
     isAdmin: (state) => state.role === 'admin',
+    isFrontDesk: (state) => state.role === 'front_desk',
+    isDoctor: (state) => state.role === 'doctor',
+    isClinicStaff: (state) => ['admin', 'front_desk', 'doctor'].includes(state.role),
   },
   actions: {
     login(payload) {

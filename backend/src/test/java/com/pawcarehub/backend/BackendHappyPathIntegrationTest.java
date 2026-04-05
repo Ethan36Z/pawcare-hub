@@ -23,6 +23,7 @@ import com.pawcarehub.backend.repository.PetRepository;
 import com.pawcarehub.backend.repository.StaffAvailabilityRepository;
 import com.pawcarehub.backend.repository.StaffRepository;
 import com.pawcarehub.backend.repository.UserRepository;
+import com.pawcarehub.backend.service.UserRoles;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -44,6 +45,9 @@ import org.springframework.test.web.servlet.MvcResult;
 class BackendHappyPathIntegrationTest {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("MMMM d, uuuu", Locale.US);
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("h:mm a", Locale.US);
+    private static final String ADMIN_EMAIL = "admin@pawcarehub.com";
+    private static final String FRONT_DESK_EMAIL = "frontdesk@pawcarehub.com";
+    private static final String DOCTOR_EMAIL = "doctor@pawcarehub.com";
 
     @Autowired
     private MockMvc mockMvc;
@@ -78,6 +82,9 @@ class BackendHappyPathIntegrationTest {
         petMedicalNoteRepository.deleteAll();
         petRepository.deleteAll();
         userRepository.deleteAll();
+        createClinicUser(ADMIN_EMAIL, "Admin Lead", UserRoles.ADMIN);
+        createClinicUser(FRONT_DESK_EMAIL, "Casey Front Desk", UserRoles.FRONT_DESK);
+        createClinicUser(DOCTOR_EMAIL, "Dr. Rivera", UserRoles.DOCTOR);
     }
 
     @Test
@@ -94,7 +101,8 @@ class BackendHappyPathIntegrationTest {
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.message").value("Registration successful"))
             .andExpect(jsonPath("$.email").value("jamie@example.com"))
-            .andExpect(jsonPath("$.name").value("Jamie Parker"));
+            .andExpect(jsonPath("$.name").value("Jamie Parker"))
+            .andExpect(jsonPath("$.role").value(UserRoles.USER));
 
         User savedUser = userRepository.findByEmail("jamie@example.com").orElseThrow();
         assertThat(savedUser.getPassword()).startsWith("$2");
@@ -117,7 +125,8 @@ class BackendHappyPathIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.message").value("Login successful"))
             .andExpect(jsonPath("$.email").value("jamie@example.com"))
-            .andExpect(jsonPath("$.name").value("Jamie Parker"));
+            .andExpect(jsonPath("$.name").value("Jamie Parker"))
+            .andExpect(jsonPath("$.role").value(UserRoles.USER));
     }
 
     @Test
@@ -358,6 +367,7 @@ class BackendHappyPathIntegrationTest {
         Staff staff = staffRepository.save(new Staff("Dr. Foster", "Veterinarian", true));
 
         MvcResult createResult = mockMvc.perform(post("/api/admin/staff/{staffId}/availability", staff.getId())
+                .header("X-User-Email", FRONT_DESK_EMAIL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -377,6 +387,7 @@ class BackendHappyPathIntegrationTest {
         long availabilityId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
 
         mockMvc.perform(patch("/api/admin/staff/{staffId}/availability/{availabilityId}", staff.getId(), availabilityId)
+                .header("X-User-Email", FRONT_DESK_EMAIL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -390,15 +401,18 @@ class BackendHappyPathIntegrationTest {
             .andExpect(jsonPath("$.startTime").value("17:30"))
             .andExpect(jsonPath("$.endTime").value("18:30"));
 
-        mockMvc.perform(patch("/api/admin/staff/{staffId}/availability/{availabilityId}/toggle", staff.getId(), availabilityId))
+        mockMvc.perform(patch("/api/admin/staff/{staffId}/availability/{availabilityId}/toggle", staff.getId(), availabilityId)
+                .header("X-User-Email", FRONT_DESK_EMAIL))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.active").value(false));
 
-        mockMvc.perform(get("/api/admin/staff/{staffId}/availability", staff.getId()))
+        mockMvc.perform(get("/api/admin/staff/{staffId}/availability", staff.getId())
+                .header("X-User-Email", FRONT_DESK_EMAIL))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].staffId").value(staff.getId()));
 
-        mockMvc.perform(delete("/api/admin/staff/{staffId}/availability/{availabilityId}", staff.getId(), availabilityId))
+        mockMvc.perform(delete("/api/admin/staff/{staffId}/availability/{availabilityId}", staff.getId(), availabilityId)
+                .header("X-User-Email", FRONT_DESK_EMAIL))
             .andExpect(status().isNoContent());
     }
 
@@ -407,6 +421,7 @@ class BackendHappyPathIntegrationTest {
         Staff staff = staffRepository.save(new Staff("Dr. Stone", "Veterinarian", true));
 
         mockMvc.perform(post("/api/admin/staff/{staffId}/availability", staff.getId())
+                .header("X-User-Email", FRONT_DESK_EMAIL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -419,6 +434,7 @@ class BackendHappyPathIntegrationTest {
             .andExpect(status().isOk());
 
         mockMvc.perform(post("/api/admin/staff/{staffId}/availability", staff.getId())
+                .header("X-User-Email", FRONT_DESK_EMAIL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -451,6 +467,7 @@ class BackendHappyPathIntegrationTest {
         Staff staff = staffRepository.save(new Staff("Dr. Avery", "Veterinarian", true));
 
         MvcResult createResult = mockMvc.perform(post("/api/admin/operations/staff/{staffId}/schedule-exceptions", staff.getId())
+                .header("X-User-Email", FRONT_DESK_EMAIL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -469,6 +486,7 @@ class BackendHappyPathIntegrationTest {
         long exceptionId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
 
         mockMvc.perform(post("/api/admin/operations/staff/{staffId}/schedule-exceptions", staff.getId())
+                .header("X-User-Email", FRONT_DESK_EMAIL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -482,6 +500,7 @@ class BackendHappyPathIntegrationTest {
             .andExpect(status().reason("A schedule exception already exists for this staff member and date"));
 
         mockMvc.perform(patch("/api/admin/operations/staff/{staffId}/schedule-exceptions/{exceptionId}", staff.getId(), exceptionId)
+                .header("X-User-Email", FRONT_DESK_EMAIL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -496,11 +515,13 @@ class BackendHappyPathIntegrationTest {
             .andExpect(jsonPath("$.customStartTime").value("12:00"))
             .andExpect(jsonPath("$.customEndTime").value("16:00"));
 
-        mockMvc.perform(get("/api/admin/operations/staff/{staffId}/schedule-exceptions", staff.getId()))
+        mockMvc.perform(get("/api/admin/operations/staff/{staffId}/schedule-exceptions", staff.getId())
+                .header("X-User-Email", FRONT_DESK_EMAIL))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].date").value("2026-05-15"));
 
-        mockMvc.perform(delete("/api/admin/operations/staff/{staffId}/schedule-exceptions/{exceptionId}", staff.getId(), exceptionId))
+        mockMvc.perform(delete("/api/admin/operations/staff/{staffId}/schedule-exceptions/{exceptionId}", staff.getId(), exceptionId)
+                .header("X-User-Email", FRONT_DESK_EMAIL))
             .andExpect(status().isNoContent());
     }
 
@@ -510,6 +531,7 @@ class BackendHappyPathIntegrationTest {
         createFullWeekAvailability(staff);
 
         mockMvc.perform(post("/api/admin/operations/staff/{staffId}/schedule-exceptions", staff.getId())
+                .header("X-User-Email", FRONT_DESK_EMAIL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -533,6 +555,7 @@ class BackendHappyPathIntegrationTest {
         createFullWeekAvailability(staff);
 
         mockMvc.perform(post("/api/admin/operations/staff/{staffId}/schedule-exceptions", staff.getId())
+                .header("X-User-Email", FRONT_DESK_EMAIL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -579,6 +602,7 @@ class BackendHappyPathIntegrationTest {
         createFullWeekAvailability(staff);
 
         mockMvc.perform(post("/api/admin/operations/staff/{staffId}/schedule-exceptions", staff.getId())
+                .header("X-User-Email", FRONT_DESK_EMAIL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -630,7 +654,19 @@ class BackendHappyPathIntegrationTest {
 
     @Test
     void adminCanListRealStaffRecords() throws Exception {
-        mockMvc.perform(get("/api/admin/staff"))
+        mockMvc.perform(get("/api/admin/staff")
+                .header("X-User-Email", ADMIN_EMAIL))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").isNumber())
+            .andExpect(jsonPath("$[0].name").isNotEmpty())
+            .andExpect(jsonPath("$[0].role").isNotEmpty())
+            .andExpect(jsonPath("$[0].active").isBoolean());
+    }
+
+    @Test
+    void frontDeskCanLoadReadOnlyOperationsStaffList() throws Exception {
+        mockMvc.perform(get("/api/admin/staff/operations-list")
+                .header("X-User-Email", FRONT_DESK_EMAIL))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].id").isNumber())
             .andExpect(jsonPath("$[0].name").isNotEmpty())
@@ -691,6 +727,7 @@ class BackendHappyPathIntegrationTest {
         long bookingId = objectMapper.readTree(bookingResult.getResponse().getContentAsString()).get("id").asLong();
 
         mockMvc.perform(patch("/api/admin/bookings/{id}/complete", bookingId)
+                .header("X-User-Email", DOCTOR_EMAIL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -702,9 +739,10 @@ class BackendHappyPathIntegrationTest {
                     """))
             .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/admin/dashboard/stats"))
+        mockMvc.perform(get("/api/admin/dashboard/stats")
+                .header("X-User-Email", FRONT_DESK_EMAIL))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.totalUsers").value(1))
+            .andExpect(jsonPath("$.totalUsers").value(4))
             .andExpect(jsonPath("$.petRecords").value(3))
             .andExpect(jsonPath("$.activeStaff").isNumber())
             .andExpect(jsonPath("$.activeServices").isNumber())
@@ -720,7 +758,8 @@ class BackendHappyPathIntegrationTest {
             .orElseThrow();
         boolean initialActive = staff.isActive();
 
-        mockMvc.perform(patch("/api/admin/staff/{id}/toggle", staff.getId()))
+        mockMvc.perform(patch("/api/admin/staff/{id}/toggle", staff.getId())
+                .header("X-User-Email", ADMIN_EMAIL))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(staff.getId()))
             .andExpect(jsonPath("$.active").value(!initialActive));
@@ -732,6 +771,7 @@ class BackendHappyPathIntegrationTest {
     @Test
     void adminCanCreateStaffRecord() throws Exception {
         mockMvc.perform(post("/api/admin/staff")
+                .header("X-User-Email", ADMIN_EMAIL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -755,6 +795,7 @@ class BackendHappyPathIntegrationTest {
             .orElseThrow();
 
         mockMvc.perform(patch("/api/admin/staff/{id}", staff.getId())
+                .header("X-User-Email", ADMIN_EMAIL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -813,7 +854,8 @@ class BackendHappyPathIntegrationTest {
         JsonNode bookingJson = objectMapper.readTree(createResult.getResponse().getContentAsString());
         long bookingId = bookingJson.get("id").asLong();
 
-        mockMvc.perform(patch("/api/admin/bookings/{id}/confirm", bookingId))
+        mockMvc.perform(patch("/api/admin/bookings/{id}/confirm", bookingId)
+                .header("X-User-Email", FRONT_DESK_EMAIL))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(bookingId))
             .andExpect(jsonPath("$.status").value("Confirmed"))
@@ -872,6 +914,7 @@ class BackendHappyPathIntegrationTest {
         long bookingId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
 
         mockMvc.perform(patch("/api/admin/bookings/{id}/complete", bookingId)
+                .header("X-User-Email", DOCTOR_EMAIL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -904,6 +947,47 @@ class BackendHappyPathIntegrationTest {
         assertThat(savedNote.getAuthor()).isEqualTo("Dr. Rivera");
         assertThat(savedNote.getNoteText()).contains("Visit summary: Wellness exam completed with no urgent concerns.");
         assertThat(savedNote.getNoteText()).contains("Assessment: Mild seasonal skin irritation.");
+    }
+
+    @Test
+    void doctorCannotPerformFrontDeskBookingConfirmation() throws Exception {
+        registerUser("jamie@example.com");
+        ClinicService service = clinicServiceRepository.findByActiveTrueOrderByCategoryAscNameAsc().stream()
+            .findFirst()
+            .orElseThrow();
+
+        MvcResult createResult = mockMvc.perform(post("/api/bookings")
+                .header("X-User-Email", "jamie@example.com")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "petName": "Milo",
+                      "serviceId": %d,
+                      "service": "%s",
+                      "date": "May 11, 2026",
+                      "time": "11:30 AM",
+                      "status": "Upcoming",
+                      "clinic": "PawCare Hub Clinic",
+                      "staff": "Dr. Rivera"
+                    }
+                    """.formatted(service.getId(), service.getName())))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+        long bookingId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
+
+        mockMvc.perform(patch("/api/admin/bookings/{id}/confirm", bookingId)
+                .header("X-User-Email", DOCTOR_EMAIL))
+            .andExpect(status().isForbidden())
+            .andExpect(status().reason("You do not have permission to access this action"));
+    }
+
+    @Test
+    void frontDeskCannotAccessAdminOnlyStaffDirectory() throws Exception {
+        mockMvc.perform(get("/api/admin/staff")
+                .header("X-User-Email", FRONT_DESK_EMAIL))
+            .andExpect(status().isForbidden())
+            .andExpect(status().reason("You do not have permission to access this action"));
     }
 
     @Test
@@ -972,6 +1056,13 @@ class BackendHappyPathIntegrationTest {
                 true
             ));
         }
+    }
+
+    private void createClinicUser(String email, String name, String role) {
+        User user = new User(name, email, "Secret123!");
+        user.setActive(true);
+        user.setRole(role);
+        userRepository.save(user);
     }
 
     private void registerUser(String email) throws Exception {

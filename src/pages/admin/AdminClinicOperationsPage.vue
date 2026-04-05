@@ -98,7 +98,7 @@ async function loadStaff() {
   errorMessage.value = ''
 
   try {
-    const { data } = await adminStaffApi.list()
+    const { data } = await adminStaffApi.listForOperations()
     staffRecords.value = data
 
     if (!selectedStaffId.value && data.length) {

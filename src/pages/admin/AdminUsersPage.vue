@@ -94,6 +94,8 @@ onMounted(() => {
         class="admin-filters__control"
       >
         <el-option label="Admin" value="admin" />
+        <el-option label="Front Desk" value="front_desk" />
+        <el-option label="Doctor" value="doctor" />
         <el-option label="User" value="user" />
       </el-select>
 

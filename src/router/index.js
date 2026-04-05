@@ -3,11 +3,7 @@ import { getDefaultRouteForRole, useAuthStore } from '@/stores/auth'
 
 function getRoleRedirectPath(to, role) {
   if (to.path.startsWith('/admin')) {
-    return '/pets'
-  }
-
-  if (role === 'admin') {
-    return '/admin'
+    return ['admin', 'front_desk', 'doctor'].includes(role) ? '/admin' : '/pets'
   }
 
   return getDefaultRouteForRole(role)
@@ -71,49 +67,49 @@ const routes = [
   {
     path: '/admin',
     component: () => import('@/layouts/AdminLayout.vue'),
-    meta: { requiresAuth: true, allowedRoles: ['admin'] },
+    meta: { requiresAuth: true, allowedRoles: ['admin', 'front_desk', 'doctor'] },
     children: [
       {
         path: '',
         name: 'admin-dashboard',
         component: () => import('@/pages/admin/AdminDashboardPage.vue'),
-        meta: { title: 'Admin Dashboard' },
+        meta: { title: 'Admin Dashboard', allowedRoles: ['admin', 'front_desk', 'doctor'] },
       },
       {
         path: 'services',
         name: 'admin-services',
         component: () => import('@/pages/admin/AdminServicesPage.vue'),
-        meta: { title: 'Admin Services' },
+        meta: { title: 'Admin Services', allowedRoles: ['admin'] },
       },
       {
         path: 'bookings',
         name: 'admin-bookings',
         component: () => import('@/pages/admin/AdminBookingsPage.vue'),
-        meta: { title: 'Admin Bookings' },
+        meta: { title: 'Admin Bookings', allowedRoles: ['admin', 'front_desk', 'doctor'] },
       },
       {
         path: 'staff',
         name: 'admin-staff',
         component: () => import('@/pages/admin/AdminStaffPage.vue'),
-        meta: { title: 'Admin Staff' },
+        meta: { title: 'Admin Staff', allowedRoles: ['admin'] },
       },
       {
         path: 'operations',
         name: 'admin-operations',
         component: () => import('@/pages/admin/AdminClinicOperationsPage.vue'),
-        meta: { title: 'Clinic Operations' },
+        meta: { title: 'Clinic Operations', allowedRoles: ['admin', 'front_desk'] },
       },
       {
         path: 'users',
         name: 'admin-users',
         component: () => import('@/pages/admin/AdminUsersPage.vue'),
-        meta: { title: 'Admin Users' },
+        meta: { title: 'Admin Users', allowedRoles: ['admin'] },
       },
       {
         path: 'users/:id',
         name: 'admin-user-details',
         component: () => import('@/pages/admin/AdminUserDetailsPage.vue'),
-        meta: { title: 'Admin User Details' },
+        meta: { title: 'Admin User Details', allowedRoles: ['admin'] },
       },
     ],
   },
@@ -130,8 +126,11 @@ const router = createRouter({
 router.beforeEach((to) => {
   const authStore = useAuthStore()
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
-  const allowedRoles = to.matched.flatMap((record) => record.meta.allowedRoles ?? [])
   const destinationForRole = getDefaultRouteForRole(authStore.role)
+  const hasDisallowedRole = to.matched.some((record) => {
+    const allowedRoles = record.meta.allowedRoles ?? []
+    return allowedRoles.length > 0 && !allowedRoles.includes(authStore.role)
+  })
 
   if (requiresAuth && !authStore.isLoggedIn) {
     return {
@@ -144,7 +143,7 @@ router.beforeEach((to) => {
     return destinationForRole
   }
 
-  if (allowedRoles.length > 0 && !allowedRoles.includes(authStore.role)) {
+  if (hasDisallowedRole) {
     return getRoleRedirectPath(to, authStore.role)
   }
 

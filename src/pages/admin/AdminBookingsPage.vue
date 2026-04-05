@@ -1,6 +1,7 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { adminBookingsApi } from '@/api/adminBookings'
+import { useAuthStore } from '@/stores/auth'
 
 const bookings = ref([])
 const isLoading = ref(false)
@@ -24,6 +25,9 @@ const filters = ref({
   owner: '',
   sort: 'latest',
 })
+const authStore = useAuthStore()
+const canManageBookingQueue = computed(() => authStore.isAdmin || authStore.isFrontDesk)
+const canCompleteVisits = computed(() => authStore.isAdmin || authStore.isDoctor)
 
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
@@ -264,7 +268,7 @@ onMounted(() => {
         <template #default="{ row }">
           <div class="actions-cell">
             <el-button
-              v-if="row.status !== 'Confirmed' && row.status !== 'Cancelled' && row.status !== 'Completed'"
+              v-if="canManageBookingQueue && row.status !== 'Confirmed' && row.status !== 'Cancelled' && row.status !== 'Completed'"
               plain
               size="small"
               :loading="confirmingBookingId === row.id"
@@ -273,7 +277,7 @@ onMounted(() => {
               Confirm
             </el-button>
             <el-button
-              v-if="row.status !== 'Cancelled'"
+              v-if="canCompleteVisits && row.status !== 'Cancelled'"
               plain
               size="small"
               :loading="completingBookingId === row.id"
@@ -282,7 +286,7 @@ onMounted(() => {
               {{ row.status === 'Completed' ? 'Edit Outcome' : 'Complete Visit' }}
             </el-button>
             <el-button
-              v-if="row.status !== 'Cancelled' && row.status !== 'Completed'"
+              v-if="canManageBookingQueue && row.status !== 'Cancelled' && row.status !== 'Completed'"
               plain
               size="small"
               :loading="cancellingBookingId === row.id"

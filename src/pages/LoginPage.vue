@@ -38,6 +38,7 @@ async function handleLogin() {
     authStore.setAuthenticatedUser({
       email: data.email,
       name: data.name,
+      role: data.role,
     })
 
     const redirectTarget =

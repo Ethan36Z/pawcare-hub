@@ -19,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class AuthService {
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private static final String LEGACY_ADMIN_EMAIL_PATTERN = "(?i).*(admin|staff|clinic|team|manager).*";
     private final UserRepository userRepository;
     private final PetInitializationService petInitializationService;
     private final BookingInitializationService bookingInitializationService;
@@ -44,10 +45,11 @@ public class AuthService {
 
         User savedUser = new User(name, email, passwordEncoder.encode(password));
         savedUser.setActive(true);
+        savedUser.setRole(UserRoles.USER);
         savedUser = userRepository.save(savedUser);
         petInitializationService.createDefaultPetsForUser(savedUser);
         bookingInitializationService.createDefaultBookingsForUser(savedUser);
-        return new AuthResponse("Registration successful", savedUser.getEmail(), savedUser.getName());
+        return new AuthResponse("Registration successful", savedUser.getEmail(), savedUser.getName(), savedUser.getRole());
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -65,14 +67,15 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");
         }
 
-        return new AuthResponse("Login successful", user.getEmail(), user.getName());
+        user = ensureRole(user);
+        return new AuthResponse("Login successful", user.getEmail(), user.getName(), user.getRole());
     }
 
     public AuthenticatedUser getAuthenticatedUser(String email) {
         String normalizedEmail = normalizeEmail(email);
         User user = getAuthenticatedUserEntity(normalizedEmail);
 
-        return new AuthenticatedUser(user.getName(), user.getEmail());
+        return new AuthenticatedUser(user.getName(), user.getEmail(), user.getRole());
     }
 
     public UserProfileResponse getProfile(String userEmailHeader) {
@@ -128,7 +131,7 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User session is not recognized");
         }
 
-        return user;
+        return ensureRole(user);
     }
 
     private String normalizeEmail(String email) {
@@ -185,5 +188,27 @@ public class AuthService {
     private boolean isBcryptHash(String password) {
         return password != null
             && (password.startsWith("$2a$") || password.startsWith("$2b$") || password.startsWith("$2y$"));
+    }
+
+    private User ensureRole(User user) {
+        String normalizedRole = UserRoles.normalize(user.getRole());
+        if (user.getRole() == null || !normalizedRole.equals(user.getRole())) {
+            user.setRole(resolveInitialRole(user.getEmail(), normalizedRole));
+            return userRepository.save(user);
+        }
+
+        return user;
+    }
+
+    private String resolveInitialRole(String email, String currentRole) {
+        if (currentRole != null && !UserRoles.USER.equals(currentRole)) {
+            return currentRole;
+        }
+
+        if (email != null && email.matches(LEGACY_ADMIN_EMAIL_PATTERN)) {
+            return UserRoles.ADMIN;
+        }
+
+        return UserRoles.USER;
     }
 }

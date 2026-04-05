@@ -19,9 +19,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AdminUserService {
-
-    private static final String ADMIN_EMAIL_PATTERN = "(?i).*(admin|staff|clinic|team|manager).*";
-
     private final UserRepository userRepository;
     private final PetRepository petRepository;
     private final BookingRepository bookingRepository;
@@ -46,7 +43,7 @@ public class AdminUserService {
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
-                resolveRole(user.getEmail()),
+                UserRoles.normalize(user.getRole()),
                 user.isActive()
             ))
             .toList();
@@ -80,7 +77,7 @@ public class AdminUserService {
             user.getId(),
             user.getName(),
             user.getEmail(),
-            resolveRole(user.getEmail()),
+            UserRoles.normalize(user.getRole()),
             user.isActive(),
             user.getPhone(),
             user.getAddress(),
@@ -107,10 +104,6 @@ public class AdminUserService {
         );
     }
 
-    private String resolveRole(String email) {
-        return email != null && email.matches(ADMIN_EMAIL_PATTERN) ? "admin" : "user";
-    }
-
     private boolean matchesSearch(User user, String search) {
         if (!StringUtils.hasText(search)) {
             return true;
@@ -126,7 +119,7 @@ public class AdminUserService {
             return true;
         }
 
-        return resolveRole(user.getEmail()).equalsIgnoreCase(role.trim());
+        return UserRoles.normalize(user.getRole()).equalsIgnoreCase(role.trim());
     }
 
     private boolean containsIgnoreCase(String value, String normalizedSearch) {

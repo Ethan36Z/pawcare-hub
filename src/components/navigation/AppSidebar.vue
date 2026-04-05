@@ -1,18 +1,42 @@
 <script setup>
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
-const adminLinks = [
-  { label: 'Dashboard', to: '/admin' },
-  { label: 'Services', to: '/admin/services' },
-  { label: 'Bookings', to: '/admin/bookings' },
-  { label: 'Staff', to: '/admin/staff' },
-  { label: 'Clinic Operations', to: '/admin/operations' },
-  { label: 'Users', to: '/admin/users' },
-]
-
 const authStore = useAuthStore()
 const router = useRouter()
+
+const adminLinks = computed(() => {
+  if (authStore.isAdmin) {
+    return [
+      { label: 'Dashboard', to: '/admin' },
+      { label: 'Services', to: '/admin/services' },
+      { label: 'Bookings', to: '/admin/bookings' },
+      { label: 'Staff', to: '/admin/staff' },
+      { label: 'Clinic Operations', to: '/admin/operations' },
+      { label: 'Users', to: '/admin/users' },
+    ]
+  }
+
+  if (authStore.isFrontDesk) {
+    return [
+      { label: 'Dashboard', to: '/admin' },
+      { label: 'Bookings', to: '/admin/bookings' },
+      { label: 'Clinic Operations', to: '/admin/operations' },
+    ]
+  }
+
+  if (authStore.isDoctor) {
+    return [
+      { label: 'Dashboard', to: '/admin' },
+      { label: 'Bookings', to: '/admin/bookings' },
+    ]
+  }
+
+  return []
+})
+
+const sidebarEyebrow = computed(() => (authStore.isAdmin ? 'Admin' : 'Clinic team'))
 
 function handleLogout() {
   authStore.logout()
@@ -23,7 +47,7 @@ function handleLogout() {
 <template>
   <aside class="app-sidebar">
     <div>
-      <p class="app-sidebar__eyebrow">Admin</p>
+      <p class="app-sidebar__eyebrow">{{ sidebarEyebrow }}</p>
       <h1 class="app-sidebar__title">PawCare Hub</h1>
     </div>
 
