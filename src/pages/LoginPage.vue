@@ -148,13 +148,13 @@ async function handleLogin() {
 .login-shell {
   width: min(520px, 100%);
   padding: 30px 28px 28px;
-  border: 1px solid rgba(28, 60, 88, 0.1);
-  border-radius: 32px;
+  border: 1px solid var(--pc-border);
+  border-radius: var(--pc-radius-lg);
   background:
-    radial-gradient(circle at top left, rgba(255, 239, 194, 0.88), transparent 34%),
-    radial-gradient(circle at right center, rgba(244, 228, 196, 0.38), transparent 26%),
-    linear-gradient(180deg, #fff9ee 0%, #f8efdc 100%);
-  box-shadow: 0 20px 40px rgba(21, 40, 61, 0.08);
+    radial-gradient(circle at top left, rgba(250, 249, 245, 0.9), transparent 34%),
+    radial-gradient(circle at right center, rgba(201, 100, 66, 0.12), transparent 28%),
+    linear-gradient(180deg, #faf9f5 0%, #f1efe7 100%);
+  box-shadow: var(--pc-shadow);
 }
 
 .login-brand {
@@ -170,8 +170,8 @@ async function handleLogin() {
   align-items: center;
   justify-content: center;
   border-radius: 16px;
-  background: linear-gradient(145deg, #2f6b52 0%, #4f8a70 100%);
-  box-shadow: 0 10px 22px rgba(72, 92, 63, 0.12);
+  background: linear-gradient(145deg, var(--pc-primary) 0%, #d4805f 100%);
+  box-shadow: 0 10px 22px rgba(201, 100, 66, 0.18);
   color: #ffffff;
   font-size: 1.1rem;
   font-weight: 700;
@@ -179,14 +179,15 @@ async function handleLogin() {
 
 .brand-name {
   display: block;
-  color: #385145;
+  color: var(--pc-ink);
+  font-family: Georgia, "Times New Roman", serif;
   font-size: 1.08rem;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .brand-note {
   margin: 4px 0 0;
-  color: #7a7468;
+  color: var(--pc-soft-muted);
   font-size: 0.92rem;
 }
 
@@ -196,24 +197,27 @@ async function handleLogin() {
 
 .eyebrow {
   display: inline-block;
-  color: #7f7356;
-  font-size: 0.8rem;
+  color: var(--pc-primary);
+  font-family: "Courier New", ui-monospace, monospace;
+  font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
 .login-header h1 {
   margin: 14px 0 0;
-  color: #173047;
+  color: var(--pc-ink);
+  font-family: Georgia, "Times New Roman", serif;
   font-size: clamp(2rem, 4vw, 2.8rem);
   line-height: 1.08;
-  letter-spacing: -0.04em;
+  font-weight: 500;
+  letter-spacing: -0.035em;
 }
 
 .login-header p {
   margin: 14px 0 0;
-  color: #6b7480;
+  color: var(--pc-muted);
   line-height: 1.75;
 }
 
@@ -230,7 +234,7 @@ async function handleLogin() {
 }
 
 .login-form :deep(.el-form-item__label) {
-  color: #385145;
+  color: var(--pc-ink);
   font-weight: 600;
 }
 
@@ -238,13 +242,13 @@ async function handleLogin() {
   min-height: 48px;
   border-radius: 14px;
   box-shadow: none;
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(132, 125, 104, 0.16);
+  background: rgba(250, 249, 245, 0.9);
+  border: 1px solid var(--pc-border);
 }
 
 .login-form :deep(.el-input__wrapper.is-focus) {
-  border-color: rgba(63, 114, 93, 0.28);
-  box-shadow: 0 0 0 3px rgba(63, 114, 93, 0.08);
+  border-color: rgba(201, 100, 66, 0.34);
+  box-shadow: 0 0 0 3px rgba(201, 100, 66, 0.08);
 }
 
 .login-options {
@@ -256,12 +260,12 @@ async function handleLogin() {
 }
 
 .login-options :deep(.el-checkbox__label) {
-  color: #5f685e;
+  color: var(--pc-muted);
 }
 
 .login-options :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
-  background-color: #3f725d;
-  border-color: #3f725d;
+  background-color: var(--pc-primary);
+  border-color: var(--pc-primary);
 }
 
 .sign-in-button {
@@ -270,16 +274,17 @@ async function handleLogin() {
 
 .sign-in-button,
 .login-shell :deep(.el-button--primary) {
-  --el-button-bg-color: #3f725d;
-  --el-button-border-color: #3f725d;
-  --el-button-hover-bg-color: #355f4d;
-  --el-button-hover-border-color: #355f4d;
-  --el-button-active-bg-color: #2c5141;
-  --el-button-active-border-color: #2c5141;
+  --el-button-bg-color: var(--pc-primary);
+  --el-button-border-color: var(--pc-primary);
+  --el-button-hover-bg-color: var(--pc-primary-hover);
+  --el-button-hover-border-color: var(--pc-primary-hover);
+  --el-button-active-bg-color: #a94e33;
+  --el-button-active-border-color: #a94e33;
+  box-shadow: 0 12px 24px rgba(201, 100, 66, 0.16);
 }
 
 .text-link {
-  color: #355f4d;
+  color: var(--pc-primary);
   text-decoration: none;
 }
 
@@ -289,7 +294,7 @@ async function handleLogin() {
 
 .register-prompt {
   margin: 22px 0 0;
-  color: #6b7480;
+  color: var(--pc-muted);
   text-align: center;
 }
 

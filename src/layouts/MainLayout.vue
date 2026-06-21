@@ -13,6 +13,6 @@ import AppHeader from '@/components/navigation/AppHeader.vue'
 
 <style scoped>
 .main-layout__content {
-  padding: 32px 20px 48px;
+  padding: 32px 20px 56px;
 }
 </style>

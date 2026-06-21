@@ -752,12 +752,13 @@ async function handleDeletePet(pet) {
   align-items: flex-start;
   gap: 20px;
   padding: 30px 28px 28px;
-  border: 1px solid rgba(28, 60, 88, 0.1);
-  border-radius: 32px;
+  border: 1px solid var(--pc-border);
+  border-radius: var(--pc-radius-lg);
   background:
-    radial-gradient(circle at top left, rgba(255, 239, 194, 0.88), transparent 34%),
-    radial-gradient(circle at right center, rgba(244, 228, 196, 0.42), transparent 26%),
-    linear-gradient(180deg, #fff9ee 0%, #f8efdc 100%);
+    radial-gradient(circle at top left, rgba(250, 249, 245, 0.9), transparent 34%),
+    radial-gradient(circle at right center, rgba(201, 100, 66, 0.12), transparent 28%),
+    linear-gradient(180deg, #faf9f5 0%, #f1efe7 100%);
+  box-shadow: var(--pc-shadow);
 }
 
 .pets-header__copy {
@@ -766,25 +767,28 @@ async function handleDeletePet(pet) {
 
 .eyebrow {
   display: inline-block;
-  color: #7f7356;
-  font-size: 0.8rem;
+  color: var(--pc-primary);
+  font-family: "Courier New", ui-monospace, monospace;
+  font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
 .pets-header h1 {
   margin: 14px 0 0;
-  color: #173047;
+  color: var(--pc-ink);
+  font-family: Georgia, "Times New Roman", serif;
   font-size: clamp(2.15rem, 4vw, 3.3rem);
   line-height: 1.08;
-  letter-spacing: -0.04em;
+  font-weight: 500;
+  letter-spacing: -0.035em;
 }
 
 .pets-header p {
   max-width: 620px;
   margin: 16px 0 0;
-  color: #6b7480;
+  color: var(--pc-muted);
   line-height: 1.75;
 }
 
@@ -792,22 +796,23 @@ async function handleDeletePet(pet) {
 .pet-actions :deep(.el-button--primary),
 .empty-state :deep(.el-button--primary),
 .profile-section__header :deep(.el-button--primary) {
-  --el-button-bg-color: #3f725d;
-  --el-button-border-color: #3f725d;
-  --el-button-hover-bg-color: #355f4d;
-  --el-button-hover-border-color: #355f4d;
-  --el-button-active-bg-color: #2c5141;
-  --el-button-active-border-color: #2c5141;
+  --el-button-bg-color: var(--pc-primary);
+  --el-button-border-color: var(--pc-primary);
+  --el-button-hover-bg-color: var(--pc-primary-hover);
+  --el-button-hover-border-color: var(--pc-primary-hover);
+  --el-button-active-bg-color: #a94e33;
+  --el-button-active-border-color: #a94e33;
+  box-shadow: 0 10px 22px rgba(201, 100, 66, 0.16);
 }
 
 .pet-actions :deep(.el-button.is-plain),
 .profile-section__header :deep(.el-button.is-plain) {
-  --el-button-text-color: #5f685e;
-  --el-button-bg-color: rgba(255, 251, 244, 0.86);
-  --el-button-border-color: rgba(132, 125, 104, 0.16);
-  --el-button-hover-text-color: #355f4d;
-  --el-button-hover-bg-color: rgba(255, 252, 246, 1);
-  --el-button-hover-border-color: rgba(63, 114, 93, 0.32);
+  --el-button-text-color: var(--pc-text);
+  --el-button-bg-color: rgba(250, 249, 245, 0.9);
+  --el-button-border-color: var(--pc-border);
+  --el-button-hover-text-color: var(--pc-primary);
+  --el-button-hover-bg-color: var(--pc-surface);
+  --el-button-hover-border-color: rgba(201, 100, 66, 0.34);
 }
 
 .pets-grid {
@@ -817,10 +822,10 @@ async function handleDeletePet(pet) {
 }
 
 .pet-card {
-  border: 1px solid rgba(28, 60, 88, 0.12);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 16px 32px rgba(21, 40, 61, 0.06);
+  border: 1px solid var(--pc-border-soft);
+  border-radius: var(--pc-radius-md);
+  background: rgba(250, 249, 245, 0.92);
+  box-shadow: var(--pc-shadow-soft);
   transition:
     transform 180ms ease,
     box-shadow 180ms ease,
@@ -829,8 +834,8 @@ async function handleDeletePet(pet) {
 
 .pet-card:hover {
   transform: translateY(-3px);
-  border-color: rgba(63, 114, 93, 0.18);
-  box-shadow: 0 20px 34px rgba(21, 40, 61, 0.08);
+  border-color: rgba(201, 100, 66, 0.22);
+  box-shadow: var(--pc-shadow);
 }
 
 .pet-card__top {
@@ -851,7 +856,9 @@ async function handleDeletePet(pet) {
 .profile-section h3,
 .form-section h3 {
   margin: 0;
-  color: #173047;
+  color: var(--pc-ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 500;
 }
 
 .field-label {
@@ -862,7 +869,7 @@ async function handleDeletePet(pet) {
 
 .field-label small,
 .form-section p {
-  color: #6d7680;
+  color: var(--pc-muted);
   font-size: 0.84rem;
   line-height: 1.45;
 }
@@ -873,7 +880,7 @@ async function handleDeletePet(pet) {
 
 .pet-subtitle {
   margin: 8px 0 0;
-  color: #6d7680;
+  color: var(--pc-muted);
 }
 
 .pet-details,
@@ -887,15 +894,15 @@ async function handleDeletePet(pet) {
 .pet-details {
   margin-top: 20px;
   padding: 16px 0;
-  border-top: 1px solid rgba(28, 60, 88, 0.08);
-  border-bottom: 1px solid rgba(28, 60, 88, 0.08);
+  border-top: 1px solid var(--pc-border);
+  border-bottom: 1px solid var(--pc-border);
 }
 
 .pet-details span,
 .pet-note span,
 .profile-grid span {
   display: block;
-  color: #7a817f;
+  color: var(--pc-soft-muted);
   font-size: 0.84rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -905,7 +912,7 @@ async function handleDeletePet(pet) {
 .profile-grid strong {
   display: block;
   margin-top: 6px;
-  color: #173047;
+  color: var(--pc-ink);
   font-size: 1rem;
 }
 
@@ -917,7 +924,7 @@ async function handleDeletePet(pet) {
 .profile-grid p,
 .note-card p {
   margin: 10px 0 0;
-  color: #5f7484;
+  color: var(--pc-muted);
   line-height: 1.7;
 }
 
@@ -934,9 +941,9 @@ async function handleDeletePet(pet) {
 
 .empty-state {
   padding: 34px 24px;
-  border: 1px dashed rgba(63, 114, 93, 0.24);
+  border: 1px dashed rgba(201, 100, 66, 0.28);
   border-radius: 28px;
-  background: rgba(255, 251, 244, 0.72);
+  background: rgba(250, 249, 245, 0.72);
 }
 
 .profile-layout,
@@ -949,9 +956,9 @@ async function handleDeletePet(pet) {
 .profile-section,
 .form-section {
   padding: 18px;
-  border: 1px solid rgba(28, 60, 88, 0.08);
+  border: 1px solid var(--pc-border);
   border-radius: 20px;
-  background: rgba(255, 252, 247, 0.72);
+  background: rgba(250, 249, 245, 0.78);
 }
 
 .note-timeline {
@@ -969,21 +976,21 @@ async function handleDeletePet(pet) {
   top: 8px;
   bottom: 8px;
   width: 2px;
-  background: rgba(63, 114, 93, 0.14);
+  background: rgba(201, 100, 66, 0.16);
 }
 
 .note-card {
   position: relative;
   padding: 16px;
-  border: 1px solid rgba(28, 60, 88, 0.08);
+  border: 1px solid var(--pc-border);
   border-radius: 18px;
-  background: #fff;
+  background: var(--pc-surface);
   margin-left: 18px;
 }
 
 .note-card--visit {
-  background: linear-gradient(180deg, #fffdfa 0%, #f8fcfb 100%);
-  border-color: rgba(63, 114, 93, 0.18);
+  background: linear-gradient(180deg, #faf9f5 0%, #f1efe7 100%);
+  border-color: rgba(201, 100, 66, 0.2);
 }
 
 .note-card__pin {
@@ -993,8 +1000,8 @@ async function handleDeletePet(pet) {
   width: 12px;
   height: 12px;
   border-radius: 999px;
-  background: #3f725d;
-  box-shadow: 0 0 0 5px #f7fbf8;
+  background: var(--pc-primary);
+  box-shadow: 0 0 0 5px #f6efe8;
 }
 
 .note-card__meta {
@@ -1002,7 +1009,7 @@ async function handleDeletePet(pet) {
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  color: #5f685e;
+  color: var(--pc-muted);
 }
 
 .note-card__meta-primary,
@@ -1013,19 +1020,19 @@ async function handleDeletePet(pet) {
 }
 
 .note-card__title {
-  color: #355f4d;
+  color: var(--pc-primary);
   font-size: 0.9rem;
   font-weight: 600;
 }
 
 .note-card__visit-line {
-  color: #6b7480;
+  color: var(--pc-muted);
   font-size: 0.86rem;
 }
 
 .note-card__meta-secondary {
   text-align: right;
-  color: #7a817f;
+  color: var(--pc-soft-muted);
   font-size: 0.86rem;
 }
 
@@ -1039,13 +1046,13 @@ async function handleDeletePet(pet) {
 .note-card__visit-outcome {
   padding: 12px;
   border-radius: 14px;
-  background: rgba(244, 250, 248, 0.96);
-  border: 1px solid rgba(63, 114, 93, 0.1);
+  background: rgba(250, 249, 245, 0.96);
+  border: 1px solid var(--pc-border);
 }
 
 .note-card__visit-outcome span {
   display: block;
-  color: #7a817f;
+  color: var(--pc-soft-muted);
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1065,7 +1072,7 @@ async function handleDeletePet(pet) {
 .note-card small {
   display: block;
   margin-top: 10px;
-  color: #7a817f;
+  color: var(--pc-soft-muted);
 }
 
 .form-section {

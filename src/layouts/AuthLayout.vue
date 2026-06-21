@@ -12,6 +12,7 @@
   display: grid;
   place-items: center;
   padding: 24px;
+  background: var(--pc-bg);
 }
 
 .auth-layout__panel {

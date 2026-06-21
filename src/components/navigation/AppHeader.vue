@@ -67,16 +67,17 @@ function handleLogout() {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 20px;
-  background: rgba(255, 255, 255, 0.86);
+  padding: 16px 24px;
+  background: rgba(250, 249, 245, 0.88);
   border-bottom: 1px solid var(--pc-border);
   backdrop-filter: blur(16px);
 }
 
 .app-header__brand {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--pc-primary);
+  color: var(--pc-ink);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.24rem;
+  font-weight: 500;
 }
 
 .app-header__nav {
@@ -89,7 +90,15 @@ function handleLogout() {
 .app-header__actions a,
 .app-header__actions button {
   color: var(--pc-muted);
-  font-weight: 500;
+  font-size: 0.94rem;
+  font-weight: 650;
+  transition: color 150ms ease;
+}
+
+.app-header__link:hover,
+.app-header__actions a:hover,
+.app-header__actions button:hover {
+  color: var(--pc-primary);
 }
 
 .app-header__actions {
@@ -100,11 +109,12 @@ function handleLogout() {
 
 .app-header__button {
   padding: 10px 16px;
-  border-radius: 999px;
+  border-radius: 12px;
   background: var(--pc-primary);
   border: 0;
   color: white !important;
   cursor: pointer;
+  box-shadow: 0 12px 24px rgba(201, 100, 66, 0.16);
 }
 
 .app-header__button--logout {
