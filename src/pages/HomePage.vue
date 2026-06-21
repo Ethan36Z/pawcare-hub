@@ -2,10 +2,10 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { staffApi } from '@/api/staff'
 
-const heroDogImage = new URL('../../open-design-export/mqna4pb3-dog1.avif', import.meta.url).href
-const catImage = new URL('../../open-design-export/mqnb40hn-cat1.avif', import.meta.url).href
-const smallDogImage = new URL('../../open-design-export/mqnaheqe-dog2.avif', import.meta.url).href
-const poodleImage = new URL('../../open-design-export/mqnaz45v-dog3.avif', import.meta.url).href
+const heroDogImage = new URL('../assets/home/hero-dog.avif', import.meta.url).href
+const catImage = new URL('../assets/home/cat2.avif', import.meta.url).href
+const smallDogImage = new URL('../assets/home/puppy-guidance.avif', import.meta.url).href
+const poodleImage = new URL('../assets/home/skin-support-dog.avif', import.meta.url).href
 
 const featuredServices = [
   {
@@ -25,7 +25,7 @@ const featuredServices = [
     description: 'Quiet handling and calm room flow for feline visits.',
     tag: 'Cat care',
     image: catImage,
-    imageAlt: 'A cat portrait used as a service visual.',
+    imageAlt: 'Calm cat in a pet-care setting.',
   },
   {
     title: 'Puppy guidance',
