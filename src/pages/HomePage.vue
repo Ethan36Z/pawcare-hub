@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { staffApi } from '@/api/staff'
 
 const heroDogImage = new URL('../../open-design-export/mqna4pb3-dog1.avif', import.meta.url).href
@@ -91,6 +91,8 @@ const trustSignals = [
 const homepageStaff = ref([])
 const isLoadingStaff = ref(false)
 
+let revealObserver
+
 const hasHomepageStaff = computed(() => homepageStaff.value.length > 0)
 
 function getInitials(name) {
@@ -112,11 +114,57 @@ async function loadHomepageStaff() {
     homepageStaff.value = []
   } finally {
     isLoadingStaff.value = false
+    await nextTick()
+    observeRevealItems()
   }
+}
+
+function observeRevealItems() {
+  const revealItems = document.querySelectorAll('.reveal-section:not(.is-visible), .reveal-card:not(.is-visible)')
+
+  if (!revealObserver) {
+    revealItems.forEach((item) => {
+      item.classList.add('is-visible')
+    })
+    return
+  }
+
+  revealItems.forEach((item) => {
+    revealObserver.observe(item)
+  })
+}
+
+function setupRevealObserver() {
+  if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
+    observeRevealItems()
+    return
+  }
+
+  revealObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible')
+          revealObserver.unobserve(entry.target)
+        }
+      })
+    },
+    {
+      rootMargin: '0px 0px -12% 0px',
+      threshold: 0.16,
+    },
+  )
+
+  observeRevealItems()
 }
 
 onMounted(() => {
   loadHomepageStaff()
+  setupRevealObserver()
+})
+
+onUnmounted(() => {
+  revealObserver?.disconnect()
 })
 </script>
 
@@ -125,7 +173,7 @@ onMounted(() => {
     <section id="hero" class="od-section od-hero-wrap">
       <div class="od-container od-hero">
         <div class="od-hero-grid">
-          <div class="od-hero-copy">
+          <div class="od-hero-copy reveal-section is-visible">
             <p class="od-eyebrow">Compassionate veterinary home for cats and dogs</p>
             <h1>Gentle care for every wag, nap, and nervous first visit.</h1>
             <p class="od-lead">
@@ -154,7 +202,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="od-hero-visual" aria-label="Clinic visual preview">
+          <div class="od-hero-visual reveal-section is-visible stagger-1" aria-label="Clinic visual preview">
             <div class="od-hero-shell">
               <div class="od-hero-photo">
                 <img :src="heroDogImage" alt="A dog portrait for the PawCare Hub hero image." />
@@ -172,7 +220,7 @@ onMounted(() => {
 
     <section id="services" class="od-section od-section-warm">
       <div class="od-container">
-        <div class="od-section-intro">
+        <div class="od-section-intro reveal-section">
           <p class="od-eyebrow">Pet specialty services</p>
           <h2>Built for everyday wellness, urgent questions, and long-term care.</h2>
           <p class="od-lead">
@@ -185,10 +233,11 @@ onMounted(() => {
           <article
             v-for="service in featuredServices"
             :key="service.title"
-            class="od-service-card"
+            class="od-service-card reveal-card"
             :class="[
               service.variant === 'accent' ? 'od-service-card--accent' : '',
               service.image ? 'od-service-card--visual' : '',
+              `stagger-${(featuredServices.indexOf(service) % 3) + 1}`,
             ]"
           >
             <template v-if="service.image">
@@ -217,7 +266,7 @@ onMounted(() => {
 
     <section id="reviews" class="od-section od-section-ivory">
       <div class="od-container od-reviews-grid">
-        <div class="od-review-feature">
+        <div class="od-review-feature reveal-section">
           <p class="od-eyebrow">Client notes</p>
           <div class="od-quote-mark" aria-hidden="true">&ldquo;</div>
           <blockquote>
@@ -231,7 +280,8 @@ onMounted(() => {
         <article
           v-for="testimonial in testimonials"
           :key="testimonial.title"
-          class="od-testimonial-card"
+          class="od-testimonial-card reveal-card"
+          :class="`stagger-${testimonials.indexOf(testimonial) + 1}`"
         >
           <h3>{{ testimonial.title }}</h3>
           <p>{{ testimonial.quote }}</p>
@@ -242,7 +292,7 @@ onMounted(() => {
 
     <section id="booking-flow" class="od-section od-section-soft">
       <div class="od-container">
-        <div class="od-section-intro">
+        <div class="od-section-intro reveal-section">
           <p class="od-eyebrow">Booking flow</p>
           <h2>A clear path from choosing care to arriving prepared.</h2>
           <p class="od-lead">
@@ -255,7 +305,8 @@ onMounted(() => {
           <article
             v-for="(step, index) in bookingSteps"
             :key="step.title"
-            class="od-booking-card"
+            class="od-booking-card reveal-card"
+            :class="`stagger-${(index % 3) + 1}`"
           >
             <span>{{ String(index + 1).padStart(2, '0') }}</span>
             <h3>{{ step.title }}</h3>
@@ -267,7 +318,7 @@ onMounted(() => {
 
     <section id="care-team" class="od-section od-section-deep">
       <div class="od-container od-split-panels">
-        <article class="od-team-panel">
+        <article class="od-team-panel reveal-section">
           <p class="od-eyebrow">Doctors and care team</p>
           <h2>A close team with a soft-spoken bedside manner.</h2>
           <p class="od-lead">
@@ -281,7 +332,8 @@ onMounted(() => {
             <article
               v-for="staffMember in homepageStaff"
               :key="staffMember.id"
-              class="od-team-card"
+              class="od-team-card reveal-card"
+              :class="`stagger-${(homepageStaff.indexOf(staffMember) % 3) + 1}`"
             >
               <div class="od-team-avatar">
                 <el-avatar
@@ -308,7 +360,8 @@ onMounted(() => {
             <article
               v-for="signal in trustSignals.slice(0, 2)"
               :key="signal"
-              class="od-team-card"
+              class="od-team-card reveal-card"
+              :class="`stagger-${trustSignals.indexOf(signal) + 1}`"
             >
               <strong>{{ signal }}</strong>
               <span>PawCare Hub</span>
@@ -317,7 +370,7 @@ onMounted(() => {
           </div>
         </article>
 
-        <aside id="visit" class="od-contact-panel">
+        <aside id="visit" class="od-contact-panel reveal-section stagger-1">
           <p class="od-eyebrow">Location and opening hours</p>
           <h2>Visit the clinic</h2>
           <div class="od-contact-card">
@@ -340,7 +393,7 @@ onMounted(() => {
     </section>
 
     <section class="od-section od-cta-band">
-      <div class="od-container">
+      <div class="od-container reveal-section">
         <p class="od-eyebrow">Ready when they are</p>
         <h2>Bring your cat or dog in with confidence.</h2>
         <p class="od-lead">
