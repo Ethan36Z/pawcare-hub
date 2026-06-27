@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import CreateBookingDialog from '@/components/bookings/CreateBookingDialog.vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import { servicesApi } from '@/api/services'
 
@@ -8,6 +9,8 @@ const services = ref([])
 const selectedCategory = ref('All')
 const isLoading = ref(false)
 const errorMessage = ref('')
+const isCreateDialogOpen = ref(false)
+const selectedServiceId = ref(null)
 const router = useRouter()
 
 function getApiErrorMessage(error, fallbackMessage) {
@@ -51,11 +54,13 @@ function handleBookNow(service) {
     return
   }
 
+  selectedServiceId.value = service.id
+  isCreateDialogOpen.value = true
+}
+
+function handleBookingCreated() {
   router.push({
     name: 'my-bookings',
-    query: {
-      bookServiceId: String(service.id),
-    },
   })
 }
 
@@ -145,6 +150,13 @@ onMounted(() => {
       <section v-else class="empty-state">
         <el-empty description="No active services are available right now." />
       </section>
+
+      <CreateBookingDialog
+        v-model="isCreateDialogOpen"
+        :initial-service-id="selectedServiceId"
+        :services="services"
+        @created="handleBookingCreated"
+      />
     </div>
   </PageContainer>
 </template>

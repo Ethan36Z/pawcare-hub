@@ -1,8 +1,8 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { bookingsApi } from '@/api/bookings'
-import { servicesApi } from '@/api/services'
 import { staffApi } from '@/api/staff'
+import CreateBookingDialog from '@/components/bookings/CreateBookingDialog.vue'
 import PageContainer from '@/components/common/PageContainer.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRoute, useRouter } from 'vue-router'
@@ -20,11 +20,8 @@ const bookings = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 const isCreateDialogOpen = ref(false)
-const isCreating = ref(false)
-const createErrorMessage = ref('')
-const services = ref([])
+const createInitialServiceId = ref(null)
 const staffRecords = ref([])
-const createAvailabilitySlots = ref([])
 const rescheduleAvailabilitySlots = ref([])
 const isCancellingBookingId = ref(null)
 const isDetailsDialogOpen = ref(false)
@@ -41,33 +38,12 @@ const rescheduleForm = ref({
   staffId: null,
   staff: '',
 })
-const createForm = ref({
-  petName: '',
-  serviceId: null,
-  service: '',
-  date: '',
-  time: '',
-  status: 'Upcoming',
-  clinic: 'PawCare Hub Clinic',
-  ownerNote: '',
-  staffId: null,
-  staff: '',
-})
 const ownerName = computed(() => authStore.user?.fullName || 'your account')
 const staffOptions = computed(() => staffRecords.value.map((staff) => ({
   label: `${staff.name} - ${staff.role}`,
   value: staff.id,
 })))
-const serviceOptions = computed(() => services.value.map((service) => ({
-  label: `${service.name} · ${service.category}`,
-  value: service.id,
-})))
 
-const createTimeOptions = computed(() => buildAvailableTimeOptions(
-  createForm.value.date,
-  createAvailabilitySlots.value,
-  createForm.value.staffId,
-))
 const rescheduleTimeOptions = computed(() => buildAvailableTimeOptions(
   rescheduleForm.value.date,
   rescheduleAvailabilitySlots.value,
@@ -78,16 +54,48 @@ function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
 }
 
+function getNormalizedBookingStatus(status) {
+  return String(status || '').trim().toUpperCase()
+}
+
+function getBookingStatusLabel(status) {
+  const normalizedStatus = getNormalizedBookingStatus(status)
+
+  if (normalizedStatus === 'CANCELLED') {
+    return 'Cancelled'
+  }
+
+  if (normalizedStatus === 'COMPLETED') {
+    return 'Completed'
+  }
+
+  return status || 'Unknown'
+}
+
+function isBookingCancelled(booking) {
+  return getNormalizedBookingStatus(booking?.status) === 'CANCELLED'
+}
+
+function isBookingCompleted(booking) {
+  return getNormalizedBookingStatus(booking?.status) === 'COMPLETED'
+}
+
+function canModifyBooking(booking) {
+  return !isBookingCancelled(booking) && !isBookingCompleted(booking)
+}
+
 function getStatusTagType(status) {
-  if (status === 'Confirmed' || status === 'Completed') {
+  const normalizedStatus = getNormalizedBookingStatus(status)
+
+  if (normalizedStatus === 'CONFIRMED' || normalizedStatus === 'COMPLETED') {
     return 'success'
   }
 
-  if (status === 'Upcoming') {
+  if (normalizedStatus === 'UPCOMING') {
     return 'primary'
   }
 
-  if (status === 'Cancelled') {
+  if (normalizedStatus === 'CANCELLED') {
     return 'danger'
   }
 
@@ -252,29 +260,17 @@ async function loadBookings() {
   }
 }
 
-async function loadServices() {
-  try {
-    const { data } = await servicesApi.list()
-    services.value = data
-    applyBookingQuerySelection()
-  } catch {
-    services.value = []
-  }
-}
-
 async function loadStaff() {
   try {
     const { data } = await staffApi.list()
     staffRecords.value = data
-    applyDefaultStaffSelection()
   } catch {
     staffRecords.value = []
   }
 }
 
 function openCreateDialog() {
-  createErrorMessage.value = ''
-  applyDefaultStaffSelection()
+  createInitialServiceId.value = null
   isCreateDialogOpen.value = true
 }
 
@@ -284,22 +280,15 @@ function openCreateDialogForService(serviceId) {
     return
   }
 
-  const selectedService = services.value.find((service) => service.id === normalizedServiceId)
-  if (!selectedService) {
-    return
-  }
-
-  createErrorMessage.value = ''
-  createForm.value = {
-    ...createForm.value,
-    serviceId: normalizedServiceId,
-    service: selectedService.name,
-  }
-  applyDefaultStaffSelection()
+  createInitialServiceId.value = normalizedServiceId
   isCreateDialogOpen.value = true
 }
 
 function openRescheduleDialog(booking) {
+  if (!canModifyBooking(booking)) {
+    return
+  }
+
   rescheduleErrorMessage.value = ''
   rescheduleBookingId.value = booking.id
   rescheduleForm.value = {
@@ -309,35 +298,6 @@ function openRescheduleDialog(booking) {
     staff: booking.staff,
   }
   isRescheduleDialogOpen.value = true
-}
-
-function resetCreateForm() {
-  createAvailabilitySlots.value = []
-  createForm.value = {
-    petName: '',
-    serviceId: null,
-    service: '',
-    date: '',
-    time: '',
-    status: 'Upcoming',
-    clinic: 'PawCare Hub Clinic',
-    ownerNote: '',
-    staffId: null,
-    staff: '',
-  }
-}
-
-function applyDefaultStaffSelection() {
-  if (createForm.value.staffId || !staffRecords.value.length) {
-    return
-  }
-
-  const defaultStaff = staffRecords.value[0]
-  createForm.value = {
-    ...createForm.value,
-    staffId: defaultStaff.id,
-    staff: defaultStaff.name,
-  }
 }
 
 function clearBookingQuerySelection() {
@@ -352,7 +312,7 @@ function clearBookingQuerySelection() {
 
 function applyBookingQuerySelection() {
   const serviceId = route.query.bookServiceId
-  if (!serviceId || !services.value.length) {
+  if (!serviceId) {
     return
   }
 
@@ -400,38 +360,8 @@ function resolveStaffIdForBooking(booking) {
   return matchedStaff?.id ?? null
 }
 
-async function handleCreateBooking() {
-  if (!authStore.user?.email) {
-    return
-  }
-
-  if (!createForm.value.staffId && staffRecords.value.length) {
-    applyDefaultStaffSelection()
-  }
-
-  isCreating.value = true
-  createErrorMessage.value = ''
-
-  try {
-    const selectedService = services.value.find((service) => service.id === createForm.value.serviceId)
-    const selectedStaff = staffRecords.value.find((staff) => staff.id === createForm.value.staffId)
-
-    await bookingsApi.create({
-      ...createForm.value,
-      date: formatDateInputForApi(createForm.value.date),
-      serviceId: createForm.value.serviceId,
-      service: selectedService?.name || createForm.value.service,
-      staffId: createForm.value.staffId,
-      staff: selectedStaff?.name || createForm.value.staff,
-    })
-    isCreateDialogOpen.value = false
-    resetCreateForm()
-    await loadBookings()
-  } catch (error) {
-    createErrorMessage.value = getApiErrorMessage(error, 'Unable to create a booking right now.')
-  } finally {
-    isCreating.value = false
-  }
+async function handleBookingCreated() {
+  await loadBookings()
 }
 
 async function handleViewDetails(booking) {
@@ -486,7 +416,7 @@ async function handleRescheduleBooking() {
 }
 
 async function handleCancelBooking(booking) {
-  if (!authStore.user?.email || !booking?.id) {
+  if (!authStore.user?.email || !booking?.id || !canModifyBooking(booking)) {
     return
   }
 
@@ -523,18 +453,6 @@ watch(
 )
 
 watch(
-  [() => createForm.value.date, () => createForm.value.staffId],
-  async () => {
-    await loadAvailabilityForBooking(
-      createForm.value.date,
-      createForm.value.staffId,
-      createAvailabilitySlots,
-    )
-    ensureValidSelectedTime(createForm, createTimeOptions)
-  }
-)
-
-watch(
   [() => rescheduleForm.value.date, () => rescheduleForm.value.staffId],
   async () => {
     await loadAvailabilityForBooking(
@@ -548,8 +466,8 @@ watch(
 
 onMounted(() => {
   loadBookings()
-  loadServices()
   loadStaff()
+  applyBookingQuerySelection()
 })
 </script>
 
@@ -593,7 +511,7 @@ onMounted(() => {
               <p class="booking-subtitle">{{ booking.petName }} | {{ booking.date }} at {{ booking.time }}</p>
             </div>
             <el-tag :type="getStatusTagType(booking.status)" effect="plain">
-              {{ booking.status }}
+              {{ getBookingStatusLabel(booking.status) }}
             </el-tag>
           </div>
 
@@ -615,14 +533,14 @@ onMounted(() => {
           <div class="booking-actions">
             <el-button type="primary" @click="handleViewDetails(booking)">View Details</el-button>
             <el-button
-              v-if="booking.status !== 'Cancelled' && booking.status !== 'Completed'"
+              v-if="canModifyBooking(booking)"
               plain
               @click="openRescheduleDialog(booking)"
             >
               Reschedule
             </el-button>
             <el-button
-              v-if="booking.status !== 'Completed'"
+              v-if="canModifyBooking(booking)"
               plain
               :loading="isCancellingBookingId === booking.id"
               @click="handleCancelBooking(booking)"
@@ -683,7 +601,7 @@ onMounted(() => {
           <div>
             <span>Status</span>
             <el-tag :type="getStatusTagType(selectedBooking.status)" effect="plain" class="details-tag">
-              {{ selectedBooking.status }}
+              {{ getBookingStatusLabel(selectedBooking.status) }}
             </el-tag>
           </div>
           <div>
@@ -698,28 +616,28 @@ onMounted(() => {
             <p>{{ selectedBooking.ownerNote }}</p>
           </div>
           <div
-            v-if="selectedBooking.status === 'Completed' && selectedBooking.visitSummary"
+            v-if="isBookingCompleted(selectedBooking) && selectedBooking.visitSummary"
             class="details-grid__full"
           >
             <span>Visit summary</span>
             <p>{{ selectedBooking.visitSummary }}</p>
           </div>
           <div
-            v-if="selectedBooking.status === 'Completed' && selectedBooking.diagnosisAssessment"
+            v-if="isBookingCompleted(selectedBooking) && selectedBooking.diagnosisAssessment"
             class="details-grid__full"
           >
             <span>Diagnosis / assessment</span>
             <p>{{ selectedBooking.diagnosisAssessment }}</p>
           </div>
           <div
-            v-if="selectedBooking.status === 'Completed' && selectedBooking.treatmentRecommendation"
+            v-if="isBookingCompleted(selectedBooking) && selectedBooking.treatmentRecommendation"
             class="details-grid__full"
           >
             <span>Treatment / recommendation</span>
             <p>{{ selectedBooking.treatmentRecommendation }}</p>
           </div>
           <div
-            v-if="selectedBooking.status === 'Completed' && selectedBooking.followUpNote"
+            v-if="isBookingCompleted(selectedBooking) && selectedBooking.followUpNote"
             class="details-grid__full"
           >
             <span>Follow-up note</span>
@@ -801,109 +719,12 @@ onMounted(() => {
         </template>
       </el-dialog>
 
-      <el-dialog
+      <CreateBookingDialog
         v-model="isCreateDialogOpen"
-        title="Book New Visit"
-        width="min(560px, 92vw)"
-        @closed="resetCreateForm"
-      >
-        <el-alert
-          v-if="createErrorMessage"
-          :title="createErrorMessage"
-          type="error"
-          :closable="false"
-          class="create-alert"
-        />
-
-        <el-form :model="createForm" label-position="top">
-          <el-form-item label="Pet name">
-            <el-input v-model="createForm.petName" placeholder="Pet name" />
-          </el-form-item>
-          <el-form-item label="Service">
-            <el-select
-              v-model="createForm.serviceId"
-              placeholder="Select a service"
-              filterable
-              class="booking-service-select"
-            >
-              <el-option
-                v-for="service in serviceOptions"
-                :key="service.value"
-                :label="service.label"
-                :value="service.value"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="Date">
-            <el-date-picker
-              v-model="createForm.date"
-              type="date"
-              placeholder="Select appointment date"
-              format="MMMM D, YYYY"
-              value-format="YYYY-MM-DD"
-              :disabled-date="isDateDisabled"
-              class="booking-service-select"
-            />
-          </el-form-item>
-          <el-form-item label="Time">
-            <el-select
-              v-model="createForm.time"
-              placeholder="Select appointment time"
-              :disabled="!createForm.date || !createTimeOptions.length"
-              class="booking-service-select"
-            >
-              <el-option
-                v-for="slot in createTimeOptions"
-                :key="slot.value"
-                :label="slot.value"
-                :value="slot.value"
-                :disabled="slot.disabled"
-              />
-            </el-select>
-            <p
-              v-if="createForm.date && createForm.staffId && !createTimeOptions.length"
-              class="time-slot-hint"
-            >
-              No active availability is set for this staff member on the selected day.
-            </p>
-          </el-form-item>
-          <el-form-item label="Clinic">
-            <el-input v-model="createForm.clinic" placeholder="Clinic name" />
-          </el-form-item>
-          <el-form-item label="Staff">
-            <el-select
-              v-model="createForm.staffId"
-              placeholder="Select a staff member"
-              filterable
-              class="booking-service-select"
-            >
-              <el-option
-                v-for="staff in staffOptions"
-                :key="staff.value"
-                :label="staff.label"
-                :value="staff.value"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="Message for the clinic">
-            <el-input
-              v-model="createForm.ownerNote"
-              type="textarea"
-              :rows="3"
-              maxlength="2000"
-              show-word-limit
-              placeholder="Optional note to help the clinic prepare for this visit"
-            />
-          </el-form-item>
-        </el-form>
-
-        <template #footer>
-          <el-button @click="isCreateDialogOpen = false">Cancel</el-button>
-          <el-button type="primary" :loading="isCreating" @click="handleCreateBooking">
-            Save Booking
-          </el-button>
-        </template>
-      </el-dialog>
+        :initial-service-id="createInitialServiceId"
+        :staff-records="staffRecords"
+        @created="handleBookingCreated"
+      />
     </div>
   </PageContainer>
 </template>
