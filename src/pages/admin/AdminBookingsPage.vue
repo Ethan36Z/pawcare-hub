@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { adminBookingsApi } from '@/api/adminBookings'
 import BookingDetailsDrawer from '@/components/admin/BookingDetailsDrawer.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -16,6 +16,9 @@ const outcomeErrorMessage = ref('')
 const selectedOutcomeBooking = ref(null)
 const isDetailsDrawerOpen = ref(false)
 const selectedDetailsBooking = ref(null)
+const openActionMenuId = ref(null)
+const openActionMenuBooking = ref(null)
+const actionMenuStyle = ref({})
 const outcomeForm = ref({
   visitSummary: '',
   diagnosisAssessment: '',
@@ -36,6 +39,36 @@ const canCompleteVisits = computed(() => authStore.isAdmin || authStore.isDoctor
 const paginatedBookings = computed(() => {
   const startIndex = (currentPage.value - 1) * pageSize.value
   return bookings.value.slice(startIndex, startIndex + pageSize.value)
+})
+const activeActionMenuItems = computed(() => {
+  const booking = openActionMenuBooking.value
+  const items = []
+
+  if (!booking) {
+    return items
+  }
+
+  if (canConfirmBooking(booking)) {
+    items.push({ key: 'confirm', label: 'Confirm' })
+  }
+
+  if (canOpenOutcomeDialog(booking)) {
+    items.push({
+      key: 'outcome',
+      label: getOutcomeActionLabel(booking),
+    })
+  }
+
+  if (canCancelBooking(booking)) {
+    items.push({
+      key: 'cancel',
+      label: 'Cancel booking',
+      danger: true,
+      separated: items.length > 0,
+    })
+  }
+
+  return items
 })
 
 function getApiErrorMessage(error, fallbackMessage) {
@@ -58,6 +91,125 @@ function getStatusTagType(status) {
   return 'info'
 }
 
+function isBookingStatus(booking, status) {
+  return booking?.status === status
+}
+
+function canConfirmBooking(booking) {
+  return canManageBookingQueue.value
+    && !isBookingStatus(booking, 'Confirmed')
+    && !isBookingStatus(booking, 'Cancelled')
+    && !isBookingStatus(booking, 'Completed')
+}
+
+function canOpenOutcomeDialog(booking) {
+  return canCompleteVisits.value && !isBookingStatus(booking, 'Cancelled')
+}
+
+function canCancelBooking(booking) {
+  return canManageBookingQueue.value
+    && !isBookingStatus(booking, 'Cancelled')
+    && !isBookingStatus(booking, 'Completed')
+}
+
+function shouldShowActionsMenu(booking) {
+  return canConfirmBooking(booking) || canOpenOutcomeDialog(booking) || canCancelBooking(booking)
+}
+
+function getOutcomeActionLabel(booking) {
+  return isBookingStatus(booking, 'Completed') ? 'Edit outcome' : 'Complete visit'
+}
+
+function getActionMenuId(booking) {
+  return `booking-actions-menu-${booking?.id ?? 'unknown'}`
+}
+
+function closeActionMenu() {
+  openActionMenuId.value = null
+  openActionMenuBooking.value = null
+  actionMenuStyle.value = {}
+}
+
+async function toggleActionMenu(booking, event) {
+  if (!booking?.id) {
+    return
+  }
+
+  if (openActionMenuId.value === booking.id) {
+    closeActionMenu()
+    return
+  }
+
+  openActionMenuId.value = booking.id
+  openActionMenuBooking.value = booking
+  await nextTick()
+  positionActionMenu(event?.currentTarget)
+}
+
+function positionActionMenu(anchorElement) {
+  if (!anchorElement) {
+    return
+  }
+
+  const rect = anchorElement.getBoundingClientRect()
+  const menuWidth = 184
+  const menuGap = 6
+  const menuPadding = 8
+  const estimatedMenuHeight = Math.max(46, (activeActionMenuItems.value.length * 38) + 14)
+  const hasRoomBelow = window.innerHeight - rect.bottom >= estimatedMenuHeight + menuGap + menuPadding
+  const shouldOpenAbove = !hasRoomBelow && rect.top > estimatedMenuHeight + menuGap
+  const top = shouldOpenAbove
+    ? Math.max(menuPadding, rect.top - estimatedMenuHeight - menuGap)
+    : Math.min(rect.bottom + menuGap, window.innerHeight - estimatedMenuHeight - menuPadding)
+  const left = Math.min(
+    Math.max(menuPadding, rect.right - menuWidth),
+    window.innerWidth - menuWidth - menuPadding,
+  )
+
+  actionMenuStyle.value = {
+    top: `${Math.max(menuPadding, top)}px`,
+    left: `${left}px`,
+    width: `${menuWidth}px`,
+  }
+}
+
+function handleActionMenuKeydown(event) {
+  if (event.key === 'Escape') {
+    closeActionMenu()
+  }
+}
+
+function handleDocumentClick() {
+  closeActionMenu()
+}
+
+function handleViewportChange() {
+  closeActionMenu()
+}
+
+function handleActionMenuItem(item) {
+  const booking = openActionMenuBooking.value
+
+  if (!booking) {
+    closeActionMenu()
+    return
+  }
+
+  if (item.key === 'confirm') {
+    handleConfirmBooking(booking)
+    return
+  }
+
+  if (item.key === 'outcome') {
+    openOutcomeDialog(booking)
+    return
+  }
+
+  if (item.key === 'cancel') {
+    handleCancelBooking(booking)
+  }
+}
+
 function resetOutcomeForm() {
   selectedOutcomeBooking.value = null
   outcomeErrorMessage.value = ''
@@ -70,6 +222,7 @@ function resetOutcomeForm() {
 }
 
 function openDetailsDrawer(booking) {
+  closeActionMenu()
   selectedDetailsBooking.value = booking
   isDetailsDrawerOpen.value = true
 }
@@ -79,6 +232,7 @@ function resetDetailsDrawer() {
 }
 
 async function loadBookings() {
+  closeActionMenu()
   isLoading.value = true
   errorMessage.value = ''
 
@@ -104,6 +258,7 @@ async function handleConfirmBooking(booking) {
     return
   }
 
+  closeActionMenu()
   confirmingBookingId.value = booking.id
   errorMessage.value = ''
 
@@ -122,6 +277,7 @@ async function handleCancelBooking(booking) {
     return
   }
 
+  closeActionMenu()
   cancellingBookingId.value = booking.id
   errorMessage.value = ''
 
@@ -136,6 +292,7 @@ async function handleCancelBooking(booking) {
 }
 
 function openOutcomeDialog(booking) {
+  closeActionMenu()
   selectedOutcomeBooking.value = booking
   outcomeErrorMessage.value = ''
   outcomeForm.value = {
@@ -170,10 +327,12 @@ async function handleSaveOutcome() {
 }
 
 function handleApplyFilters() {
+  closeActionMenu()
   loadBookings()
 }
 
 function handleResetFilters() {
+  closeActionMenu()
   filters.value = {
     status: '',
     service: '',
@@ -184,7 +343,18 @@ function handleResetFilters() {
 }
 
 onMounted(() => {
+  document.addEventListener('click', handleDocumentClick)
+  document.addEventListener('keydown', handleActionMenuKeydown)
+  window.addEventListener('resize', handleViewportChange)
+  window.addEventListener('scroll', handleViewportChange, true)
   loadBookings()
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleDocumentClick)
+  document.removeEventListener('keydown', handleActionMenuKeydown)
+  window.removeEventListener('resize', handleViewportChange)
+  window.removeEventListener('scroll', handleViewportChange, true)
 })
 </script>
 
@@ -293,47 +463,31 @@ onMounted(() => {
               <span v-else class="owner-note-cell owner-note-cell--empty">No message</span>
             </template>
           </el-table-column>
-          <el-table-column label="Actions" min-width="220" fixed="right">
+          <el-table-column label="Actions" min-width="190" fixed="right" class-name="bookings-actions-column">
             <template #default="{ row }">
               <div class="actions-cell actions-cell--booking">
                 <el-button
                   plain
                   size="small"
-                  class="actions-cell__button"
+                  native-type="button"
+                  class="booking-action-button booking-action-button--secondary"
                   @click="openDetailsDrawer(row)"
                 >
-                  View Details
+                  Details
                 </el-button>
-                <el-button
-                  v-if="canManageBookingQueue && row.status !== 'Confirmed' && row.status !== 'Cancelled' && row.status !== 'Completed'"
-                  plain
-                  size="small"
-                  class="actions-cell__button"
-                  :loading="confirmingBookingId === row.id"
-                  @click="handleConfirmBooking(row)"
+                <button
+                  v-if="shouldShowActionsMenu(row)"
+                  type="button"
+                  class="booking-action-button booking-action-button--primary booking-actions-trigger"
+                  aria-label="Booking actions"
+                  aria-haspopup="menu"
+                  :aria-expanded="openActionMenuId === row.id"
+                  :aria-controls="getActionMenuId(row)"
+                  @click.stop="toggleActionMenu(row, $event)"
                 >
-                  Confirm
-                </el-button>
-                <el-button
-                  v-if="canCompleteVisits && row.status !== 'Cancelled'"
-                  plain
-                  size="small"
-                  class="actions-cell__button"
-                  :loading="completingBookingId === row.id"
-                  @click="openOutcomeDialog(row)"
-                >
-                  {{ row.status === 'Completed' ? 'Edit Outcome' : 'Complete Visit' }}
-                </el-button>
-                <el-button
-                  v-if="canManageBookingQueue && row.status !== 'Cancelled' && row.status !== 'Completed'"
-                  plain
-                  size="small"
-                  class="actions-cell__button actions-cell__button--danger"
-                  :loading="cancellingBookingId === row.id"
-                  @click="handleCancelBooking(row)"
-                >
-                  Cancel
-                </el-button>
+                  <span>Actions</span>
+                  <span aria-hidden="true" class="booking-actions-trigger__chevron"></span>
+                </button>
               </div>
             </template>
           </el-table-column>
@@ -422,6 +576,35 @@ onMounted(() => {
       :booking="selectedDetailsBooking"
       @closed="resetDetailsDrawer"
     />
+
+    <Teleport to="body">
+      <div
+        v-if="openActionMenuBooking && activeActionMenuItems.length"
+        :id="getActionMenuId(openActionMenuBooking)"
+        class="booking-action-menu__panel"
+        role="menu"
+        aria-label="Booking actions"
+        :style="actionMenuStyle"
+        @click.stop
+      >
+        <button
+          v-for="item in activeActionMenuItems"
+          :key="item.key"
+          type="button"
+          :class="[
+            'booking-action-menu__item',
+            {
+              'booking-action-menu__item--danger': item.danger,
+              'booking-action-menu__item--separated': item.separated,
+            },
+          ]"
+          role="menuitem"
+          @click="handleActionMenuItem(item)"
+        >
+          {{ item.label }}
+        </button>
+      </div>
+    </Teleport>
   </section>
 </template>
 
@@ -536,26 +719,145 @@ onMounted(() => {
 }
 
 .actions-cell--booking {
-  flex-direction: column;
-  align-items: stretch;
-  min-width: 150px;
+  position: relative;
+  align-items: center;
+  gap: 7px;
+  min-width: 160px;
 }
 
 .actions-cell--booking .el-button + .el-button {
   margin-left: 0;
 }
 
-.actions-cell__button {
+.booking-action-button {
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  width: 100%;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
 }
 
-.actions-cell__button--danger {
-  --el-button-text-color: #b42318;
-  --el-button-border-color: rgba(180, 35, 24, 0.28);
+.actions-cell--booking .booking-action-button--secondary {
+  width: 76px;
+}
+
+.booking-action-button--primary {
+  width: 90px;
+  border: 1px solid #1f3f5b;
+  font: inherit;
+  cursor: pointer;
+  --el-button-text-color: #ffffff;
+  --el-button-bg-color: #1f3f5b;
+  --el-button-border-color: #1f3f5b;
   --el-button-hover-text-color: #ffffff;
-  --el-button-hover-bg-color: #b42318;
-  --el-button-hover-border-color: #b42318;
+  --el-button-hover-bg-color: #173149;
+  --el-button-hover-border-color: #173149;
+  --el-button-active-bg-color: #102539;
+  --el-button-active-border-color: #102539;
+  box-shadow: 0 8px 16px rgba(31, 63, 91, 0.14);
+}
+
+.booking-action-button--primary:hover {
+  background: #173149;
+  border-color: #173149;
+}
+
+.booking-action-button--secondary {
+  --el-button-text-color: #26364a;
+  --el-button-bg-color: #ffffff;
+  --el-button-border-color: #c8d2dd;
+  --el-button-hover-text-color: #173149;
+  --el-button-hover-bg-color: #f3f7fb;
+  --el-button-hover-border-color: #8fa3b7;
+  --el-button-active-text-color: #102539;
+  --el-button-active-bg-color: #eaf1f7;
+  --el-button-active-border-color: #7890a8;
+}
+
+.actions-cell--booking :deep(.el-button:focus-visible),
+.booking-actions-trigger:focus-visible {
+  outline: 3px solid rgba(31, 63, 91, 0.28);
+  outline-offset: 2px;
+}
+
+.booking-actions-trigger {
+  align-items: center;
+  gap: 7px;
+  background: #1f3f5b;
+  color: #ffffff;
+}
+
+.booking-actions-trigger__chevron {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  transform: translateY(1px);
+}
+
+.booking-action-menu__item:focus-visible {
+  outline: 3px solid rgba(31, 63, 91, 0.28);
+  outline-offset: 2px;
+}
+
+.booking-action-menu__panel {
+  position: fixed;
+  z-index: 3000;
+  padding: 6px;
+  border: 1px solid #d6dee8;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 14px 30px rgba(25, 42, 58, 0.14);
+}
+
+.booking-action-menu__item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #26364a;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.booking-action-menu__item:hover {
+  background: #f3f7fb;
+  color: #173149;
+}
+
+.booking-action-menu__item--danger {
+  color: #b42318;
+}
+
+.booking-action-menu__item--separated {
+  margin-top: 5px;
+  border-top: 1px solid #eef1f5;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  padding-top: 10px;
+}
+
+.booking-action-menu__item--danger:hover {
+  background: #fff1f0;
+  color: #912018;
+}
+
+.booking-action-menu__item:disabled {
+  cursor: wait;
+  opacity: 0.62;
 }
 
 .admin-pagination {
