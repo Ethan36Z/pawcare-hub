@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { adminBookingsApi } from '@/api/adminBookings'
+import BookingDetailsDrawer from '@/components/admin/BookingDetailsDrawer.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const bookings = ref([])
@@ -13,6 +14,8 @@ const isOutcomeDialogOpen = ref(false)
 const isSavingOutcome = ref(false)
 const outcomeErrorMessage = ref('')
 const selectedOutcomeBooking = ref(null)
+const isDetailsDrawerOpen = ref(false)
+const selectedDetailsBooking = ref(null)
 const outcomeForm = ref({
   visitSummary: '',
   diagnosisAssessment: '',
@@ -64,6 +67,15 @@ function resetOutcomeForm() {
     treatmentRecommendation: '',
     followUpNote: '',
   }
+}
+
+function openDetailsDrawer(booking) {
+  selectedDetailsBooking.value = booking
+  isDetailsDrawerOpen.value = true
+}
+
+function resetDetailsDrawer() {
+  selectedDetailsBooking.value = null
 }
 
 async function loadBookings() {
@@ -285,6 +297,14 @@ onMounted(() => {
             <template #default="{ row }">
               <div class="actions-cell actions-cell--booking">
                 <el-button
+                  plain
+                  size="small"
+                  class="actions-cell__button"
+                  @click="openDetailsDrawer(row)"
+                >
+                  View Details
+                </el-button>
+                <el-button
                   v-if="canManageBookingQueue && row.status !== 'Confirmed' && row.status !== 'Cancelled' && row.status !== 'Completed'"
                   plain
                   size="small"
@@ -396,6 +416,12 @@ onMounted(() => {
         </el-button>
       </template>
     </el-dialog>
+
+    <BookingDetailsDrawer
+      v-model="isDetailsDrawerOpen"
+      :booking="selectedDetailsBooking"
+      @closed="resetDetailsDrawer"
+    />
   </section>
 </template>
 
