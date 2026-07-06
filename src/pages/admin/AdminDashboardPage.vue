@@ -37,6 +37,13 @@ function getStatusTagType(status) {
   return 'info'
 }
 
+function getBookingStatusBadgeClass(status) {
+  return [
+    'admin-badge',
+    `admin-badge--${String(status || 'neutral').trim().toLowerCase() || 'neutral'}`,
+  ]
+}
+
 const summaryCards = computed(() => [
   {
     label: 'Total users',
@@ -219,7 +226,11 @@ onMounted(() => {
               </div>
               <div class="activity-row__meta">
                 <span>{{ booking.staff }}</span>
-                <el-tag :type="getStatusTagType(booking.status)" effect="plain">
+                <el-tag
+                  :type="getStatusTagType(booking.status)"
+                  effect="plain"
+                  :class="getBookingStatusBadgeClass(booking.status)"
+                >
                   {{ booking.status }}
                 </el-tag>
               </div>
@@ -248,7 +259,7 @@ onMounted(() => {
               </div>
               <div class="activity-row__meta">
                 <span>{{ booking.staff }}</span>
-                <el-tag type="success" effect="plain">
+                <el-tag type="success" effect="plain" class="admin-badge admin-badge--completed">
                   Completed
                 </el-tag>
               </div>

@@ -127,6 +127,362 @@ a {
   border-radius: var(--pc-radius-sm);
 }
 
+.admin-layout {
+  --admin-navy: #1f3f5b;
+  --admin-navy-hover: #173149;
+  --admin-navy-active: #102539;
+  --admin-text: #26364a;
+  --admin-border: #c8d2dd;
+  --admin-border-hover: #8fa3b7;
+  --admin-focus-ring: rgba(31, 63, 91, 0.18);
+  --admin-control-bg: #ffffff;
+  --admin-control-hover-bg: #fbfdff;
+  --admin-soft-bg: #f3f7fb;
+  --admin-danger: #b42318;
+  --admin-danger-hover-bg: #fff1f0;
+}
+
+:root {
+  --admin-navy: #1f3f5b;
+  --admin-navy-hover: #173149;
+  --admin-navy-active: #102539;
+  --admin-text: #26364a;
+  --admin-border: #c8d2dd;
+  --admin-border-hover: #8fa3b7;
+  --admin-focus-ring: rgba(31, 63, 91, 0.18);
+  --admin-control-bg: #ffffff;
+  --admin-control-hover-bg: #fbfdff;
+  --admin-soft-bg: #f3f7fb;
+  --admin-danger: #b42318;
+  --admin-danger-hover-bg: #fff1f0;
+}
+
+.admin-layout .admin-toolbar,
+.admin-layout .admin-filters {
+  display: grid;
+  gap: 12px;
+  align-items: end;
+}
+
+.admin-layout .admin-control,
+.admin-control {
+  width: 100%;
+}
+
+.admin-control .el-input__wrapper,
+.admin-control .el-select__wrapper,
+.admin-control .el-date-editor.el-input__wrapper,
+.admin-control .el-textarea__inner,
+.admin-form .el-input__wrapper,
+.admin-form .el-select__wrapper,
+.admin-form .el-date-editor.el-input__wrapper,
+.admin-form .el-textarea__inner,
+.admin-layout .admin-control .el-input__wrapper,
+.admin-layout .admin-control .el-select__wrapper,
+.admin-layout .admin-control .el-date-editor.el-input__wrapper,
+.admin-layout .admin-control .el-textarea__inner,
+.admin-layout .el-dialog .el-input__wrapper,
+.admin-layout .el-dialog .el-select__wrapper,
+.admin-layout .el-dialog .el-date-editor.el-input__wrapper,
+.admin-layout .el-dialog .el-textarea__inner,
+.admin-layout .form-select .el-select__wrapper,
+.admin-layout .operations-field .el-select__wrapper,
+.admin-layout .operations-field .el-input__wrapper,
+.admin-layout .operations-field.el-date-editor.el-input__wrapper,
+.admin-layout .operations-field.el-input__wrapper {
+  min-height: 38px;
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  background: var(--admin-control-bg);
+  box-shadow: none;
+  color: var(--admin-text);
+  font-size: 0.94rem;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.admin-control .el-input__wrapper:hover,
+.admin-control .el-select__wrapper:hover,
+.admin-control .el-date-editor.el-input__wrapper:hover,
+.admin-control .el-textarea__inner:hover,
+.admin-form .el-input__wrapper:hover,
+.admin-form .el-select__wrapper:hover,
+.admin-form .el-date-editor.el-input__wrapper:hover,
+.admin-form .el-textarea__inner:hover,
+.admin-layout .admin-control .el-input__wrapper:hover,
+.admin-layout .admin-control .el-select__wrapper:hover,
+.admin-layout .admin-control .el-date-editor.el-input__wrapper:hover,
+.admin-layout .admin-control .el-textarea__inner:hover,
+.admin-layout .el-dialog .el-input__wrapper:hover,
+.admin-layout .el-dialog .el-select__wrapper:hover,
+.admin-layout .el-dialog .el-date-editor.el-input__wrapper:hover,
+.admin-layout .el-dialog .el-textarea__inner:hover,
+.admin-layout .form-select .el-select__wrapper:hover,
+.admin-layout .operations-field .el-select__wrapper:hover,
+.admin-layout .operations-field .el-input__wrapper:hover,
+.admin-layout .operations-field.el-date-editor.el-input__wrapper:hover,
+.admin-layout .operations-field.el-input__wrapper:hover {
+  border-color: var(--admin-border-hover);
+  background: var(--admin-control-hover-bg);
+}
+
+.admin-control .el-input__wrapper.is-focus,
+.admin-control .el-select__wrapper.is-focused,
+.admin-control .el-textarea__inner:focus,
+.admin-form .el-input__wrapper.is-focus,
+.admin-form .el-select__wrapper.is-focused,
+.admin-form .el-textarea__inner:focus,
+.admin-layout .admin-control .el-input__wrapper.is-focus,
+.admin-layout .admin-control .el-select__wrapper.is-focused,
+.admin-layout .admin-control .el-textarea__inner:focus,
+.admin-layout .el-dialog .el-input__wrapper.is-focus,
+.admin-layout .el-dialog .el-select__wrapper.is-focused,
+.admin-layout .el-dialog .el-textarea__inner:focus,
+.admin-layout .form-select .el-select__wrapper.is-focused,
+.admin-layout .operations-field .el-select__wrapper.is-focused,
+.admin-layout .operations-field .el-input__wrapper.is-focus,
+.admin-layout .operations-field.el-date-editor.el-input__wrapper.is-focus,
+.admin-layout .operations-field.el-input__wrapper.is-focus {
+  border-color: var(--admin-navy);
+  box-shadow: 0 0 0 3px var(--admin-focus-ring);
+}
+
+.admin-control .el-input__inner,
+.admin-control .el-select__placeholder,
+.admin-control .el-select__selected-item,
+.admin-form .el-input__inner,
+.admin-form .el-select__placeholder,
+.admin-form .el-select__selected-item,
+.admin-layout .admin-control .el-input__inner,
+.admin-layout .admin-control .el-select__placeholder,
+.admin-layout .admin-control .el-select__selected-item,
+.admin-layout .el-dialog .el-input__inner,
+.admin-layout .el-dialog .el-select__placeholder,
+.admin-layout .el-dialog .el-select__selected-item,
+.admin-layout .form-select .el-select__selected-item,
+.admin-layout .operations-field .el-input__inner,
+.admin-layout .operations-field .el-select__selected-item {
+  color: var(--admin-text);
+  font-size: 0.94rem;
+}
+
+.admin-control .el-input__inner::placeholder,
+.admin-control .el-select__placeholder.is-transparent,
+.admin-form .el-input__inner::placeholder,
+.admin-form .el-select__placeholder.is-transparent,
+.admin-layout .admin-control .el-input__inner::placeholder,
+.admin-layout .admin-control .el-select__placeholder.is-transparent,
+.admin-layout .el-dialog .el-input__inner::placeholder,
+.admin-layout .el-dialog .el-select__placeholder.is-transparent,
+.admin-layout .operations-field .el-input__inner::placeholder,
+.admin-layout .operations-field .el-select__placeholder.is-transparent {
+  color: #7c8b9a;
+}
+
+.admin-button,
+.admin-layout .admin-button,
+.admin-layout .admin-row-actions .el-button,
+.admin-layout .admin-dialog-actions .el-button {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.admin-button--toolbar,
+.admin-layout .admin-button--toolbar {
+  min-height: 38px;
+  padding: 0 16px;
+}
+
+.admin-button--primary,
+.admin-button.el-button--primary,
+.admin-layout .admin-button--primary,
+.admin-layout .admin-button.el-button--primary,
+.admin-layout .admin-dialog-actions .el-button--primary {
+  --el-button-text-color: #ffffff;
+  --el-button-bg-color: var(--admin-navy);
+  --el-button-border-color: var(--admin-navy);
+  --el-button-hover-text-color: #ffffff;
+  --el-button-hover-bg-color: var(--admin-navy-hover);
+  --el-button-hover-border-color: var(--admin-navy-hover);
+  --el-button-active-bg-color: var(--admin-navy-active);
+  --el-button-active-border-color: var(--admin-navy-active);
+  box-shadow: none;
+}
+
+.admin-button--secondary,
+.admin-layout .admin-button--secondary,
+.admin-layout .admin-row-actions .el-button.is-plain,
+.admin-layout .admin-dialog-actions .el-button:not(.el-button--primary) {
+  --el-button-text-color: var(--admin-text);
+  --el-button-bg-color: #ffffff;
+  --el-button-border-color: var(--admin-border);
+  --el-button-hover-text-color: var(--admin-navy-hover);
+  --el-button-hover-bg-color: var(--admin-soft-bg);
+  --el-button-hover-border-color: var(--admin-border-hover);
+  --el-button-active-text-color: var(--admin-navy-active);
+  --el-button-active-bg-color: #eaf1f7;
+  --el-button-active-border-color: #7890a8;
+}
+
+.admin-button--ghost,
+.admin-layout .admin-button--ghost {
+  --el-button-text-color: var(--admin-text);
+  --el-button-bg-color: transparent;
+  --el-button-border-color: transparent;
+  --el-button-hover-text-color: var(--admin-navy-hover);
+  --el-button-hover-bg-color: var(--admin-soft-bg);
+  --el-button-hover-border-color: var(--admin-soft-bg);
+}
+
+.admin-button--danger,
+.admin-layout .admin-button--danger,
+.admin-layout .admin-row-actions .admin-button--danger {
+  --el-button-text-color: var(--admin-danger);
+  --el-button-bg-color: #ffffff;
+  --el-button-border-color: rgba(180, 35, 24, 0.26);
+  --el-button-hover-text-color: #912018;
+  --el-button-hover-bg-color: var(--admin-danger-hover-bg);
+  --el-button-hover-border-color: rgba(180, 35, 24, 0.36);
+}
+
+.admin-button:focus-visible,
+.admin-layout .admin-button:focus-visible,
+.admin-layout .admin-row-actions .el-button:focus-visible,
+.admin-layout .admin-dialog-actions .el-button:focus-visible {
+  outline: 3px solid rgba(31, 63, 91, 0.22);
+  outline-offset: 2px;
+}
+
+.admin-row-actions,
+.admin-dialog-actions,
+.admin-layout .admin-row-actions,
+.admin-layout .actions-cell,
+.admin-layout .operations-actions,
+.admin-dialog-actions,
+.admin-layout .admin-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+}
+
+.admin-layout .admin-dialog-actions {
+  justify-content: flex-end;
+}
+
+.admin-layout .admin-row-actions .el-button + .el-button,
+.admin-layout .actions-cell .el-button + .el-button,
+.admin-layout .operations-actions .el-button + .el-button {
+  margin-left: 0;
+}
+
+.admin-badge,
+.admin-layout .admin-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 78px;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.admin-badge--fixed,
+.admin-layout .admin-badge--fixed {
+  width: 92px;
+}
+
+.admin-badge--upcoming,
+.admin-layout .admin-badge--upcoming {
+  border-color: #bfd1e6;
+  background: #eaf3ff;
+  color: #285f91;
+}
+
+.admin-badge--confirmed,
+.admin-badge--active,
+.admin-badge--open,
+.admin-badge--visible,
+.admin-layout .admin-badge--confirmed,
+.admin-layout .admin-badge--active,
+.admin-layout .admin-badge--open,
+.admin-layout .admin-badge--visible {
+  border-color: #b7dac7;
+  background: #e8f6ef;
+  color: #236241;
+}
+
+.admin-badge--completed,
+.admin-layout .admin-badge--completed {
+  border-color: #a9d4c8;
+  background: #ddf1ec;
+  color: #1f5f55;
+}
+
+.admin-badge--cancelled,
+.admin-badge--danger,
+.admin-badge--deactivated,
+.admin-layout .admin-badge--cancelled,
+.admin-layout .admin-badge--danger,
+.admin-layout .admin-badge--deactivated {
+  border-color: #efc0bd;
+  background: #fff0ef;
+  color: #a13a34;
+}
+
+.admin-badge--inactive,
+.admin-badge--hidden,
+.admin-badge--closed,
+.admin-badge--neutral,
+.admin-layout .admin-badge--inactive,
+.admin-layout .admin-badge--hidden,
+.admin-layout .admin-badge--closed,
+.admin-layout .admin-badge--neutral {
+  border-color: #d8dee7;
+  background: #f3f6f9;
+  color: #5b6775;
+}
+
+.admin-badge--custom,
+.admin-badge--warning,
+.admin-layout .admin-badge--custom,
+.admin-layout .admin-badge--warning {
+  border-color: #ead3a2;
+  background: #fff7df;
+  color: #82601d;
+}
+
+.admin-badge--admin,
+.admin-layout .admin-badge--admin {
+  border-color: #b7c7dc;
+  background: #eaf1fb;
+  color: #274c77;
+}
+
+.admin-badge--front-desk,
+.admin-layout .admin-badge--front-desk {
+  border-color: #afd8d2;
+  background: #e4f5f2;
+  color: #24665e;
+}
+
+.admin-badge--doctor,
+.admin-layout .admin-badge--doctor {
+  border-color: #d2c4ed;
+  background: #f0eafa;
+  color: #5a4383;
+}
+
 .reveal-section,
 .reveal-card {
   opacity: 0;

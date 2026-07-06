@@ -109,6 +109,13 @@ function getStatusTagType(status) {
 
   return 'info'
 }
+
+function getStatusBadgeClass(status) {
+  return [
+    'admin-badge',
+    `admin-badge--${String(status || 'neutral').trim().toLowerCase() || 'neutral'}`,
+  ]
+}
 </script>
 
 <template>
@@ -134,7 +141,11 @@ function getStatusTagType(status) {
         <div>
           <p class="booking-details-drawer__eyebrow">Booking #{{ normalizeDisplayValue(booking.id) }}</p>
           <h2 :id="bookingTitleId">Booking details</h2>
-          <el-tag :type="getStatusTagType(booking.status)" effect="plain" class="booking-details-drawer__status">
+          <el-tag
+            :type="getStatusTagType(booking.status)"
+            effect="plain"
+            :class="['booking-details-drawer__status', ...getStatusBadgeClass(booking.status)]"
+          >
             {{ normalizeDisplayValue(booking.status) }}
           </el-tag>
         </div>
@@ -161,7 +172,11 @@ function getStatusTagType(status) {
             <div>
               <dt>Status</dt>
               <dd>
-                <el-tag :type="getStatusTagType(booking.status)" effect="plain">
+                <el-tag
+                  :type="getStatusTagType(booking.status)"
+                  effect="plain"
+                  :class="getStatusBadgeClass(booking.status)"
+                >
                   {{ normalizeDisplayValue(booking.status) }}
                 </el-tag>
               </dd>

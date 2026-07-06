@@ -34,6 +34,19 @@ function getAccountStatusTagType(isActive) {
   return isActive ? 'success' : 'danger'
 }
 
+function getStatusBadgeClass(status) {
+  const normalizedStatus = String(status || 'neutral').trim().toLowerCase().replace(/\s+/g, '-')
+  if (normalizedStatus === 'needs-attention') {
+    return ['admin-badge', 'admin-badge--warning']
+  }
+
+  return ['admin-badge', `admin-badge--${normalizedStatus}`]
+}
+
+function getAccountStatusBadgeClass(isActive) {
+  return ['admin-badge', isActive ? 'admin-badge--active' : 'admin-badge--deactivated']
+}
+
 const reminderItems = computed(() => {
   if (!user.value) {
     return []
@@ -99,7 +112,7 @@ onMounted(() => {
   <section class="admin-page">
     <div class="admin-page__header">
       <div>
-        <el-button plain @click="router.push({ name: 'admin-users' })">
+        <el-button plain class="admin-button admin-button--ghost" @click="router.push({ name: 'admin-users' })">
           Back to users
         </el-button>
         <h1>User Details</h1>
@@ -131,7 +144,11 @@ onMounted(() => {
         <h2>{{ user.name }}</h2>
         <span>{{ user.email }}</span>
         <div class="hero-status">
-          <el-tag :type="getAccountStatusTagType(user.active)" effect="plain">
+          <el-tag
+            :type="getAccountStatusTagType(user.active)"
+            effect="plain"
+            :class="getAccountStatusBadgeClass(user.active)"
+          >
             {{ user.active ? 'Active account' : 'Deactivated account' }}
           </el-tag>
         </div>
@@ -192,7 +209,7 @@ onMounted(() => {
           <el-table-column prop="breed" label="Breed" min-width="180" />
           <el-table-column label="Status" min-width="140">
             <template #default="{ row }">
-              <el-tag :type="getStatusTagType(row.status)" effect="plain">
+              <el-tag :type="getStatusTagType(row.status)" effect="plain" :class="getStatusBadgeClass(row.status)">
                 {{ row.status }}
               </el-tag>
             </template>
@@ -224,7 +241,7 @@ onMounted(() => {
           </el-table-column>
           <el-table-column label="Status" min-width="130">
             <template #default="{ row }">
-              <el-tag :type="getStatusTagType(row.status)" effect="plain">
+              <el-tag :type="getStatusTagType(row.status)" effect="plain" :class="getStatusBadgeClass(row.status)">
                 {{ row.status }}
               </el-tag>
             </template>

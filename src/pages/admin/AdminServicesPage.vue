@@ -190,7 +190,7 @@ onMounted(() => {
         <h1>Admin Services</h1>
         <p>Current clinic services from the MySQL-backed services catalog.</p>
       </div>
-      <el-button type="primary" @click="openCreateDialog">Add Service</el-button>
+      <el-button type="primary" class="admin-button admin-button--primary" @click="openCreateDialog">Add Service</el-button>
     </div>
 
     <el-alert
@@ -206,7 +206,7 @@ onMounted(() => {
         v-model="filters.active"
         placeholder="Status"
         clearable
-        class="admin-filters__control"
+        class="admin-filters__control admin-control"
       >
         <el-option label="Active" :value="true" />
         <el-option label="Inactive" :value="false" />
@@ -216,19 +216,19 @@ onMounted(() => {
         v-model="filters.category"
         placeholder="Filter by category"
         clearable
-        class="admin-filters__control"
+        class="admin-filters__control admin-control"
       />
 
       <el-input
         v-model="filters.name"
         placeholder="Search by name"
         clearable
-        class="admin-filters__control"
+        class="admin-filters__control admin-control"
       />
 
       <el-select
         v-model="filters.sort"
-        class="admin-filters__control"
+        class="admin-filters__control admin-control"
       >
         <el-option label="Name A-Z" value="name-asc" />
         <el-option label="Name Z-A" value="name-desc" />
@@ -237,10 +237,10 @@ onMounted(() => {
       </el-select>
 
       <div class="admin-filters__actions">
-        <el-button plain @click="handleApplyFilters">
+        <el-button native-type="button" class="admin-button admin-button--primary admin-button--toolbar" @click="handleApplyFilters">
           Apply
         </el-button>
-        <el-button @click="handleResetFilters">
+        <el-button native-type="button" class="admin-button admin-button--secondary admin-button--toolbar" @click="handleResetFilters">
           Reset
         </el-button>
       </div>
@@ -263,7 +263,11 @@ onMounted(() => {
           <el-table-column prop="price" label="Price" min-width="120" />
           <el-table-column label="Status" min-width="140">
             <template #default="{ row }">
-              <el-tag :type="row.active ? 'success' : 'info'" effect="plain">
+              <el-tag
+                :type="row.active ? 'success' : 'info'"
+                effect="plain"
+                :class="['admin-badge', row.active ? 'admin-badge--active' : 'admin-badge--inactive']"
+              >
                 {{ row.active ? 'Active' : 'Inactive' }}
               </el-tag>
             </template>
@@ -271,10 +275,11 @@ onMounted(() => {
           <el-table-column prop="description" label="Description" min-width="320" show-overflow-tooltip />
           <el-table-column label="Actions" min-width="220" fixed="right">
             <template #default="{ row }">
-              <div class="actions-cell">
+              <div class="actions-cell admin-row-actions">
                 <el-button
                   plain
                   size="small"
+                  class="admin-button admin-button--secondary"
                   @click="openEditDialog(row)"
                 >
                   Edit
@@ -282,6 +287,7 @@ onMounted(() => {
                 <el-button
                   plain
                   size="small"
+                  :class="['admin-button', row.active ? 'admin-button--danger' : 'admin-button--primary']"
                   :loading="togglingServiceId === row.id"
                   @click="handleToggleService(row)"
                 >
@@ -319,7 +325,7 @@ onMounted(() => {
         class="admin-page__alert"
       />
 
-      <el-form :model="createForm" label-position="top">
+      <el-form :model="createForm" label-position="top" class="admin-form">
         <el-form-item label="Name">
           <el-input v-model="createForm.name" placeholder="Service name" />
         </el-form-item>
@@ -346,10 +352,12 @@ onMounted(() => {
       </el-form>
 
       <template #footer>
-        <el-button @click="isCreateDialogOpen = false">Cancel</el-button>
-        <el-button type="primary" :loading="isCreating" @click="handleCreateService">
+        <div class="admin-dialog-actions">
+        <el-button class="admin-button admin-button--ghost" @click="isCreateDialogOpen = false">Cancel</el-button>
+        <el-button type="primary" class="admin-button admin-button--primary" :loading="isCreating" @click="handleCreateService">
           Save Service
         </el-button>
+        </div>
       </template>
     </el-dialog>
 
@@ -367,7 +375,7 @@ onMounted(() => {
         class="admin-page__alert"
       />
 
-      <el-form :model="editForm" label-position="top">
+      <el-form :model="editForm" label-position="top" class="admin-form">
         <el-form-item label="Name">
           <el-input v-model="editForm.name" placeholder="Service name" />
         </el-form-item>
@@ -394,10 +402,12 @@ onMounted(() => {
       </el-form>
 
       <template #footer>
-        <el-button @click="isEditDialogOpen = false">Cancel</el-button>
-        <el-button type="primary" :loading="isEditing" @click="handleEditService">
+        <div class="admin-dialog-actions">
+        <el-button class="admin-button admin-button--ghost" @click="isEditDialogOpen = false">Cancel</el-button>
+        <el-button type="primary" class="admin-button admin-button--primary" :loading="isEditing" @click="handleEditService">
           Save Changes
         </el-button>
+        </div>
       </template>
     </el-dialog>
   </section>
@@ -479,15 +489,6 @@ onMounted(() => {
   flex-wrap: wrap;
   justify-content: flex-end;
   row-gap: 10px;
-}
-
-.admin-page :deep(.el-button--primary) {
-  --el-button-bg-color: #3f725d;
-  --el-button-border-color: #3f725d;
-  --el-button-hover-bg-color: #355f4d;
-  --el-button-hover-border-color: #355f4d;
-  --el-button-active-bg-color: #2c5141;
-  --el-button-active-border-color: #2c5141;
 }
 
 .admin-page :deep(.el-switch.is-checked .el-switch__core) {

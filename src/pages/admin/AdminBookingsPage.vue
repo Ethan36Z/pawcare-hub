@@ -93,8 +93,9 @@ function getStatusTagType(status) {
 
 function getStatusBadgeClass(status) {
   return [
-    'booking-status-badge',
-    `booking-status-badge--${String(status || 'unknown').trim().toLowerCase() || 'unknown'}`,
+    'admin-badge',
+    'admin-badge--fixed',
+    `admin-badge--${String(status || 'unknown').trim().toLowerCase() || 'unknown'}`,
   ]
 }
 
@@ -387,7 +388,7 @@ onBeforeUnmount(() => {
         v-model="filters.status"
         placeholder="Status"
         clearable
-        class="admin-filters__control"
+        class="admin-filters__control admin-control"
       >
         <el-option label="Upcoming" value="Upcoming" />
         <el-option label="Confirmed" value="Confirmed" />
@@ -399,19 +400,19 @@ onBeforeUnmount(() => {
         v-model="filters.service"
         placeholder="Filter by service"
         clearable
-        class="admin-filters__control"
+        class="admin-filters__control admin-control"
       />
 
       <el-input
         v-model="filters.owner"
         placeholder="Filter by owner"
         clearable
-        class="admin-filters__control"
+        class="admin-filters__control admin-control"
       />
 
       <el-select
         v-model="filters.sort"
-        class="admin-filters__control"
+        class="admin-filters__control admin-control"
       >
         <el-option label="Latest first" value="latest" />
         <el-option label="Oldest first" value="oldest" />
@@ -420,14 +421,14 @@ onBeforeUnmount(() => {
       <div class="admin-filters__actions">
         <el-button
           native-type="button"
-          class="admin-filter-button admin-filter-button--primary"
+          class="admin-button admin-button--primary admin-button--toolbar"
           @click="handleApplyFilters"
         >
           Apply
         </el-button>
         <el-button
           native-type="button"
-          class="admin-filter-button admin-filter-button--secondary"
+          class="admin-button admin-button--secondary admin-button--toolbar"
           @click="handleResetFilters"
         >
           Reset
@@ -547,7 +548,7 @@ onBeforeUnmount(() => {
         </p>
       </div>
 
-      <el-form :model="outcomeForm" label-position="top">
+      <el-form :model="outcomeForm" label-position="top" class="admin-form">
         <el-form-item label="Visit summary">
           <el-input
             v-model="outcomeForm.visitSummary"
@@ -583,10 +584,12 @@ onBeforeUnmount(() => {
       </el-form>
 
       <template #footer>
-        <el-button @click="isOutcomeDialogOpen = false">Cancel</el-button>
-        <el-button type="primary" :loading="isSavingOutcome" @click="handleSaveOutcome">
-          Save and Mark Complete
-        </el-button>
+        <div class="admin-dialog-actions">
+          <el-button class="admin-button admin-button--ghost" @click="isOutcomeDialogOpen = false">Cancel</el-button>
+          <el-button type="primary" class="admin-button admin-button--primary" :loading="isSavingOutcome" @click="handleSaveOutcome">
+            Save and Mark Complete
+          </el-button>
+        </div>
       </template>
     </el-dialog>
 
@@ -658,87 +661,10 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
-.admin-filters__control :deep(.el-select__wrapper),
-.admin-filters__control :deep(.el-input__wrapper) {
-  min-height: 38px;
-  border: 1px solid #c8d2dd;
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow: none;
-  color: #26364a;
-  font-size: 0.94rem;
-  transition:
-    border-color 160ms ease,
-    background-color 160ms ease,
-    box-shadow 160ms ease;
-}
-
-.admin-filters__control :deep(.el-select__wrapper:hover),
-.admin-filters__control :deep(.el-input__wrapper:hover) {
-  border-color: #8fa3b7;
-  background: #fbfdff;
-}
-
-.admin-filters__control :deep(.el-select__wrapper.is-focused),
-.admin-filters__control :deep(.el-input__wrapper.is-focus) {
-  border-color: #1f3f5b;
-  box-shadow: 0 0 0 3px rgba(31, 63, 91, 0.14);
-}
-
-.admin-filters__control :deep(.el-input__inner),
-.admin-filters__control :deep(.el-select__placeholder),
-.admin-filters__control :deep(.el-select__selected-item) {
-  color: #26364a;
-  font-size: 0.94rem;
-}
-
-.admin-filters__control :deep(.el-input__inner::placeholder),
-.admin-filters__control :deep(.el-select__placeholder.is-transparent) {
-  color: #7c8b9a;
-}
-
 .admin-filters__actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-.admin-filter-button {
-  height: 38px;
-  min-height: 38px;
-  padding: 0 16px;
-  border-radius: 8px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.admin-filter-button--primary {
-  --el-button-text-color: #ffffff;
-  --el-button-bg-color: #1f3f5b;
-  --el-button-border-color: #1f3f5b;
-  --el-button-hover-text-color: #ffffff;
-  --el-button-hover-bg-color: #173149;
-  --el-button-hover-border-color: #173149;
-  --el-button-active-bg-color: #102539;
-  --el-button-active-border-color: #102539;
-  box-shadow: none;
-}
-
-.admin-filter-button--secondary {
-  --el-button-text-color: #26364a;
-  --el-button-bg-color: #ffffff;
-  --el-button-border-color: #c8d2dd;
-  --el-button-hover-text-color: #173149;
-  --el-button-hover-bg-color: #f3f7fb;
-  --el-button-hover-border-color: #8fa3b7;
-  --el-button-active-text-color: #102539;
-  --el-button-active-bg-color: #eaf1f7;
-  --el-button-active-border-color: #7890a8;
-}
-
-.admin-filter-button:focus-visible {
-  outline: 3px solid rgba(31, 63, 91, 0.22);
-  outline-offset: 2px;
 }
 
 .admin-page h1 {
@@ -807,44 +733,6 @@ onBeforeUnmount(() => {
 
 .owner-note-cell--empty {
   color: var(--pc-muted);
-}
-
-.booking-status-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 92px;
-  min-height: 24px;
-  padding: 0 10px;
-  border-radius: 7px;
-  font-size: 0.82rem;
-  font-weight: 500;
-  line-height: 1;
-  vertical-align: middle;
-}
-
-.booking-status-badge.booking-status-badge--upcoming {
-  border-color: #bfd1e6;
-  background: #eaf3ff;
-  color: #285f91;
-}
-
-.booking-status-badge.booking-status-badge--confirmed {
-  border-color: #b7dac7;
-  background: #e8f6ef;
-  color: #236241;
-}
-
-.booking-status-badge.booking-status-badge--completed {
-  border-color: #a9d4c8;
-  background: #ddf1ec;
-  color: #1f5f55;
-}
-
-.booking-status-badge.booking-status-badge--cancelled {
-  border-color: #efc0bd;
-  background: #fff0ef;
-  color: #a13a34;
 }
 
 .actions-cell {

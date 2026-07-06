@@ -95,6 +95,19 @@ function formatAvailabilityWindow(row) {
   return `${formatTime(row.startTime)} - ${formatTime(row.endTime)}`
 }
 
+function getRoleBadgeClass(role) {
+  const normalizedRole = String(role || 'staff').toLowerCase().replace(/\s+/g, '-')
+  if (normalizedRole.includes('doctor') || normalizedRole.includes('veterinarian')) {
+    return ['admin-badge', 'admin-badge--doctor']
+  }
+
+  if (normalizedRole.includes('front') || normalizedRole.includes('reception')) {
+    return ['admin-badge', 'admin-badge--front-desk']
+  }
+
+  return ['admin-badge', 'admin-badge--neutral']
+}
+
 async function loadStaff() {
   isLoading.value = true
   errorMessage.value = ''
@@ -367,7 +380,7 @@ onMounted(() => {
         <h1>Admin Staff</h1>
         <p>Manage real staff records and set the weekly hours they can accept bookings.</p>
       </div>
-      <el-button type="primary" @click="openCreateDialog">Add Staff</el-button>
+      <el-button type="primary" class="admin-button admin-button--primary" @click="openCreateDialog">Add Staff</el-button>
     </div>
 
     <el-alert
@@ -390,33 +403,48 @@ onMounted(() => {
         <el-table :data="paginatedStaffRecords" stripe>
           <el-table-column prop="id" label="ID" min-width="80" />
           <el-table-column prop="name" label="Name" min-width="220" />
-          <el-table-column prop="role" label="Role" min-width="180" />
+          <el-table-column label="Role" min-width="180">
+            <template #default="{ row }">
+              <el-tag effect="plain" :class="getRoleBadgeClass(row.role)">
+                {{ row.role }}
+              </el-tag>
+            </template>
+          </el-table-column>
           <el-table-column label="Homepage" min-width="160">
             <template #default="{ row }">
-              <el-tag :type="row.showOnHomepage && row.active ? 'success' : 'info'" effect="plain">
+              <el-tag
+                :type="row.showOnHomepage && row.active ? 'success' : 'info'"
+                effect="plain"
+                :class="['admin-badge', row.showOnHomepage && row.active ? 'admin-badge--visible' : 'admin-badge--hidden']"
+              >
                 {{ row.showOnHomepage && row.active ? 'Visible' : 'Hidden' }}
               </el-tag>
             </template>
           </el-table-column>
           <el-table-column label="Status" min-width="140">
             <template #default="{ row }">
-              <el-tag :type="row.active ? 'success' : 'info'" effect="plain">
+              <el-tag
+                :type="row.active ? 'success' : 'info'"
+                effect="plain"
+                :class="['admin-badge', row.active ? 'admin-badge--active' : 'admin-badge--inactive']"
+              >
                 {{ row.active ? 'Active' : 'Inactive' }}
               </el-tag>
             </template>
           </el-table-column>
           <el-table-column label="Actions" min-width="280" fixed="right">
             <template #default="{ row }">
-              <div class="actions-cell">
-                <el-button plain size="small" @click="openEditDialog(row)">
+              <div class="actions-cell admin-row-actions">
+                <el-button plain size="small" class="admin-button admin-button--secondary" @click="openEditDialog(row)">
                   Edit
                 </el-button>
-                <el-button plain size="small" @click="openAvailabilityDialog(row)">
+                <el-button plain size="small" class="admin-button admin-button--secondary" @click="openAvailabilityDialog(row)">
                   Manage Availability
                 </el-button>
                 <el-button
                   plain
                   size="small"
+                  :class="['admin-button', row.active ? 'admin-button--danger' : 'admin-button--primary']"
                   :loading="togglingStaffId === row.id"
                   @click="handleToggleStaff(row)"
                 >
@@ -454,7 +482,7 @@ onMounted(() => {
         class="admin-page__alert"
       />
 
-      <el-form :model="createForm" label-position="top">
+      <el-form :model="createForm" label-position="top" class="admin-form">
         <el-form-item label="Name">
           <el-input v-model="createForm.name" placeholder="Staff member name" />
         </el-form-item>
@@ -489,10 +517,12 @@ onMounted(() => {
       </el-form>
 
       <template #footer>
-        <el-button @click="isCreateDialogOpen = false">Cancel</el-button>
-        <el-button type="primary" :loading="isCreating" @click="handleCreateStaff">
+        <div class="admin-dialog-actions">
+        <el-button class="admin-button admin-button--ghost" @click="isCreateDialogOpen = false">Cancel</el-button>
+        <el-button type="primary" class="admin-button admin-button--primary" :loading="isCreating" @click="handleCreateStaff">
           Save Staff
         </el-button>
+        </div>
       </template>
     </el-dialog>
 
@@ -510,7 +540,7 @@ onMounted(() => {
         class="admin-page__alert"
       />
 
-      <el-form :model="editForm" label-position="top">
+      <el-form :model="editForm" label-position="top" class="admin-form">
         <el-form-item label="Name">
           <el-input v-model="editForm.name" placeholder="Staff member name" />
         </el-form-item>
@@ -545,10 +575,12 @@ onMounted(() => {
       </el-form>
 
       <template #footer>
-        <el-button @click="isEditDialogOpen = false">Cancel</el-button>
-        <el-button type="primary" :loading="isEditing" @click="handleEditStaff">
+        <div class="admin-dialog-actions">
+        <el-button class="admin-button admin-button--ghost" @click="isEditDialogOpen = false">Cancel</el-button>
+        <el-button type="primary" class="admin-button admin-button--primary" :loading="isEditing" @click="handleEditStaff">
           Save Changes
         </el-button>
+        </div>
       </template>
     </el-dialog>
 
@@ -563,7 +595,7 @@ onMounted(() => {
           <strong v-if="selectedStaffForAvailability">{{ selectedStaffForAvailability.role }}</strong>
           <p>Weekly slots are used to filter booking time choices for this staff member.</p>
         </div>
-        <el-button type="primary" @click="openAvailabilityCreateDialog">Add Availability</el-button>
+        <el-button type="primary" class="admin-button admin-button--primary" @click="openAvailabilityCreateDialog">Add Availability</el-button>
       </div>
 
       <el-alert
@@ -594,20 +626,25 @@ onMounted(() => {
         </el-table-column>
         <el-table-column label="Status" min-width="120">
           <template #default="{ row }">
-            <el-tag :type="row.active ? 'success' : 'info'" effect="plain">
+            <el-tag
+              :type="row.active ? 'success' : 'info'"
+              effect="plain"
+              :class="['admin-badge', row.active ? 'admin-badge--active' : 'admin-badge--inactive']"
+            >
               {{ row.active ? 'Active' : 'Inactive' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="Actions" min-width="260" fixed="right">
           <template #default="{ row }">
-            <div class="actions-cell">
-              <el-button plain size="small" @click="openAvailabilityEditDialog(row)">
+            <div class="actions-cell admin-row-actions">
+              <el-button plain size="small" class="admin-button admin-button--secondary" @click="openAvailabilityEditDialog(row)">
                 Edit
               </el-button>
               <el-button
                 plain
                 size="small"
+                :class="['admin-button', row.active ? 'admin-button--danger' : 'admin-button--primary']"
                 :loading="togglingAvailabilityId === row.id"
                 @click="handleToggleAvailability(row)"
               >
@@ -616,6 +653,7 @@ onMounted(() => {
               <el-button
                 plain
                 size="small"
+                class="admin-button admin-button--danger"
                 :loading="deletingAvailabilityId === row.id"
                 @click="handleDeleteAvailability(row)"
               >
@@ -641,9 +679,9 @@ onMounted(() => {
         class="admin-page__alert"
       />
 
-      <el-form :model="availabilityForm" label-position="top">
+      <el-form :model="availabilityForm" label-position="top" class="admin-form">
         <el-form-item label="Day of week">
-          <el-select v-model="availabilityForm.dayOfWeek" class="form-select">
+          <el-select v-model="availabilityForm.dayOfWeek" class="form-select admin-control">
             <el-option
               v-for="option in DAY_OPTIONS"
               :key="option.value"
@@ -658,7 +696,7 @@ onMounted(() => {
             start="06:00"
             step="00:30"
             end="22:00"
-            class="form-select"
+            class="form-select admin-control"
           />
         </el-form-item>
         <el-form-item label="End time">
@@ -667,7 +705,7 @@ onMounted(() => {
             start="06:30"
             step="00:30"
             end="22:30"
-            class="form-select"
+            class="form-select admin-control"
           />
         </el-form-item>
         <el-form-item label="Active for bookings">
@@ -676,10 +714,12 @@ onMounted(() => {
       </el-form>
 
       <template #footer>
-        <el-button @click="isAvailabilityFormDialogOpen = false">Cancel</el-button>
-        <el-button type="primary" :loading="isSavingAvailability" @click="handleSaveAvailability">
+        <div class="admin-dialog-actions">
+        <el-button class="admin-button admin-button--ghost" @click="isAvailabilityFormDialogOpen = false">Cancel</el-button>
+        <el-button type="primary" class="admin-button admin-button--primary" :loading="isSavingAvailability" @click="handleSaveAvailability">
           Save Availability
         </el-button>
+        </div>
       </template>
     </el-dialog>
   </section>
@@ -760,15 +800,6 @@ onMounted(() => {
 
 .form-select {
   width: 100%;
-}
-
-.admin-page :deep(.el-button--primary) {
-  --el-button-bg-color: #3f725d;
-  --el-button-border-color: #3f725d;
-  --el-button-hover-bg-color: #355f4d;
-  --el-button-hover-border-color: #355f4d;
-  --el-button-active-bg-color: #2c5141;
-  --el-button-active-border-color: #2c5141;
 }
 
 .admin-page :deep(.el-switch.is-checked .el-switch__core) {

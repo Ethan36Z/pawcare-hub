@@ -27,6 +27,11 @@ function getStatusTagType(isActive) {
   return isActive ? 'success' : 'danger'
 }
 
+function getRoleBadgeClass(role) {
+  const normalizedRole = String(role || 'user').toLowerCase().replace('_', '-')
+  return ['admin-badge', `admin-badge--${normalizedRole}`]
+}
+
 function getUserRowClassName({ row }) {
   return row?.active ? '' : 'admin-users__row--inactive'
 }
@@ -91,14 +96,14 @@ onMounted(() => {
         v-model="filters.search"
         placeholder="Search by name or email"
         clearable
-        class="admin-filters__control"
+        class="admin-filters__control admin-control"
       />
 
       <el-select
         v-model="filters.role"
         placeholder="Role"
         clearable
-        class="admin-filters__control"
+        class="admin-filters__control admin-control"
       >
         <el-option label="Admin" value="admin" />
         <el-option label="Front Desk" value="front_desk" />
@@ -110,17 +115,17 @@ onMounted(() => {
         v-model="filters.active"
         placeholder="Status"
         clearable
-        class="admin-filters__control"
+        class="admin-filters__control admin-control"
       >
         <el-option label="Active" :value="true" />
         <el-option label="Deactivated" :value="false" />
       </el-select>
 
       <div class="admin-filters__actions">
-        <el-button plain @click="handleApplyFilters">
+        <el-button native-type="button" class="admin-button admin-button--primary admin-button--toolbar" @click="handleApplyFilters">
           Apply
         </el-button>
-        <el-button @click="handleResetFilters">
+        <el-button native-type="button" class="admin-button admin-button--secondary admin-button--toolbar" @click="handleResetFilters">
           Reset
         </el-button>
       </div>
@@ -150,10 +155,20 @@ onMounted(() => {
             </template>
           </el-table-column>
           <el-table-column prop="email" label="Email" min-width="240" />
-          <el-table-column prop="role" label="Role" min-width="120" />
+          <el-table-column label="Role" min-width="130">
+            <template #default="{ row }">
+              <el-tag effect="plain" :class="getRoleBadgeClass(row.role)">
+                {{ row.role }}
+              </el-tag>
+            </template>
+          </el-table-column>
           <el-table-column label="Status" min-width="140">
             <template #default="{ row }">
-              <el-tag :type="getStatusTagType(row.active)" effect="plain">
+              <el-tag
+                :type="getStatusTagType(row.active)"
+                effect="plain"
+                :class="['admin-badge', row.active ? 'admin-badge--active' : 'admin-badge--deactivated']"
+              >
                 {{ row.active ? 'Active' : 'Deactivated' }}
               </el-tag>
             </template>
@@ -163,6 +178,7 @@ onMounted(() => {
               <el-button
                 plain
                 size="small"
+                class="admin-button admin-button--secondary"
                 @click="router.push({ name: 'admin-user-details', params: { id: row.id } })"
               >
                 View details

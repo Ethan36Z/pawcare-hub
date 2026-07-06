@@ -476,6 +476,7 @@ onMounted(async () => {
 
         <el-button
           type="primary"
+          class="admin-button admin-button--primary"
           :disabled="!selectedStaffId || !selectedDate"
           @click="selectedDateException ? openEditExceptionDialog(selectedDateException) : openCreateExceptionDialog()"
         >
@@ -493,7 +494,17 @@ onMounted(async () => {
         </div>
 
         <div class="selected-date-card__status" :class="{ 'selected-date-card__status--fallback': activeRuleSummary.tagLabel === 'Weekly fallback' }">
-          <el-tag :type="activeRuleSummary.tagType" effect="plain">
+          <el-tag
+            :type="activeRuleSummary.tagType"
+            effect="plain"
+            :class="[
+              'admin-badge',
+              activeRuleSummary.tagLabel === 'Weekly fallback' ? 'admin-badge--open' : '',
+              activeRuleSummary.tagLabel === 'No working hours' || activeRuleSummary.tagLabel === 'Select a date' ? 'admin-badge--neutral' : '',
+              activeRuleSummary.tagLabel === 'Custom working hours' ? 'admin-badge--custom' : '',
+              activeRuleSummary.tagLabel === 'Unavailable all day' ? 'admin-badge--danger' : '',
+            ]"
+          >
             {{ activeRuleSummary.tagLabel }}
           </el-tag>
           <strong class="selected-date-card__headline">Active rule</strong>
@@ -529,10 +540,14 @@ onMounted(async () => {
               </span>
             </div>
             <div class="weekly-availability-card__actions">
-              <el-tag :type="day.hasActiveSlots ? 'success' : 'info'" effect="plain">
+              <el-tag
+                :type="day.hasActiveSlots ? 'success' : 'info'"
+                effect="plain"
+                :class="['admin-badge', day.hasActiveSlots ? 'admin-badge--open' : 'admin-badge--closed']"
+              >
                 {{ day.hasActiveSlots ? 'Open by default' : 'Closed by default' }}
               </el-tag>
-              <el-button plain size="small" @click="openWeeklyTemplateDialog(day)">
+              <el-button plain size="small" class="admin-button admin-button--secondary" @click="openWeeklyTemplateDialog(day)">
                 Edit default
               </el-button>
             </div>
@@ -560,20 +575,25 @@ onMounted(async () => {
         </el-table-column>
         <el-table-column label="Type" min-width="180">
           <template #default="{ row }">
-            <el-tag :type="row.available ? 'warning' : 'danger'" effect="plain">
+            <el-tag
+              :type="row.available ? 'warning' : 'danger'"
+              effect="plain"
+              :class="['admin-badge', row.available ? 'admin-badge--custom' : 'admin-badge--danger']"
+            >
               {{ row.available ? 'Custom working hours' : 'Unavailable all day' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="Actions" min-width="190" fixed="right">
           <template #default="{ row }">
-            <div class="operations-actions">
-              <el-button plain size="small" @click="openEditExceptionDialog(row)">
+            <div class="operations-actions admin-row-actions">
+              <el-button plain size="small" class="admin-button admin-button--secondary" @click="openEditExceptionDialog(row)">
                 Edit
               </el-button>
               <el-button
                 plain
                 size="small"
+                class="admin-button admin-button--danger"
                 :loading="deletingExceptionId === row.id"
                 @click="handleDeleteException(row)"
               >
@@ -599,7 +619,7 @@ onMounted(async () => {
         class="operations-alert"
       />
 
-      <el-form :model="exceptionForm" label-position="top">
+      <el-form :model="exceptionForm" label-position="top" class="admin-form">
         <el-form-item label="Date">
           <el-date-picker
             v-model="exceptionForm.date"
@@ -647,10 +667,12 @@ onMounted(async () => {
       </el-form>
 
       <template #footer>
-        <el-button @click="isExceptionDialogOpen = false">Cancel</el-button>
-        <el-button type="primary" :loading="isSavingException" @click="handleSaveException">
+        <div class="admin-dialog-actions">
+        <el-button class="admin-button admin-button--ghost" @click="isExceptionDialogOpen = false">Cancel</el-button>
+        <el-button type="primary" class="admin-button admin-button--primary" :loading="isSavingException" @click="handleSaveException">
           Save Override
         </el-button>
+        </div>
       </template>
     </el-dialog>
 
@@ -668,7 +690,7 @@ onMounted(async () => {
         class="operations-alert"
       />
 
-      <el-form :model="weeklyForm" label-position="top">
+      <el-form :model="weeklyForm" label-position="top" class="admin-form">
         <el-form-item label="Default status">
           <el-radio-group v-model="weeklyForm.isOpen" class="exception-mode-group">
             <el-radio-button :value="true">Open</el-radio-button>
@@ -706,10 +728,12 @@ onMounted(async () => {
       </el-form>
 
       <template #footer>
-        <el-button @click="isWeeklyDialogOpen = false">Cancel</el-button>
-        <el-button type="primary" :loading="isSavingWeeklyAvailability" @click="handleSaveWeeklyTemplate">
+        <div class="admin-dialog-actions">
+        <el-button class="admin-button admin-button--ghost" @click="isWeeklyDialogOpen = false">Cancel</el-button>
+        <el-button type="primary" class="admin-button admin-button--primary" :loading="isSavingWeeklyAvailability" @click="handleSaveWeeklyTemplate">
           Save Weekly Default
         </el-button>
+        </div>
       </template>
     </el-dialog>
   </section>
@@ -918,15 +942,6 @@ onMounted(async () => {
 .exception-mode-group {
   display: flex;
   flex-wrap: wrap;
-}
-
-.operations-page :deep(.el-button--primary) {
-  --el-button-bg-color: #3f725d;
-  --el-button-border-color: #3f725d;
-  --el-button-hover-bg-color: #355f4d;
-  --el-button-hover-border-color: #355f4d;
-  --el-button-active-bg-color: #2c5141;
-  --el-button-active-border-color: #2c5141;
 }
 
 @media (max-width: 860px) {
