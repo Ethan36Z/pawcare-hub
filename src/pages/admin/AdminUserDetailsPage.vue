@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
 import { usersApi } from '@/api/users'
 
@@ -8,6 +9,9 @@ const router = useRouter()
 
 const user = ref(null)
 const isLoading = ref(false)
+const isUpdatingAccountStatus = ref(false)
+const isDeactivateDialogOpen = ref(false)
+const isReactivateDialogOpen = ref(false)
 const errorMessage = ref('')
 
 function getApiErrorMessage(error, fallbackMessage) {
@@ -81,6 +85,16 @@ const profileItems = computed(() => {
   ]
 })
 
+const accountStatusExplanation = computed(() => {
+  if (!user.value) {
+    return ''
+  }
+
+  return user.value.active
+    ? 'This user can sign in and access their account.'
+    : 'This user cannot sign in or access protected account features. Historical records remain available.'
+})
+
 async function loadUserDetails() {
   isLoading.value = true
   errorMessage.value = ''
@@ -93,6 +107,58 @@ async function loadUserDetails() {
     user.value = null
   } finally {
     isLoading.value = false
+  }
+}
+
+function openDeactivateDialog() {
+  errorMessage.value = ''
+  isDeactivateDialogOpen.value = true
+}
+
+function openReactivateDialog() {
+  errorMessage.value = ''
+  isReactivateDialogOpen.value = true
+}
+
+async function handleDeactivateAccount() {
+  if (!user.value || isUpdatingAccountStatus.value) {
+    return
+  }
+
+  isUpdatingAccountStatus.value = true
+  errorMessage.value = ''
+
+  try {
+    const { data } = await usersApi.deactivate(user.value.id)
+    user.value = data
+    isDeactivateDialogOpen.value = false
+    ElMessage.success('Account deactivated.')
+    await loadUserDetails()
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, 'Unable to deactivate this account right now.')
+  } finally {
+    isUpdatingAccountStatus.value = false
+  }
+}
+
+async function handleReactivateAccount() {
+  if (!user.value || isUpdatingAccountStatus.value) {
+    return
+  }
+
+  isUpdatingAccountStatus.value = true
+  errorMessage.value = ''
+
+  try {
+    const { data } = await usersApi.reactivate(user.value.id)
+    user.value = data
+    isReactivateDialogOpen.value = false
+    ElMessage.success('Account reactivated.')
+    await loadUserDetails()
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, 'Unable to reactivate this account right now.')
+  } finally {
+    isUpdatingAccountStatus.value = false
   }
 }
 
@@ -153,7 +219,7 @@ onMounted(() => {
           </el-tag>
         </div>
         <p v-if="!user.active" class="hero-status-message">
-          This user has deactivated their account and can no longer sign in.
+          This user cannot sign in or access protected account features.
         </p>
       </section>
 
@@ -187,6 +253,42 @@ onMounted(() => {
             </div>
           </dl>
         </article>
+      </section>
+
+      <section class="details-card account-access-card">
+        <div class="section-header section-header--split">
+          <div>
+            <h3>Account access</h3>
+            <p>{{ accountStatusExplanation }}</p>
+          </div>
+          <el-tag
+            :type="getAccountStatusTagType(user.active)"
+            effect="plain"
+            :class="getAccountStatusBadgeClass(user.active)"
+          >
+            {{ user.active ? 'Active' : 'Deactivated' }}
+          </el-tag>
+        </div>
+
+        <div class="account-access-card__actions">
+          <el-button
+            v-if="user.active"
+            class="admin-button admin-button--danger"
+            :loading="isUpdatingAccountStatus"
+            @click="openDeactivateDialog"
+          >
+            Deactivate account
+          </el-button>
+          <el-button
+            v-else
+            type="primary"
+            class="admin-button admin-button--primary"
+            :loading="isUpdatingAccountStatus"
+            @click="openReactivateDialog"
+          >
+            Reactivate account
+          </el-button>
+        </div>
       </section>
 
       <section class="details-card">
@@ -250,6 +352,66 @@ onMounted(() => {
           <el-table-column prop="clinic" label="Clinic" min-width="180" />
         </el-table>
       </section>
+
+      <el-dialog
+        v-model="isDeactivateDialogOpen"
+        title="Deactivate account"
+        width="520px"
+        :close-on-click-modal="!isUpdatingAccountStatus"
+        :close-on-press-escape="!isUpdatingAccountStatus"
+      >
+        <div v-if="user" class="account-status-dialog">
+          <p>
+            Deactivate access for <strong>{{ user.name }}</strong> at <strong>{{ user.email }}</strong>?
+          </p>
+          <ul>
+            <li>This user will no longer be able to sign in.</li>
+            <li>Pets, bookings, and historical records will not be deleted.</li>
+            <li>This action can be reversed later.</li>
+          </ul>
+        </div>
+        <template #footer>
+          <el-button :disabled="isUpdatingAccountStatus" @click="isDeactivateDialogOpen = false">
+            Cancel
+          </el-button>
+          <el-button
+            type="danger"
+            class="admin-button admin-button--danger"
+            :loading="isUpdatingAccountStatus"
+            @click="handleDeactivateAccount"
+          >
+            Deactivate account
+          </el-button>
+        </template>
+      </el-dialog>
+
+      <el-dialog
+        v-model="isReactivateDialogOpen"
+        title="Reactivate account"
+        width="480px"
+        :close-on-click-modal="!isUpdatingAccountStatus"
+        :close-on-press-escape="!isUpdatingAccountStatus"
+      >
+        <div v-if="user" class="account-status-dialog">
+          <p>
+            Reactivate access for <strong>{{ user.name }}</strong> at <strong>{{ user.email }}</strong>?
+          </p>
+          <p>They will be able to sign in and use protected account features again.</p>
+        </div>
+        <template #footer>
+          <el-button :disabled="isUpdatingAccountStatus" @click="isReactivateDialogOpen = false">
+            Cancel
+          </el-button>
+          <el-button
+            type="primary"
+            class="admin-button admin-button--primary"
+            :loading="isUpdatingAccountStatus"
+            @click="handleReactivateAccount"
+          >
+            Reactivate account
+          </el-button>
+        </template>
+      </el-dialog>
     </div>
   </section>
 </template>
@@ -394,6 +556,13 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
+.section-header--split {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .section-header h3,
 .section-header p {
   margin: 0;
@@ -403,9 +572,43 @@ onMounted(() => {
   margin-bottom: 6px;
 }
 
+.account-access-card {
+  display: grid;
+  gap: 18px;
+}
+
+.account-access-card__actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.account-status-dialog {
+  display: grid;
+  gap: 12px;
+  color: var(--pc-text);
+  line-height: 1.55;
+}
+
+.account-status-dialog p,
+.account-status-dialog ul {
+  margin: 0;
+}
+
+.account-status-dialog ul {
+  padding-left: 20px;
+}
+
+.account-status-dialog li + li {
+  margin-top: 8px;
+}
+
 @media (max-width: 900px) {
   .details-grid {
     grid-template-columns: 1fr;
+  }
+
+  .section-header--split {
+    display: grid;
   }
 }
 </style>

@@ -54,6 +54,46 @@ public class AdminUserService {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
+        return toUserDetailResponse(user);
+    }
+
+    @Transactional
+    public AdminUserDetailResponse deactivateUser(Long userId, User currentAdmin) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (currentAdmin != null && user.getId().equals(currentAdmin.getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Admins cannot deactivate their own account");
+        }
+
+        if (user.isActive()
+            && UserRoles.ADMIN.equals(UserRoles.normalize(user.getRole()))
+            && userRepository.countByRoleIgnoreCaseAndActiveTrue(UserRoles.ADMIN) <= 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot deactivate the final active admin account");
+        }
+
+        if (user.isActive()) {
+            user.setActive(false);
+            user = userRepository.save(user);
+        }
+
+        return toUserDetailResponse(user);
+    }
+
+    @Transactional
+    public AdminUserDetailResponse reactivateUser(Long userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (!user.isActive()) {
+            user.setActive(true);
+            user = userRepository.save(user);
+        }
+
+        return toUserDetailResponse(user);
+    }
+
+    private AdminUserDetailResponse toUserDetailResponse(User user) {
         List<Pet> pets = petRepository.findByOwnerEmailOrderByIdAsc(user.getEmail());
         List<Booking> bookings = bookingRepository.findByOwnerEmailOrderByIdAsc(user.getEmail());
 

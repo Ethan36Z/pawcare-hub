@@ -7,4 +7,10 @@ export const usersApi = {
   getById(id) {
     return http.get(`/admin/users/${id}`)
   },
+  deactivate(id) {
+    return http.patch(`/admin/users/${id}/deactivate`)
+  },
+  reactivate(id) {
+    return http.patch(`/admin/users/${id}/reactivate`)
+  },
 }
