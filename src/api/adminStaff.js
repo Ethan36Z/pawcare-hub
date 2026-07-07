@@ -25,6 +25,9 @@ export const adminStaffApi = {
   updateAvailability(staffId, availabilityId, payload) {
     return http.patch(`/admin/staff/${staffId}/availability/${availabilityId}`, payload)
   },
+  resolveAvailabilityConflicts(staffId, availabilityId, payload) {
+    return http.post(`/admin/staff/${staffId}/availability/${availabilityId}/resolve-conflicts`, payload)
+  },
   toggleAvailability(staffId, availabilityId) {
     return http.patch(`/admin/staff/${staffId}/availability/${availabilityId}/toggle`)
   },

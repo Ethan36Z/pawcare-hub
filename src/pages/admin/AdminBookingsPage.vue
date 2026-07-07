@@ -1,10 +1,13 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { adminBookingsApi } from '@/api/adminBookings'
+import { adminStaffApi } from '@/api/adminStaff'
 import BookingDetailsDrawer from '@/components/admin/BookingDetailsDrawer.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useRoute } from 'vue-router'
 
 const bookings = ref([])
+const staffOptions = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 const confirmingBookingId = ref(null)
@@ -16,6 +19,8 @@ const outcomeErrorMessage = ref('')
 const selectedOutcomeBooking = ref(null)
 const isDetailsDrawerOpen = ref(false)
 const selectedDetailsBooking = ref(null)
+const isSavingDetailsSchedule = ref(false)
+const detailsScheduleErrorMessage = ref('')
 const openActionMenuId = ref(null)
 const openActionMenuBooking = ref(null)
 const actionMenuStyle = ref({})
@@ -34,6 +39,8 @@ const filters = ref({
 const currentPage = ref(1)
 const pageSize = ref(10)
 const authStore = useAuthStore()
+const route = useRoute()
+const didAttemptQueryAutoOpen = ref(false)
 const canManageBookingQueue = computed(() => authStore.isAdmin || authStore.isFrontDesk)
 const canCompleteVisits = computed(() => authStore.isAdmin || authStore.isDoctor)
 const paginatedBookings = computed(() => {
@@ -72,7 +79,7 @@ const activeActionMenuItems = computed(() => {
 })
 
 function getApiErrorMessage(error, fallbackMessage) {
-  return error?.response?.data?.message || fallbackMessage
+  return error?.response?.data?.message || error?.response?.data?.detail || fallbackMessage
 }
 
 function getStatusTagType(status) {
@@ -232,11 +239,28 @@ function resetOutcomeForm() {
 function openDetailsDrawer(booking) {
   closeActionMenu()
   selectedDetailsBooking.value = booking
+  detailsScheduleErrorMessage.value = ''
   isDetailsDrawerOpen.value = true
 }
 
 function resetDetailsDrawer() {
   selectedDetailsBooking.value = null
+  detailsScheduleErrorMessage.value = ''
+}
+
+function replaceBooking(updatedBooking) {
+  if (!updatedBooking?.id) {
+    return
+  }
+
+  const bookingIndex = bookings.value.findIndex((booking) => booking.id === updatedBooking.id)
+  if (bookingIndex !== -1) {
+    bookings.value.splice(bookingIndex, 1, updatedBooking)
+  }
+
+  if (selectedDetailsBooking.value?.id === updatedBooking.id) {
+    selectedDetailsBooking.value = updatedBooking
+  }
 }
 
 async function loadBookings() {
@@ -253,11 +277,72 @@ async function loadBookings() {
     })
     bookings.value = data
     currentPage.value = 1
+    await openBookingFromQuery()
   } catch (error) {
     errorMessage.value = getApiErrorMessage(error, 'Unable to load admin bookings right now.')
     bookings.value = []
   } finally {
     isLoading.value = false
+  }
+}
+
+async function loadStaffOptions() {
+  try {
+    const { data } = await adminStaffApi.listForOperations()
+    staffOptions.value = data
+  } catch (error) {
+    staffOptions.value = []
+  }
+}
+
+async function openBookingFromQuery() {
+  const bookingId = Number(route.query.bookingId)
+  if (!bookingId || didAttemptQueryAutoOpen.value || isDetailsDrawerOpen.value) {
+    return
+  }
+
+  didAttemptQueryAutoOpen.value = true
+  let booking = bookings.value.find((item) => item.id === bookingId)
+
+  if (!booking) {
+    const { data } = await adminBookingsApi.list({
+      sort: filters.value.sort,
+      owner: filters.value.owner || undefined,
+    })
+    booking = data.find((item) => item.id === bookingId)
+  }
+
+  if (!booking) {
+    const { data } = await adminBookingsApi.list({ sort: filters.value.sort })
+    booking = data.find((item) => item.id === bookingId)
+  }
+
+  if (booking) {
+    openDetailsDrawer(booking)
+    return
+  }
+
+  errorMessage.value = `Booking #${bookingId} could not be found.`
+}
+
+async function handleSaveDetailsSchedule(payload) {
+  if (!selectedDetailsBooking.value?.id || isSavingDetailsSchedule.value) {
+    return
+  }
+
+  isSavingDetailsSchedule.value = true
+  detailsScheduleErrorMessage.value = ''
+
+  try {
+    const { data } = await adminBookingsApi.updateSchedule(selectedDetailsBooking.value.id, payload)
+    replaceBooking(data)
+    await loadBookings()
+    const refreshedBooking = bookings.value.find((booking) => booking.id === data.id) || data
+    selectedDetailsBooking.value = refreshedBooking
+  } catch (error) {
+    detailsScheduleErrorMessage.value = getApiErrorMessage(error, 'Unable to update this appointment schedule.')
+  } finally {
+    isSavingDetailsSchedule.value = false
   }
 }
 
@@ -355,6 +440,7 @@ onMounted(() => {
   document.addEventListener('keydown', handleActionMenuKeydown)
   window.addEventListener('resize', handleViewportChange)
   window.addEventListener('scroll', handleViewportChange, true)
+  loadStaffOptions()
   loadBookings()
 })
 
@@ -596,7 +682,11 @@ onBeforeUnmount(() => {
     <BookingDetailsDrawer
       v-model="isDetailsDrawerOpen"
       :booking="selectedDetailsBooking"
+      :staff-options="staffOptions"
+      :is-saving="isSavingDetailsSchedule"
+      :save-error="detailsScheduleErrorMessage"
       @closed="resetDetailsDrawer"
+      @save-schedule="handleSaveDetailsSchedule"
     />
 
     <Teleport to="body">

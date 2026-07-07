@@ -1,6 +1,7 @@
 package com.pawcarehub.backend.controller;
 
 import com.pawcarehub.backend.dto.admin.UpsertStaffScheduleExceptionRequest;
+import com.pawcarehub.backend.dto.scheduling.ResolveScheduleExceptionConflictRequest;
 import com.pawcarehub.backend.dto.staffavailability.StaffScheduleExceptionResponse;
 import com.pawcarehub.backend.service.RoleAccessService;
 import com.pawcarehub.backend.service.StaffScheduleExceptionService;
@@ -48,6 +49,19 @@ public class AdminStaffScheduleExceptionController {
         return staffScheduleExceptionService.createScheduleException(staffId, request);
     }
 
+    @PostMapping("/resolve-conflicts")
+    public StaffScheduleExceptionResponse resolveCreateScheduleExceptionConflicts(
+        @PathVariable Long staffId,
+        @RequestBody ResolveScheduleExceptionConflictRequest request
+    ) {
+        roleAccessService.requireAnyRole(UserRoles.ADMIN, UserRoles.FRONT_DESK);
+        return staffScheduleExceptionService.resolveAndCreateScheduleException(
+            staffId,
+            request.scheduleChange(),
+            request.reassignments()
+        );
+    }
+
     @PatchMapping("/{exceptionId}")
     public StaffScheduleExceptionResponse updateScheduleException(
         @PathVariable Long staffId,
@@ -56,6 +70,21 @@ public class AdminStaffScheduleExceptionController {
     ) {
         roleAccessService.requireAnyRole(UserRoles.ADMIN, UserRoles.FRONT_DESK);
         return staffScheduleExceptionService.updateScheduleException(staffId, exceptionId, request);
+    }
+
+    @PostMapping("/{exceptionId}/resolve-conflicts")
+    public StaffScheduleExceptionResponse resolveUpdateScheduleExceptionConflicts(
+        @PathVariable Long staffId,
+        @PathVariable Long exceptionId,
+        @RequestBody ResolveScheduleExceptionConflictRequest request
+    ) {
+        roleAccessService.requireAnyRole(UserRoles.ADMIN, UserRoles.FRONT_DESK);
+        return staffScheduleExceptionService.resolveAndUpdateScheduleException(
+            staffId,
+            exceptionId,
+            request.scheduleChange(),
+            request.reassignments()
+        );
     }
 
     @DeleteMapping("/{exceptionId}")

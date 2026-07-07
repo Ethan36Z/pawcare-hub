@@ -1,6 +1,7 @@
 package com.pawcarehub.backend.service;
 
 import com.pawcarehub.backend.dto.admin.UpsertStaffScheduleExceptionRequest;
+import com.pawcarehub.backend.dto.scheduling.BookingReassignmentRequest;
 import com.pawcarehub.backend.dto.staffavailability.StaffScheduleExceptionResponse;
 import com.pawcarehub.backend.entity.Staff;
 import com.pawcarehub.backend.entity.StaffScheduleException;
@@ -21,13 +22,16 @@ public class StaffScheduleExceptionService {
 
     private final StaffRepository staffRepository;
     private final StaffScheduleExceptionRepository staffScheduleExceptionRepository;
+    private final SchedulingConflictService schedulingConflictService;
 
     public StaffScheduleExceptionService(
         StaffRepository staffRepository,
-        StaffScheduleExceptionRepository staffScheduleExceptionRepository
+        StaffScheduleExceptionRepository staffScheduleExceptionRepository,
+        SchedulingConflictService schedulingConflictService
     ) {
         this.staffRepository = staffRepository;
         this.staffScheduleExceptionRepository = staffScheduleExceptionRepository;
+        this.schedulingConflictService = schedulingConflictService;
     }
 
     @Transactional(readOnly = true)
@@ -57,6 +61,7 @@ public class StaffScheduleExceptionService {
         }
 
         ScheduleExceptionValues values = validateAndNormalize(request);
+        schedulingConflictService.assertNoScheduleExceptionConflicts(staffId, request);
         StaffScheduleException savedException = staffScheduleExceptionRepository.save(new StaffScheduleException(
             staff,
             date,
@@ -82,6 +87,7 @@ public class StaffScheduleExceptionService {
         }
 
         ScheduleExceptionValues values = validateAndNormalize(request);
+        schedulingConflictService.assertNoScheduleExceptionConflicts(staffId, request);
         scheduleException.setDate(date);
         scheduleException.setAvailable(values.available());
         scheduleException.setCustomStartTime(values.customStartTime());
@@ -92,7 +98,59 @@ public class StaffScheduleExceptionService {
 
     @Transactional
     public void deleteScheduleException(Long staffId, Long exceptionId) {
-        staffScheduleExceptionRepository.delete(getScheduleException(staffId, exceptionId));
+        StaffScheduleException scheduleException = getScheduleException(staffId, exceptionId);
+        schedulingConflictService.assertNoScheduleExceptionDeleteConflicts(staffId, scheduleException);
+        staffScheduleExceptionRepository.delete(scheduleException);
+    }
+
+    @Transactional
+    public StaffScheduleExceptionResponse resolveAndCreateScheduleException(
+        Long staffId,
+        UpsertStaffScheduleExceptionRequest request,
+        List<BookingReassignmentRequest> reassignments
+    ) {
+        Staff staff = getStaff(staffId);
+        LocalDate date = parseRequiredDate(request.date());
+
+        if (staffScheduleExceptionRepository.existsByStaffIdAndDate(staffId, date)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A schedule exception already exists for this staff member and date");
+        }
+
+        ScheduleExceptionValues values = validateAndNormalize(request);
+        schedulingConflictService.reassignAndValidateScheduleException(staffId, request, reassignments);
+        StaffScheduleException savedException = staffScheduleExceptionRepository.save(new StaffScheduleException(
+            staff,
+            date,
+            values.available(),
+            values.customStartTime(),
+            values.customEndTime()
+        ));
+
+        return toResponse(savedException);
+    }
+
+    @Transactional
+    public StaffScheduleExceptionResponse resolveAndUpdateScheduleException(
+        Long staffId,
+        Long exceptionId,
+        UpsertStaffScheduleExceptionRequest request,
+        List<BookingReassignmentRequest> reassignments
+    ) {
+        StaffScheduleException scheduleException = getScheduleException(staffId, exceptionId);
+        LocalDate date = parseRequiredDate(request.date());
+
+        if (staffScheduleExceptionRepository.existsByStaffIdAndDateAndIdNot(staffId, date, exceptionId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "A schedule exception already exists for this staff member and date");
+        }
+
+        ScheduleExceptionValues values = validateAndNormalize(request);
+        schedulingConflictService.reassignAndValidateScheduleException(staffId, request, reassignments);
+        scheduleException.setDate(date);
+        scheduleException.setAvailable(values.available());
+        scheduleException.setCustomStartTime(values.customStartTime());
+        scheduleException.setCustomEndTime(values.customEndTime());
+
+        return toResponse(staffScheduleExceptionRepository.save(scheduleException));
     }
 
     private ScheduleExceptionValues validateAndNormalize(UpsertStaffScheduleExceptionRequest request) {

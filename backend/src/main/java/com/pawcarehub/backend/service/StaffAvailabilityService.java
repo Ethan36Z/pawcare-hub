@@ -1,6 +1,7 @@
 package com.pawcarehub.backend.service;
 
 import com.pawcarehub.backend.dto.admin.UpsertStaffAvailabilityRequest;
+import com.pawcarehub.backend.dto.scheduling.BookingReassignmentRequest;
 import com.pawcarehub.backend.dto.staffavailability.ResolvedStaffAvailabilityResponse;
 import com.pawcarehub.backend.dto.staffavailability.StaffAvailabilityResponse;
 import com.pawcarehub.backend.entity.Staff;
@@ -25,15 +26,18 @@ public class StaffAvailabilityService {
     private final StaffRepository staffRepository;
     private final StaffAvailabilityRepository staffAvailabilityRepository;
     private final StaffScheduleExceptionService staffScheduleExceptionService;
+    private final SchedulingConflictService schedulingConflictService;
 
     public StaffAvailabilityService(
         StaffRepository staffRepository,
         StaffAvailabilityRepository staffAvailabilityRepository,
-        StaffScheduleExceptionService staffScheduleExceptionService
+        StaffScheduleExceptionService staffScheduleExceptionService,
+        SchedulingConflictService schedulingConflictService
     ) {
         this.staffRepository = staffRepository;
         this.staffAvailabilityRepository = staffAvailabilityRepository;
         this.staffScheduleExceptionService = staffScheduleExceptionService;
+        this.schedulingConflictService = schedulingConflictService;
     }
 
     @Transactional(readOnly = true)
@@ -135,6 +139,7 @@ public class StaffAvailabilityService {
 
         validateTimeRange(startTime, endTime);
         validateOverlaps(staffId, availabilityId, dayOfWeek, startTime, endTime);
+        schedulingConflictService.assertNoAvailabilityUpdateConflicts(staffId, availabilityId, request);
 
         availability.setDayOfWeek(dayOfWeek);
         availability.setStartTime(startTime);
@@ -147,6 +152,7 @@ public class StaffAvailabilityService {
     @Transactional
     public StaffAvailabilityResponse toggleAvailability(Long staffId, Long availabilityId) {
         StaffAvailability availability = getAvailability(staffId, availabilityId);
+        schedulingConflictService.assertNoAvailabilityToggleConflicts(staffId, availability);
         availability.setActive(!availability.isActive());
         return toResponse(staffAvailabilityRepository.save(availability));
     }
@@ -154,7 +160,32 @@ public class StaffAvailabilityService {
     @Transactional
     public void deleteAvailability(Long staffId, Long availabilityId) {
         StaffAvailability availability = getAvailability(staffId, availabilityId);
+        schedulingConflictService.assertNoAvailabilityDeleteConflicts(staffId, availabilityId);
         staffAvailabilityRepository.delete(availability);
+    }
+
+    @Transactional
+    public StaffAvailabilityResponse resolveAndUpdateAvailability(
+        Long staffId,
+        Long availabilityId,
+        UpsertStaffAvailabilityRequest request,
+        List<BookingReassignmentRequest> reassignments
+    ) {
+        StaffAvailability availability = getAvailability(staffId, availabilityId);
+        DayOfWeek dayOfWeek = parseDayOfWeek(request.dayOfWeek());
+        LocalTime startTime = parseRequiredTime(request.startTime(), "startTime");
+        LocalTime endTime = parseRequiredTime(request.endTime(), "endTime");
+
+        validateTimeRange(startTime, endTime);
+        validateOverlaps(staffId, availabilityId, dayOfWeek, startTime, endTime);
+        schedulingConflictService.reassignAndValidateAvailabilityUpdate(staffId, availabilityId, request, reassignments);
+
+        availability.setDayOfWeek(dayOfWeek);
+        availability.setStartTime(startTime);
+        availability.setEndTime(endTime);
+        availability.setActive(request.active() == null || request.active());
+
+        return toResponse(staffAvailabilityRepository.save(availability));
     }
 
     private Staff getStaff(Long staffId) {

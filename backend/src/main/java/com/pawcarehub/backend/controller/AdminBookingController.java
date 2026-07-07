@@ -2,6 +2,7 @@ package com.pawcarehub.backend.controller;
 
 import com.pawcarehub.backend.dto.admin.AdminBookingResponse;
 import com.pawcarehub.backend.dto.admin.CompleteBookingRequest;
+import com.pawcarehub.backend.dto.admin.UpdateAdminBookingScheduleRequest;
 import com.pawcarehub.backend.service.RoleAccessService;
 import com.pawcarehub.backend.service.UserRoles;
 import com.pawcarehub.backend.service.AdminBookingService;
@@ -50,6 +51,15 @@ public class AdminBookingController {
     public AdminBookingResponse cancelBooking(@PathVariable Long id) {
         roleAccessService.requireAnyRole(UserRoles.ADMIN, UserRoles.FRONT_DESK);
         return adminBookingService.cancelBooking(id);
+    }
+
+    @PatchMapping("/{id}/schedule")
+    public AdminBookingResponse updateBookingSchedule(
+        @PathVariable Long id,
+        @RequestBody UpdateAdminBookingScheduleRequest request
+    ) {
+        roleAccessService.requireAnyRole(UserRoles.ADMIN, UserRoles.FRONT_DESK);
+        return adminBookingService.updateBookingSchedule(id, request);
     }
 
     @PatchMapping("/{id}/complete")

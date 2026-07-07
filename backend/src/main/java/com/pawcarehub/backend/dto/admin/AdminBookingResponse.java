@@ -5,11 +5,13 @@ public class AdminBookingResponse {
     private final Long id;
     private final String petName;
     private final String service;
+    private final Long serviceId;
     private final String date;
     private final String time;
     private final String status;
     private final String clinic;
     private final String staff;
+    private final Long staffId;
     private final Long ownerId;
     private final String ownerName;
     private final String ownerEmail;
@@ -23,11 +25,13 @@ public class AdminBookingResponse {
         Long id,
         String petName,
         String service,
+        Long serviceId,
         String date,
         String time,
         String status,
         String clinic,
         String staff,
+        Long staffId,
         Long ownerId,
         String ownerName,
         String ownerEmail,
@@ -40,11 +44,13 @@ public class AdminBookingResponse {
         this.id = id;
         this.petName = petName;
         this.service = service;
+        this.serviceId = serviceId;
         this.date = date;
         this.time = time;
         this.status = status;
         this.clinic = clinic;
         this.staff = staff;
+        this.staffId = staffId;
         this.ownerId = ownerId;
         this.ownerName = ownerName;
         this.ownerEmail = ownerEmail;
@@ -67,6 +73,10 @@ public class AdminBookingResponse {
         return service;
     }
 
+    public Long getServiceId() {
+        return serviceId;
+    }
+
     public String getDate() {
         return date;
     }
@@ -85,6 +95,10 @@ public class AdminBookingResponse {
 
     public String getStaff() {
         return staff;
+    }
+
+    public Long getStaffId() {
+        return staffId;
     }
 
     public Long getOwnerId() {

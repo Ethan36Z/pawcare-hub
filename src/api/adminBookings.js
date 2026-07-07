@@ -13,4 +13,7 @@ export const adminBookingsApi = {
   complete(id, payload) {
     return http.patch(`/admin/bookings/${id}/complete`, payload)
   },
+  updateSchedule(id, payload) {
+    return http.patch(`/admin/bookings/${id}/schedule`, payload)
+  },
 }

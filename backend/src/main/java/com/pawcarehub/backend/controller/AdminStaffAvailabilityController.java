@@ -1,6 +1,7 @@
 package com.pawcarehub.backend.controller;
 
 import com.pawcarehub.backend.dto.admin.UpsertStaffAvailabilityRequest;
+import com.pawcarehub.backend.dto.scheduling.ResolveAvailabilityConflictRequest;
 import com.pawcarehub.backend.dto.staffavailability.StaffAvailabilityResponse;
 import com.pawcarehub.backend.service.RoleAccessService;
 import com.pawcarehub.backend.service.StaffAvailabilityService;
@@ -54,6 +55,21 @@ public class AdminStaffAvailabilityController {
     ) {
         roleAccessService.requireAnyRole(UserRoles.ADMIN, UserRoles.FRONT_DESK);
         return staffAvailabilityService.updateAvailability(staffId, availabilityId, request);
+    }
+
+    @PostMapping("/{availabilityId}/resolve-conflicts")
+    public StaffAvailabilityResponse resolveAvailabilityConflicts(
+        @PathVariable Long staffId,
+        @PathVariable Long availabilityId,
+        @RequestBody ResolveAvailabilityConflictRequest request
+    ) {
+        roleAccessService.requireAnyRole(UserRoles.ADMIN, UserRoles.FRONT_DESK);
+        return staffAvailabilityService.resolveAndUpdateAvailability(
+            staffId,
+            availabilityId,
+            request.scheduleChange(),
+            request.reassignments()
+        );
     }
 
     @PatchMapping("/{availabilityId}/toggle")

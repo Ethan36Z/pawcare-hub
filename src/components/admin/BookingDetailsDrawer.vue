@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -10,14 +10,34 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  staffOptions: {
+    type: Array,
+    default: () => [],
+  },
+  isSaving: {
+    type: Boolean,
+    default: false,
+  },
+  saveError: {
+    type: String,
+    default: '',
+  },
 })
 
-const emit = defineEmits(['update:modelValue', 'closed'])
+const emit = defineEmits(['update:modelValue', 'closed', 'save-schedule'])
+
+const scheduleForm = ref({
+  staffId: null,
+  date: '',
+  time: '',
+})
 
 const isOpen = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value),
 })
+
+const originalSchedule = computed(() => buildScheduleSnapshot(props.booking))
 
 const bookingTitleId = computed(() => {
   const id = normalizeDisplayValue(props.booking?.id, 'selected')
@@ -26,10 +46,7 @@ const bookingTitleId = computed(() => {
 
 const appointmentFields = computed(() => [
   { label: 'Service', value: props.booking?.service },
-  { label: 'Date', value: props.booking?.date },
-  { label: 'Time', value: props.booking?.time },
   { label: 'Clinic', value: props.booking?.clinic },
-  { label: 'Assigned staff', value: props.booking?.staff },
 ])
 
 const clientFields = computed(() => [
@@ -50,16 +67,164 @@ const isCompletedBooking = computed(() => {
   return String(props.booking?.status || '').trim().toLowerCase() === 'completed'
 })
 
+const isEditableBooking = computed(() => {
+  const status = String(props.booking?.status || '').trim().toLowerCase()
+  return status === 'upcoming' || status === 'confirmed'
+})
+
 const hasOutcomeContent = computed(() => {
   return outcomeFields.value.some((field) => hasDisplayValue(field.value))
 })
 
-function closeDrawer() {
+const hasUnsavedChanges = computed(() => {
+  const original = originalSchedule.value
+  return String(scheduleForm.value.staffId || '') !== String(original.staffId || '')
+    || scheduleForm.value.date !== original.date
+    || scheduleForm.value.time !== original.time
+})
+
+watch(
+  () => props.booking,
+  () => resetScheduleForm(),
+  { immediate: true },
+)
+
+watch(
+  () => props.staffOptions,
+  () => {
+    if (props.booking && !props.booking.staffId && !scheduleForm.value.staffId) {
+      resetScheduleForm()
+    }
+  },
+  { deep: true },
+)
+
+function requestClose() {
+  if (!confirmDiscardIfNeeded()) {
+    return
+  }
+
   isOpen.value = false
+}
+
+function handleBeforeClose(done) {
+  if (!confirmDiscardIfNeeded()) {
+    return
+  }
+
+  done()
 }
 
 function handleClosed() {
   emit('closed')
+}
+
+function resetScheduleForm() {
+  scheduleForm.value = { ...originalSchedule.value }
+}
+
+function handleDiscardChanges() {
+  resetScheduleForm()
+}
+
+function handleSaveSchedule() {
+  if (!isEditableBooking.value || !hasUnsavedChanges.value || props.isSaving) {
+    return
+  }
+
+  if (!scheduleForm.value.staffId || !scheduleForm.value.date || !scheduleForm.value.time) {
+    return
+  }
+
+  if (String(props.booking?.status || '').trim().toLowerCase() === 'confirmed') {
+    const shouldContinue = window.confirm(
+      'This appointment has already been confirmed. Save the schedule change only if the customer has been or will be contacted.',
+    )
+
+    if (!shouldContinue) {
+      return
+    }
+  }
+
+  emit('save-schedule', {
+    staffId: Number(scheduleForm.value.staffId),
+    date: scheduleForm.value.date,
+    time: scheduleForm.value.time,
+  })
+}
+
+function confirmDiscardIfNeeded() {
+  if (!hasUnsavedChanges.value) {
+    return true
+  }
+
+  return window.confirm('Discard unsaved appointment changes?')
+}
+
+function buildScheduleSnapshot(booking) {
+  if (!booking) {
+    return {
+      staffId: null,
+      date: '',
+      time: '',
+    }
+  }
+
+  return {
+    staffId: booking.staffId || resolveStaffIdFromName(booking.staff),
+    date: toDateInputValue(booking.date),
+    time: toTimeInputValue(booking.time),
+  }
+}
+
+function resolveStaffIdFromName(name) {
+  if (!hasDisplayValue(name)) {
+    return null
+  }
+
+  const normalizedName = String(name).trim().toLowerCase()
+  return props.staffOptions.find((staff) => String(staff.name || '').trim().toLowerCase() === normalizedName)?.id || null
+}
+
+function toDateInputValue(value) {
+  if (!hasDisplayValue(value)) {
+    return ''
+  }
+
+  const parsedDate = new Date(`${String(value).trim()} 00:00:00`)
+  if (Number.isNaN(parsedDate.getTime())) {
+    return ''
+  }
+
+  const year = parsedDate.getFullYear()
+  const month = String(parsedDate.getMonth() + 1).padStart(2, '0')
+  const day = String(parsedDate.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function toTimeInputValue(value) {
+  if (!hasDisplayValue(value)) {
+    return ''
+  }
+
+  const match = String(value).trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+  if (!match) {
+    return String(value).trim()
+  }
+
+  let hours = Number(match[1])
+  const minutes = match[2]
+  const period = match[3].toUpperCase()
+
+  if (period === 'PM' && hours !== 12) {
+    hours += 12
+  }
+
+  if (period === 'AM' && hours === 12) {
+    hours = 0
+  }
+
+  return `${String(hours).padStart(2, '0')}:${minutes}`
 }
 
 function hasDisplayValue(value) {
@@ -127,6 +292,7 @@ function getStatusBadgeClass(status) {
     :append-to-body="true"
     :close-on-click-modal="true"
     :close-on-press-escape="true"
+    :before-close="handleBeforeClose"
     custom-class="booking-details-drawer-shell"
     @closed="handleClosed"
   >
@@ -155,7 +321,7 @@ function getStatusBadgeClass(status) {
           native-type="button"
           aria-label="Close booking details"
           class="booking-details-drawer__close"
-          @click="closeDrawer"
+          @click="requestClose"
         >
           <span aria-hidden="true">&times;</span>
         </el-button>
@@ -169,6 +335,73 @@ function getStatusBadgeClass(status) {
               <dt>{{ field.label }}</dt>
               <dd>{{ normalizeDisplayValue(field.value) }}</dd>
             </div>
+            <template v-if="isEditableBooking">
+              <div class="booking-details-grid__field">
+                <dt>Assigned staff</dt>
+                <dd>
+                  <el-select
+                    v-model="scheduleForm.staffId"
+                    placeholder="Select staff"
+                    class="booking-details-control"
+                    filterable
+                    :disabled="isSaving"
+                  >
+                    <el-option
+                      v-for="staff in staffOptions"
+                      :key="staff.id"
+                      :label="staff.name"
+                      :value="staff.id"
+                      :disabled="staff.active === false"
+                    >
+                      <span>{{ staff.name }}</span>
+                      <span v-if="staff.role" class="booking-details-option-meta">{{ staff.role }}</span>
+                    </el-option>
+                  </el-select>
+                </dd>
+              </div>
+              <div class="booking-details-grid__field">
+                <dt>Date</dt>
+                <dd>
+                  <el-date-picker
+                    v-model="scheduleForm.date"
+                    type="date"
+                    value-format="YYYY-MM-DD"
+                    format="MMM D, YYYY"
+                    placeholder="Select date"
+                    class="booking-details-control"
+                    :disabled="isSaving"
+                  />
+                </dd>
+              </div>
+              <div class="booking-details-grid__field">
+                <dt>Time</dt>
+                <dd>
+                  <el-time-select
+                    v-model="scheduleForm.time"
+                    start="06:00"
+                    step="00:15"
+                    end="22:00"
+                    placeholder="Select time"
+                    class="booking-details-control"
+                    :disabled="isSaving"
+                  />
+                </dd>
+              </div>
+            </template>
+            <template v-else>
+              <div>
+                <dt>Assigned staff</dt>
+                <dd>{{ normalizeDisplayValue(booking.staff) }}</dd>
+              </div>
+              <div>
+                <dt>Date</dt>
+                <dd>{{ normalizeDisplayValue(booking.date) }}</dd>
+              </div>
+              <div>
+                <dt>Time</dt>
+                <dd>{{ normalizeDisplayValue(booking.time) }}</dd>
+              </div>
+            </template>
             <div>
               <dt>Status</dt>
               <dd>
@@ -182,6 +415,13 @@ function getStatusBadgeClass(status) {
               </dd>
             </div>
           </dl>
+          <el-alert
+            v-if="saveError"
+            :title="saveError"
+            type="error"
+            :closable="false"
+            class="booking-details-error"
+          />
         </section>
 
         <section class="booking-details-section" aria-labelledby="booking-client-heading">
@@ -217,6 +457,27 @@ function getStatusBadgeClass(status) {
           </dl>
         </section>
       </div>
+
+      <footer v-if="isEditableBooking && hasUnsavedChanges" class="booking-details-drawer__footer">
+        <el-button
+          class="admin-button admin-button--ghost"
+          native-type="button"
+          :disabled="isSaving"
+          @click="handleDiscardChanges"
+        >
+          Discard changes
+        </el-button>
+        <el-button
+          type="primary"
+          class="admin-button admin-button--primary"
+          native-type="button"
+          :loading="isSaving"
+          :disabled="!scheduleForm.staffId || !scheduleForm.date || !scheduleForm.time"
+          @click="handleSaveSchedule"
+        >
+          Save changes
+        </el-button>
+      </footer>
     </aside>
   </el-drawer>
 </template>
@@ -279,6 +540,18 @@ function getStatusBadgeClass(status) {
   padding: 22px 24px 28px;
 }
 
+.booking-details-drawer__footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--pc-border);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 -12px 24px rgba(25, 42, 58, 0.08);
+}
+
 .booking-details-section {
   padding-bottom: 18px;
   border-bottom: 1px solid var(--pc-border-soft);
@@ -311,6 +584,12 @@ function getStatusBadgeClass(status) {
   min-width: 0;
 }
 
+.booking-details-grid__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .booking-details-grid dt,
 .booking-details-stack dt {
   color: var(--pc-soft-muted);
@@ -337,6 +616,21 @@ function getStatusBadgeClass(status) {
   background: rgba(250, 249, 245, 0.72);
 }
 
+.booking-details-control {
+  width: 100%;
+}
+
+.booking-details-option-meta {
+  float: right;
+  margin-left: 16px;
+  color: var(--pc-muted);
+  font-size: 0.82rem;
+}
+
+.booking-details-error {
+  margin-top: 16px;
+}
+
 .booking-details-note {
   padding: 12px 14px;
   border: 1px solid var(--pc-border-soft);
@@ -351,7 +645,8 @@ function getStatusBadgeClass(status) {
 
 @media (max-width: 560px) {
   .booking-details-drawer__header,
-  .booking-details-drawer__content {
+  .booking-details-drawer__content,
+  .booking-details-drawer__footer {
     padding-left: 18px;
     padding-right: 18px;
   }
