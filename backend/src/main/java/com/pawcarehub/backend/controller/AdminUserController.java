@@ -2,6 +2,7 @@ package com.pawcarehub.backend.controller;
 
 import com.pawcarehub.backend.dto.admin.AdminUserDetailResponse;
 import com.pawcarehub.backend.dto.admin.AdminUserResponse;
+import com.pawcarehub.backend.dto.admin.UpdateUserRoleRequest;
 import com.pawcarehub.backend.entity.User;
 import com.pawcarehub.backend.service.AdminUserService;
 import com.pawcarehub.backend.service.RoleAccessService;
@@ -10,6 +11,7 @@ import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -52,5 +54,14 @@ public class AdminUserController {
     public AdminUserDetailResponse reactivateUser(@PathVariable Long id) {
         roleAccessService.requireAnyRole(UserRoles.ADMIN);
         return adminUserService.reactivateUser(id);
+    }
+
+    @PatchMapping("/{id}/role")
+    public AdminUserDetailResponse updateUserRole(
+        @PathVariable Long id,
+        @RequestBody UpdateUserRoleRequest request
+    ) {
+        User currentAdmin = roleAccessService.requireAnyRole(UserRoles.ADMIN);
+        return adminUserService.updateUserRole(id, request.role(), currentAdmin);
     }
 }

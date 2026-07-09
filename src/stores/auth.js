@@ -22,22 +22,6 @@ function normalizeRole(role) {
   return null
 }
 
-export function resolveMockRole(email = '') {
-  if (/(doctor|dr\.|vet)/i.test(email)) {
-    return 'doctor'
-  }
-
-  if (/(frontdesk|front-desk|reception|receptionist)/i.test(email)) {
-    return 'front_desk'
-  }
-
-  if (/(admin|clinic|team|manager)/i.test(email)) {
-    return 'admin'
-  }
-
-  return 'user'
-}
-
 export function getDefaultRouteForRole(role) {
   return role === 'admin' || role === 'front_desk' || role === 'doctor' ? '/admin' : '/pets'
 }
@@ -82,6 +66,7 @@ export const useAuthStore = defineStore('auth', {
     user: storedSession?.user ?? null,
     token: storedSession?.token ?? null,
     role: normalizeRole(storedSession?.role),
+    hasRefreshedIdentity: false,
   }),
   getters: {
     isAuthenticated: (state) => state.isLoggedIn,
@@ -100,6 +85,7 @@ export const useAuthStore = defineStore('auth', {
       this.token = null
       this.role = null
       this.isLoggedIn = false
+      this.hasRefreshedIdentity = false
       persistSession(null)
     },
     setSession(payload) {
@@ -107,6 +93,7 @@ export const useAuthStore = defineStore('auth', {
       this.token = payload.token ?? null
       this.role = normalizeRole(payload.role)
       this.isLoggedIn = payload.isLoggedIn ?? Boolean(payload.token)
+      this.hasRefreshedIdentity = Boolean(payload.hasRefreshedIdentity)
 
       persistSession({
         isLoggedIn: this.isLoggedIn,
@@ -119,7 +106,6 @@ export const useAuthStore = defineStore('auth', {
       this.logout()
     },
     setAuthenticatedUser(payload) {
-      const role = resolveMockRole(payload.email)
       const nameFromEmail = payload.email?.split('@')[0]?.replace(/[._-]+/g, ' ') ?? 'Pet Owner'
       const normalizedName =
         payload.fullName?.trim() ||
@@ -128,13 +114,14 @@ export const useAuthStore = defineStore('auth', {
         'Pet Owner'
 
       this.user = {
-        id: role === 'admin' ? 'mock-admin-1' : 'mock-user-1',
+        id: payload.id ?? null,
         fullName: normalizedName,
         email: payload.email,
       }
-      this.token = payload.token ?? `session-${payload.email}`
-      this.role = normalizeRole(payload.role ?? role)
+      this.token = payload.token ?? this.token
+      this.role = normalizeRole(payload.role)
       this.isLoggedIn = true
+      this.hasRefreshedIdentity = Boolean(payload.hasRefreshedIdentity)
 
       persistSession({
         isLoggedIn: this.isLoggedIn,
@@ -142,6 +129,27 @@ export const useAuthStore = defineStore('auth', {
         token: this.token,
         role: this.role,
       })
+    },
+    async refreshAuthenticatedUser() {
+      if (!this.token || !this.isLoggedIn) {
+        return
+      }
+
+      const { authApi } = await import('@/api/auth')
+
+      try {
+        const { data } = await authApi.me()
+        this.setAuthenticatedUser({
+          email: data.email,
+          name: data.name,
+          role: data.role,
+          token: this.token,
+          hasRefreshedIdentity: true,
+        })
+      } catch (error) {
+        this.logout()
+        throw error
+      }
     },
   },
 })

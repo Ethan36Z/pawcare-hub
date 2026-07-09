@@ -13,4 +13,7 @@ export const usersApi = {
   reactivate(id) {
     return http.patch(`/admin/users/${id}/reactivate`)
   },
+  updateRole(id, role) {
+    return http.patch(`/admin/users/${id}/role`, { role })
+  },
 }

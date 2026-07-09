@@ -24,7 +24,6 @@ import org.springframework.web.server.ResponseStatusException;
 public class AuthService {
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-    private static final String LEGACY_ADMIN_EMAIL_PATTERN = "(?i).*(admin|staff|clinic|team|manager).*";
     private final UserRepository userRepository;
     private final PetInitializationService petInitializationService;
     private final BookingInitializationService bookingInitializationService;
@@ -158,7 +157,7 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "That email address is already in use");
         }
 
-        user.setRole(UserRoles.normalize(user.getRole()));
+        user.setRole(UserRoles.normalizeLegacyRole(user.getRole()));
         user.setEmail(newEmail);
         userRepository.save(user);
         return new ActionResponse("Email updated successfully. Please sign in again.");
@@ -249,24 +248,12 @@ public class AuthService {
     }
 
     private User ensureRole(User user) {
-        String normalizedRole = UserRoles.normalize(user.getRole());
+        String normalizedRole = UserRoles.normalizeLegacyRole(user.getRole());
         if (user.getRole() == null || !normalizedRole.equals(user.getRole())) {
-            user.setRole(resolveInitialRole(user.getEmail(), normalizedRole));
+            user.setRole(normalizedRole);
             return userRepository.save(user);
         }
 
         return user;
-    }
-
-    private String resolveInitialRole(String email, String currentRole) {
-        if (currentRole != null && !UserRoles.USER.equals(currentRole)) {
-            return currentRole;
-        }
-
-        if (email != null && email.matches(LEGACY_ADMIN_EMAIL_PATTERN)) {
-            return UserRoles.ADMIN;
-        }
-
-        return UserRoles.USER;
     }
 }

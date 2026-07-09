@@ -7,6 +7,9 @@ export const authApi = {
   register(payload) {
     return http.post('/auth/register', payload)
   },
+  me() {
+    return http.get('/auth/me')
+  },
   profile() {
     return http.get('/auth/profile')
   },

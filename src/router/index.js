@@ -123,9 +123,23 @@ const router = createRouter({
   },
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const authStore = useAuthStore()
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
+
+  if (authStore.isLoggedIn && authStore.token && !authStore.hasRefreshedIdentity) {
+    try {
+      await authStore.refreshAuthenticatedUser()
+    } catch {
+      if (requiresAuth) {
+        return {
+          name: 'login',
+          query: { redirect: to.fullPath },
+        }
+      }
+    }
+  }
+
   const destinationForRole = getDefaultRouteForRole(authStore.role)
   const hasDisallowedRole = to.matched.some((record) => {
     const allowedRoles = record.meta.allowedRoles ?? []

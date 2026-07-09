@@ -10,9 +10,19 @@ const router = useRouter()
 const user = ref(null)
 const isLoading = ref(false)
 const isUpdatingAccountStatus = ref(false)
+const isUpdatingRole = ref(false)
 const isDeactivateDialogOpen = ref(false)
 const isReactivateDialogOpen = ref(false)
+const isRoleDialogOpen = ref(false)
 const errorMessage = ref('')
+const selectedRole = ref('user')
+
+const roleOptions = [
+  { label: 'User', value: 'user' },
+  { label: 'Doctor', value: 'doctor' },
+  { label: 'Front desk', value: 'front_desk' },
+  { label: 'Administrator', value: 'admin' },
+]
 
 function getApiErrorMessage(error, fallbackMessage) {
   return error?.response?.data?.message || fallbackMessage
@@ -49,6 +59,15 @@ function getStatusBadgeClass(status) {
 
 function getAccountStatusBadgeClass(isActive) {
   return ['admin-badge', isActive ? 'admin-badge--active' : 'admin-badge--deactivated']
+}
+
+function getRoleLabel(role) {
+  return roleOptions.find((option) => option.value === role)?.label || 'User'
+}
+
+function getRoleBadgeClass(role) {
+  const normalizedRole = String(role || 'user').toLowerCase().replace('_', '-')
+  return ['admin-badge', `admin-badge--${normalizedRole}`]
 }
 
 const reminderItems = computed(() => {
@@ -95,6 +114,16 @@ const accountStatusExplanation = computed(() => {
     : 'This user cannot sign in or access protected account features. Historical records remain available.'
 })
 
+const canSaveRole = computed(() => user.value && selectedRole.value !== user.value.role && !isUpdatingRole.value)
+
+const roleConfirmationText = computed(() => {
+  if (selectedRole.value === 'admin') {
+    return 'This grants full administrative access to PawCareHub, including user management, role management, services, staff, and clinic operations.'
+  }
+
+  return 'The user may need to sign in again or refresh their session before the new access is reflected in the app.'
+})
+
 async function loadUserDetails() {
   isLoading.value = true
   errorMessage.value = ''
@@ -102,6 +131,7 @@ async function loadUserDetails() {
   try {
     const { data } = await usersApi.getById(route.params.id)
     user.value = data
+    selectedRole.value = data.role || 'user'
   } catch (error) {
     errorMessage.value = getApiErrorMessage(error, 'Unable to load this user right now.')
     user.value = null
@@ -118,6 +148,15 @@ function openDeactivateDialog() {
 function openReactivateDialog() {
   errorMessage.value = ''
   isReactivateDialogOpen.value = true
+}
+
+function openRoleDialog() {
+  if (!canSaveRole.value) {
+    return
+  }
+
+  errorMessage.value = ''
+  isRoleDialogOpen.value = true
 }
 
 async function handleDeactivateAccount() {
@@ -159,6 +198,27 @@ async function handleReactivateAccount() {
     errorMessage.value = getApiErrorMessage(error, 'Unable to reactivate this account right now.')
   } finally {
     isUpdatingAccountStatus.value = false
+  }
+}
+
+async function handleSaveRole() {
+  if (!user.value || isUpdatingRole.value) {
+    return
+  }
+
+  isUpdatingRole.value = true
+  errorMessage.value = ''
+
+  try {
+    const { data } = await usersApi.updateRole(user.value.id, selectedRole.value)
+    user.value = data
+    selectedRole.value = data.role || 'user'
+    isRoleDialogOpen.value = false
+    ElMessage.success('Access role updated.')
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, 'Unable to update this access role right now.')
+  } finally {
+    isUpdatingRole.value = false
   }
 }
 
@@ -291,6 +351,41 @@ onMounted(() => {
         </div>
       </section>
 
+      <section class="details-card access-role-card">
+        <div class="section-header section-header--split">
+          <div>
+            <h3>Access role</h3>
+            <p>
+              Access roles control which PawCareHub pages and operations this account can use.
+              Staff profiles and scheduling are managed separately.
+            </p>
+          </div>
+          <el-tag effect="plain" :class="getRoleBadgeClass(user.role)">
+            {{ getRoleLabel(user.role) }}
+          </el-tag>
+        </div>
+
+        <div class="access-role-card__form">
+          <el-select v-model="selectedRole" class="admin-control access-role-card__select">
+            <el-option
+              v-for="option in roleOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+          <el-button
+            type="primary"
+            class="admin-button admin-button--primary"
+            :disabled="!canSaveRole"
+            :loading="isUpdatingRole"
+            @click="openRoleDialog"
+          >
+            Save role
+          </el-button>
+        </div>
+      </section>
+
       <section class="details-card">
         <div class="section-header">
           <div>
@@ -409,6 +504,49 @@ onMounted(() => {
             @click="handleReactivateAccount"
           >
             Reactivate account
+          </el-button>
+        </template>
+      </el-dialog>
+
+      <el-dialog
+        v-model="isRoleDialogOpen"
+        title="Change access role"
+        width="540px"
+        :close-on-click-modal="!isUpdatingRole"
+        :close-on-press-escape="!isUpdatingRole"
+      >
+        <div v-if="user" class="account-status-dialog">
+          <p>
+            Change access for <strong>{{ user.name }}</strong> at
+            <strong>{{ user.email }}</strong>?
+          </p>
+          <dl class="role-change-summary">
+            <div>
+              <dt>Current role</dt>
+              <dd>{{ getRoleLabel(user.role) }}</dd>
+            </div>
+            <div>
+              <dt>New role</dt>
+              <dd>{{ getRoleLabel(selectedRole) }}</dd>
+            </div>
+          </dl>
+          <p>{{ roleConfirmationText }}</p>
+          <p v-if="selectedRole === 'admin'" class="role-warning">
+            Confirm this only for accounts that should have full administrative access.
+            The user may need to sign in again or refresh their session.
+          </p>
+        </div>
+        <template #footer>
+          <el-button :disabled="isUpdatingRole" @click="isRoleDialogOpen = false">
+            Cancel
+          </el-button>
+          <el-button
+            type="primary"
+            class="admin-button admin-button--primary"
+            :loading="isUpdatingRole"
+            @click="handleSaveRole"
+          >
+            Save role
           </el-button>
         </template>
       </el-dialog>
@@ -582,6 +720,22 @@ onMounted(() => {
   justify-content: flex-start;
 }
 
+.access-role-card {
+  display: grid;
+  gap: 18px;
+}
+
+.access-role-card__form {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.access-role-card__select {
+  width: min(260px, 100%);
+}
+
 .account-status-dialog {
   display: grid;
   gap: 12px;
@@ -600,6 +754,36 @@ onMounted(() => {
 
 .account-status-dialog li + li {
   margin-top: 8px;
+}
+
+.role-change-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.role-change-summary div {
+  padding: 12px;
+  border: 1px solid var(--pc-border);
+  border-radius: 12px;
+  background: var(--pc-surface);
+}
+
+.role-change-summary dt {
+  color: var(--pc-muted);
+  font-size: 0.88rem;
+}
+
+.role-change-summary dd {
+  margin: 4px 0 0;
+  color: var(--pc-text);
+  font-weight: 700;
+}
+
+.role-warning {
+  color: #9f3a28;
+  font-weight: 600;
 }
 
 @media (max-width: 900px) {

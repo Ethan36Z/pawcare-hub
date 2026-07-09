@@ -1,6 +1,7 @@
 package com.pawcarehub.backend.controller;
 
 import com.pawcarehub.backend.dto.auth.ActionResponse;
+import com.pawcarehub.backend.dto.auth.AuthenticatedUser;
 import com.pawcarehub.backend.dto.auth.AuthResponse;
 import com.pawcarehub.backend.dto.auth.ChangePasswordRequest;
 import com.pawcarehub.backend.dto.auth.ChangeEmailRequest;
@@ -38,6 +39,11 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/me")
+    public AuthenticatedUser getAuthenticatedUser() {
+        return authService.getAuthenticatedUser();
     }
 
     @GetMapping("/profile")

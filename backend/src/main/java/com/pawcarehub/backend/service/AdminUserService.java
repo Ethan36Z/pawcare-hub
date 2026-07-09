@@ -93,6 +93,32 @@ public class AdminUserService {
         return toUserDetailResponse(user);
     }
 
+    @Transactional
+    public AdminUserDetailResponse updateUserRole(Long userId, String requestedRole, User currentAdmin) {
+        String role = UserRoles.validateRole(requestedRole);
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (currentAdmin != null && user.getId().equals(currentAdmin.getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Admins cannot change their own role");
+        }
+
+        String currentRole = UserRoles.normalizeLegacyRole(user.getRole());
+        if (UserRoles.ADMIN.equals(currentRole)
+            && !UserRoles.ADMIN.equals(role)
+            && user.isActive()
+            && userRepository.countByRoleIgnoreCaseAndActiveTrue(UserRoles.ADMIN) <= 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot demote the final active admin account");
+        }
+
+        if (!role.equals(currentRole) || !role.equals(user.getRole())) {
+            user.setRole(role);
+            user = userRepository.save(user);
+        }
+
+        return toUserDetailResponse(user);
+    }
+
     private AdminUserDetailResponse toUserDetailResponse(User user) {
         List<Pet> pets = petRepository.findByOwnerEmailOrderByIdAsc(user.getEmail());
         List<Booking> bookings = bookingRepository.findByOwnerEmailOrderByIdAsc(user.getEmail());
