@@ -22,6 +22,8 @@ import com.pawcarehub.backend.service.AdminUserService;
 import com.pawcarehub.backend.service.UserRoles;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -84,27 +86,42 @@ class AdminUserRoleAccessIntegrationTest {
 
     @Test
     void publicRegistrationAlwaysCreatesUserRole() throws Exception {
-        register("admin.person@example.com", "Admin Person", """
-            {
-              "name": "Admin Person",
-              "email": "admin.person@example.com",
-              "password": "%s",
-              "role": "admin"
-            }
-            """.formatted(PASSWORD));
+        registerUser("ordinary.person@example.com");
 
-        assertThat(userRepository.findByEmail("admin.person@example.com").orElseThrow().getRole())
+        assertThat(userRepository.findByEmail("ordinary.person@example.com").orElseThrow().getRole())
             .isEqualTo(UserRoles.USER);
+    }
 
-        register("doctor.person@example.com", "Doctor Person", """
+    @ParameterizedTest
+    @ValueSource(strings = { UserRoles.ADMIN, UserRoles.DOCTOR, UserRoles.FRONT_DESK })
+    void publicRegistrationIgnoresRequestedClinicRoles(String requestedRole) throws Exception {
+        String email = requestedRole.replace("_", ".") + ".request@example.com";
+
+        register(email, "Role Request", """
             {
-              "name": "Doctor Person",
-              "email": "doctor.person@example.com",
+              "name": "Role Request",
+              "email": "%s",
+              "password": "%s",
+              "role": "%s"
+            }
+            """.formatted(email, PASSWORD, requestedRole));
+
+        assertThat(userRepository.findByEmail(email).orElseThrow().getRole())
+            .isEqualTo(UserRoles.USER);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "admin.person@example.com", "doctor.person@example.com" })
+    void publicRegistrationDoesNotInferRoleFromEmail(String email) throws Exception {
+        register(email, "Keyword Person", """
+            {
+              "name": "Keyword Person",
+              "email": "%s",
               "password": "%s"
             }
-            """.formatted(PASSWORD));
+            """.formatted(email, PASSWORD));
 
-        assertThat(userRepository.findByEmail("doctor.person@example.com").orElseThrow().getRole())
+        assertThat(userRepository.findByEmail(email).orElseThrow().getRole())
             .isEqualTo(UserRoles.USER);
     }
 
@@ -202,9 +219,11 @@ class AdminUserRoleAccessIntegrationTest {
             .andExpect(status().isOk());
         mockMvc.perform(get("/api/admin/bookings").header("X-User-Email", "doctor@example.com"))
             .andExpect(status().isOk());
-        mockMvc.perform(get("/api/admin/services").header("X-User-Email", "doctor@example.com"))
-            .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/admin/users").header("X-User-Email", "doctor@example.com"))
+            .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/admin/staff").header("X-User-Email", "doctor@example.com"))
+            .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/admin/services").header("X-User-Email", "doctor@example.com"))
             .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/admin/staff/operations-list").header("X-User-Email", "doctor@example.com"))
             .andExpect(status().isForbidden());
@@ -217,6 +236,10 @@ class AdminUserRoleAccessIntegrationTest {
             .andExpect(status().isOk());
         mockMvc.perform(get("/api/admin/users").header("X-User-Email", "front.desk@example.com"))
             .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/admin/staff").header("X-User-Email", "front.desk@example.com"))
+            .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/admin/services").header("X-User-Email", "front.desk@example.com"))
+            .andExpect(status().isForbidden());
         mockMvc.perform(patch("/api/admin/bookings/{id}/complete", 1L)
                 .header("X-User-Email", "front.desk@example.com")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -225,11 +248,17 @@ class AdminUserRoleAccessIntegrationTest {
                     """))
             .andExpect(status().isForbidden());
 
+        mockMvc.perform(get("/api/admin/dashboard/stats").header("X-User-Email", ADMIN_EMAIL))
+            .andExpect(status().isOk());
+        mockMvc.perform(get("/api/admin/bookings").header("X-User-Email", ADMIN_EMAIL))
+            .andExpect(status().isOk());
         mockMvc.perform(get("/api/admin/users").header("X-User-Email", ADMIN_EMAIL))
+            .andExpect(status().isOk());
+        mockMvc.perform(get("/api/admin/staff").header("X-User-Email", ADMIN_EMAIL))
             .andExpect(status().isOk());
         mockMvc.perform(get("/api/admin/services").header("X-User-Email", ADMIN_EMAIL))
             .andExpect(status().isOk());
-        mockMvc.perform(get("/api/admin/staff").header("X-User-Email", ADMIN_EMAIL))
+        mockMvc.perform(get("/api/admin/staff/operations-list").header("X-User-Email", ADMIN_EMAIL))
             .andExpect(status().isOk());
     }
 
@@ -266,6 +295,24 @@ class AdminUserRoleAccessIntegrationTest {
 
         assertThat(userRepository.findByEmail("admin.doctor.manager@example.com").orElseThrow().getRole())
             .isEqualTo(UserRoles.DOCTOR);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { UserRoles.USER, UserRoles.DOCTOR, UserRoles.FRONT_DESK, UserRoles.ADMIN })
+    void inactiveUsersCannotLogInRegardlessOfRole(String role) throws Exception {
+        String email = "inactive." + role.replace("_", ".") + "@example.com";
+        createUser(email, "Inactive User", role, false);
+
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "email": "%s",
+                      "password": "%s"
+                    }
+                    """.formatted(email, PASSWORD)))
+            .andExpect(status().isUnauthorized())
+            .andExpect(status().reason("This account has been deactivated"));
     }
 
     private void register(String email, String name, String payload) throws Exception {
