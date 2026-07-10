@@ -22,3 +22,7 @@ security:
   jwt:
     secret: ${JWT_SECRET:pawcarehub-jwt-secret-key-for-v3-first-pass-2026}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+demo:
+  seed:
+    enabled: ${DEMO_SEED_ENABLED:false}

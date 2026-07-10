@@ -7,11 +7,18 @@ import com.pawcarehub.backend.entity.User;
 import com.pawcarehub.backend.repository.BookingRepository;
 import com.pawcarehub.backend.repository.ClinicServiceRepository;
 import com.pawcarehub.backend.repository.StaffRepository;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 
 @Service
 public class BookingInitializationService {
+    private static final DateTimeFormatter DISPLAY_DATE_FORMATTER =
+        DateTimeFormatter.ofPattern("MMMM d, uuuu", Locale.US);
+
 
     private final BookingRepository bookingRepository;
     private final ClinicServiceRepository clinicServiceRepository;
@@ -35,39 +42,55 @@ public class BookingInitializationService {
             .findFirst()
             .orElse(null);
         ClinicService followUpService = clinicServiceRepository.findAllByOrderByCategoryAscNameAsc().stream()
-            .filter(service -> "Vaccination follow-up".equalsIgnoreCase(service.getName()))
+            .filter(service -> "Core vaccine appointment".equalsIgnoreCase(service.getName()))
             .findFirst()
             .orElse(null);
-        Staff doctorRivera = staffRepository.findFirstByNameIgnoreCaseAndActiveTrue("Dr. Rivera").orElse(null);
-        Staff nursePatel = staffRepository.findFirstByNameIgnoreCaseAndActiveTrue("Nurse Patel").orElse(null);
+        Staff primaryDoctor = staffRepository.findFirstByNameIgnoreCaseAndActiveTrue("Dr. Maya Hart")
+            .or(() -> staffRepository.findFirstByNameIgnoreCaseAndActiveTrue("Dr. Rivera"))
+            .orElse(null);
+        Staff supportStaff = staffRepository.findFirstByNameIgnoreCaseAndActiveTrue("Jamie Brooks")
+            .or(() -> staffRepository.findFirstByNameIgnoreCaseAndActiveTrue("Nurse Patel"))
+            .orElse(primaryDoctor);
 
         List<Booking> defaultBookings = List.of(
             new Booking(
                 ownerFirstName + "'s Buddy",
                 "Annual wellness exam",
-                "April 18, 2026",
+                nextDate(DayOfWeek.MONDAY, 3),
                 "10:30 AM",
                 "Confirmed",
                 "PawCare Hub Clinic",
-                "Dr. Rivera",
+                staffName(primaryDoctor, "Care Team"),
                 wellnessService,
-                doctorRivera,
+                primaryDoctor,
                 user
             ),
             new Booking(
                 "Luna",
-                "Vaccination follow-up",
-                "April 24, 2026",
+                "Core vaccine appointment",
+                nextDate(DayOfWeek.THURSDAY, 5),
                 "2:15 PM",
                 "Upcoming",
                 "PawCare Hub Clinic",
-                "Nurse Patel",
+                staffName(supportStaff, "Care Team"),
                 followUpService,
-                nursePatel,
+                supportStaff,
                 user
             )
         );
 
         bookingRepository.saveAll(defaultBookings);
+    }
+
+    private String nextDate(DayOfWeek dayOfWeek, int minimumDaysFromToday) {
+        LocalDate date = LocalDate.now().plusDays(minimumDaysFromToday);
+        while (date.getDayOfWeek() != dayOfWeek) {
+            date = date.plusDays(1);
+        }
+        return date.format(DISPLAY_DATE_FORMATTER);
+    }
+
+    private String staffName(Staff staff, String fallback) {
+        return staff != null ? staff.getName() : fallback;
     }
 }

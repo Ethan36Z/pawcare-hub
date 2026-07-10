@@ -103,6 +103,10 @@ public class Booking {
         return petName;
     }
 
+    public void setPetName(String petName) {
+        this.petName = petName;
+    }
+
     public String getService() {
         return service;
     }
@@ -168,6 +172,17 @@ public class Booking {
 
     public ClinicService getServiceRecord() {
         return serviceRecord;
+    }
+
+    public void setServiceRecord(ClinicService serviceRecord) {
+        this.serviceRecord = serviceRecord;
+        if (serviceRecord != null) {
+            this.service = serviceRecord.getName();
+        }
+    }
+
+    public void setClinic(String clinic) {
+        this.clinic = clinic;
     }
 
     public String getVisitSummary() {
