@@ -55,7 +55,19 @@ $env:DEMO_SEED_ENABLED='true'
 mvn spring-boot:run
 ```
 
-The seeded dataset includes the `user`, `doctor`, `front_desk`, and `admin` roles; active and inactive customer accounts; services; staff availability; pets; and representative bookings. Demo accounts use the `@pawcarehub.demo` domain and the password `PawCareDemo123!`.
+The seeded dataset includes the `user`, `doctor`, `front_desk`, and `admin` roles; active and inactive customer accounts; services; staff availability; pets; and representative bookings.
+
+### Local demo-only credentials
+
+These credentials are for the local demo seed only. They are not production credentials.
+
+| Role | Email | Password | Notes |
+|---|---|---|---|
+| Admin | admin@pawcarehub.demo | PawCareDemo123! | Full admin access |
+| Doctor | doctor@pawcarehub.demo | PawCareDemo123! | Doctor booking/outcome workflow |
+| Front desk | frontdesk@pawcarehub.demo | PawCareDemo123! | Booking and clinic operations workflow |
+| Client | client@pawcarehub.demo | PawCareDemo123! | Customer pets, profile, and bookings |
+| Inactive client | inactive.client@pawcarehub.demo | PawCareDemo123! | Intentionally deactivated; login should fail |
 
 ## Tests
 

@@ -103,7 +103,19 @@ $env:DEMO_SEED_ENABLED='true'
 mvn spring-boot:run
 ```
 
-The demo mode creates accounts for the four roles, including customer and inactive-customer states, plus services, staff availability, pets, and representative booking states. The demo password is `PawCareDemo123!`; demo emails use the `@pawcarehub.demo` domain.
+The demo mode creates accounts for the four roles, including customer and inactive-customer states, plus services, staff availability, pets, and representative booking states.
+
+### Local demo-only credentials
+
+These credentials are for the local demo seed only. They are not production credentials.
+
+| Role | Email | Password | Notes |
+|---|---|---|---|
+| Admin | admin@pawcarehub.demo | PawCareDemo123! | Full admin access |
+| Doctor | doctor@pawcarehub.demo | PawCareDemo123! | Doctor booking/outcome workflow |
+| Front desk | frontdesk@pawcarehub.demo | PawCareDemo123! | Booking and clinic operations workflow |
+| Client | client@pawcarehub.demo | PawCareDemo123! | Customer pets, profile, and bookings |
+| Inactive client | inactive.client@pawcarehub.demo | PawCareDemo123! | Intentionally deactivated; login should fail |
 
 For normal development, omit `SPRING_PROFILES_ACTIVE` and `DEMO_SEED_ENABLED` (or leave the latter as `false`).
 
