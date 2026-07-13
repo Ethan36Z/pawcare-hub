@@ -16,6 +16,28 @@ Customers can manage pets and appointments, while clinic teams can manage servic
 - Database-backed access roles and account activation controls
 - Controlled, opt-in demo data for portfolio walkthroughs
 
+## Screenshots
+
+Selected screens illustrate the public experience, customer self-service, and the clinic administration workspace.
+
+### Public and customer experience
+
+![PawCareHub home](docs/screenshots/01-home.png)
+
+![PawCareHub services](docs/screenshots/02-services.png)
+
+![Customer bookings](docs/screenshots/04-customer-my-bookings.png)
+
+### Admin workspace
+
+![Admin dashboard](docs/screenshots/05-admin-dashboard.png)
+
+![Admin booking details drawer](docs/screenshots/07-admin-booking-details-drawer.png)
+
+![Clinic operations calendar](docs/screenshots/08-clinic-operations-calendar.png)
+
+![Admin users and roles](docs/screenshots/10-admin-users.png)
+
 ## Technology
 
 | Area | Technologies |
