@@ -18,6 +18,7 @@ import com.pawcarehub.backend.repository.StaffRepository;
 import com.pawcarehub.backend.repository.StaffAvailabilityRepository;
 import com.pawcarehub.backend.repository.StaffScheduleExceptionRepository;
 import com.pawcarehub.backend.repository.UserRepository;
+import com.pawcarehub.backend.security.JwtService;
 import com.pawcarehub.backend.service.AdminUserService;
 import com.pawcarehub.backend.service.UserRoles;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +28,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -44,6 +46,9 @@ class AdminUserRoleAccessIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private JwtService jwtService;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -153,7 +158,7 @@ class AdminUserRoleAccessIntegrationTest {
         User user = userRepository.findByEmail(USER_EMAIL).orElseThrow();
 
         mockMvc.perform(patch("/api/admin/users/{id}/role", user.getId())
-                .header("X-User-Email", ADMIN_EMAIL)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     { "role": "manager" }
@@ -162,7 +167,7 @@ class AdminUserRoleAccessIntegrationTest {
             .andExpect(status().reason("Invalid role. Allowed roles are user, doctor, front_desk, admin"));
 
         mockMvc.perform(patch("/api/admin/users/{id}/role", user.getId())
-                .header("X-User-Email", USER_EMAIL)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(USER_EMAIL))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     { "role": "admin" }
@@ -175,7 +180,7 @@ class AdminUserRoleAccessIntegrationTest {
         User admin = userRepository.findByEmail(ADMIN_EMAIL).orElseThrow();
 
         mockMvc.perform(patch("/api/admin/users/{id}/role", admin.getId())
-                .header("X-User-Email", ADMIN_EMAIL)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     { "role": "user" }
@@ -212,53 +217,53 @@ class AdminUserRoleAccessIntegrationTest {
         createUser("front.desk@example.com", "Front Desk", UserRoles.FRONT_DESK, true);
         registerUser(USER_EMAIL);
 
-        mockMvc.perform(get("/api/admin/dashboard/stats").header("X-User-Email", USER_EMAIL))
+        mockMvc.perform(get("/api/admin/dashboard/stats").header(HttpHeaders.AUTHORIZATION, bearerToken(USER_EMAIL)))
             .andExpect(status().isForbidden());
 
-        mockMvc.perform(get("/api/admin/dashboard/stats").header("X-User-Email", "doctor@example.com"))
+        mockMvc.perform(get("/api/admin/dashboard/stats").header(HttpHeaders.AUTHORIZATION, bearerToken("doctor@example.com")))
             .andExpect(status().isOk());
-        mockMvc.perform(get("/api/admin/bookings").header("X-User-Email", "doctor@example.com"))
+        mockMvc.perform(get("/api/admin/bookings").header(HttpHeaders.AUTHORIZATION, bearerToken("doctor@example.com")))
             .andExpect(status().isOk());
-        mockMvc.perform(get("/api/admin/users").header("X-User-Email", "doctor@example.com"))
+        mockMvc.perform(get("/api/admin/users").header(HttpHeaders.AUTHORIZATION, bearerToken("doctor@example.com")))
             .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/admin/staff").header("X-User-Email", "doctor@example.com"))
+        mockMvc.perform(get("/api/admin/staff").header(HttpHeaders.AUTHORIZATION, bearerToken("doctor@example.com")))
             .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/admin/services").header("X-User-Email", "doctor@example.com"))
+        mockMvc.perform(get("/api/admin/services").header(HttpHeaders.AUTHORIZATION, bearerToken("doctor@example.com")))
             .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/admin/staff/operations-list").header("X-User-Email", "doctor@example.com"))
+        mockMvc.perform(get("/api/admin/staff/operations-list").header(HttpHeaders.AUTHORIZATION, bearerToken("doctor@example.com")))
             .andExpect(status().isForbidden());
 
-        mockMvc.perform(get("/api/admin/dashboard/stats").header("X-User-Email", "front.desk@example.com"))
+        mockMvc.perform(get("/api/admin/dashboard/stats").header(HttpHeaders.AUTHORIZATION, bearerToken("front.desk@example.com")))
             .andExpect(status().isOk());
-        mockMvc.perform(get("/api/admin/bookings").header("X-User-Email", "front.desk@example.com"))
+        mockMvc.perform(get("/api/admin/bookings").header(HttpHeaders.AUTHORIZATION, bearerToken("front.desk@example.com")))
             .andExpect(status().isOk());
-        mockMvc.perform(get("/api/admin/staff/operations-list").header("X-User-Email", "front.desk@example.com"))
+        mockMvc.perform(get("/api/admin/staff/operations-list").header(HttpHeaders.AUTHORIZATION, bearerToken("front.desk@example.com")))
             .andExpect(status().isOk());
-        mockMvc.perform(get("/api/admin/users").header("X-User-Email", "front.desk@example.com"))
+        mockMvc.perform(get("/api/admin/users").header(HttpHeaders.AUTHORIZATION, bearerToken("front.desk@example.com")))
             .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/admin/staff").header("X-User-Email", "front.desk@example.com"))
+        mockMvc.perform(get("/api/admin/staff").header(HttpHeaders.AUTHORIZATION, bearerToken("front.desk@example.com")))
             .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/admin/services").header("X-User-Email", "front.desk@example.com"))
+        mockMvc.perform(get("/api/admin/services").header(HttpHeaders.AUTHORIZATION, bearerToken("front.desk@example.com")))
             .andExpect(status().isForbidden());
         mockMvc.perform(patch("/api/admin/bookings/{id}/complete", 1L)
-                .header("X-User-Email", "front.desk@example.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("front.desk@example.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     { "outcome": "Completed" }
                     """))
             .andExpect(status().isForbidden());
 
-        mockMvc.perform(get("/api/admin/dashboard/stats").header("X-User-Email", ADMIN_EMAIL))
+        mockMvc.perform(get("/api/admin/dashboard/stats").header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL)))
             .andExpect(status().isOk());
-        mockMvc.perform(get("/api/admin/bookings").header("X-User-Email", ADMIN_EMAIL))
+        mockMvc.perform(get("/api/admin/bookings").header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL)))
             .andExpect(status().isOk());
-        mockMvc.perform(get("/api/admin/users").header("X-User-Email", ADMIN_EMAIL))
+        mockMvc.perform(get("/api/admin/users").header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL)))
             .andExpect(status().isOk());
-        mockMvc.perform(get("/api/admin/staff").header("X-User-Email", ADMIN_EMAIL))
+        mockMvc.perform(get("/api/admin/staff").header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL)))
             .andExpect(status().isOk());
-        mockMvc.perform(get("/api/admin/services").header("X-User-Email", ADMIN_EMAIL))
+        mockMvc.perform(get("/api/admin/services").header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL)))
             .andExpect(status().isOk());
-        mockMvc.perform(get("/api/admin/staff/operations-list").header("X-User-Email", ADMIN_EMAIL))
+        mockMvc.perform(get("/api/admin/staff/operations-list").header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL)))
             .andExpect(status().isOk());
     }
 
@@ -337,7 +342,7 @@ class AdminUserRoleAccessIntegrationTest {
 
     private org.springframework.test.web.servlet.ResultActions changeRole(Long userId, String role) throws Exception {
         return mockMvc.perform(patch("/api/admin/users/{id}/role", userId)
-                .header("X-User-Email", ADMIN_EMAIL)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     { "role": "%s" }
@@ -366,4 +371,10 @@ class AdminUserRoleAccessIntegrationTest {
         user.setActive(active);
         userRepository.save(user);
     }
+
+    private String bearerToken(String email) {
+        User user = userRepository.findByEmail(email).orElseThrow();
+        return "Bearer " + jwtService.generateToken(user);
+    }
+
 }

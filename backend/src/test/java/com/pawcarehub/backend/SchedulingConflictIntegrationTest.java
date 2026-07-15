@@ -20,6 +20,7 @@ import com.pawcarehub.backend.repository.PetRepository;
 import com.pawcarehub.backend.repository.StaffAvailabilityRepository;
 import com.pawcarehub.backend.repository.StaffRepository;
 import com.pawcarehub.backend.repository.UserRepository;
+import com.pawcarehub.backend.security.JwtService;
 import com.pawcarehub.backend.service.ScheduleBookingConflictException;
 import com.pawcarehub.backend.service.StaffAvailabilityService;
 import com.pawcarehub.backend.service.UserRoles;
@@ -34,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -49,6 +51,9 @@ class SchedulingConflictIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private JwtService jwtService;
 
     @Autowired
     private BookingRepository bookingRepository;
@@ -107,7 +112,7 @@ class SchedulingConflictIntegrationTest {
         Booking booking = createBooking(currentStaff, "Upcoming");
 
         mockMvc.perform(post("/api/admin/operations/staff/{staffId}/schedule-exceptions", currentStaff.getId())
-                .header("X-User-Email", "frontdesk@pawcarehub.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("frontdesk@pawcarehub.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -131,7 +136,7 @@ class SchedulingConflictIntegrationTest {
         Booking booking = createLegacyNameOnlyBooking(currentStaff, "Upcoming");
 
         mockMvc.perform(post("/api/admin/operations/staff/{staffId}/schedule-exceptions", currentStaff.getId())
-                .header("X-User-Email", "frontdesk@pawcarehub.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("frontdesk@pawcarehub.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -288,4 +293,10 @@ class SchedulingConflictIntegrationTest {
         }
         return date;
     }
+
+    private String bearerToken(String email) {
+        User user = userRepository.findByEmail(email).orElseThrow();
+        return "Bearer " + jwtService.generateToken(user);
+    }
+
 }

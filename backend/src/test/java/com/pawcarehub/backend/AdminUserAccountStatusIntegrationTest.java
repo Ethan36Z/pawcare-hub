@@ -8,17 +8,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pawcarehub.backend.entity.Booking;
+import com.pawcarehub.backend.entity.Pet;
 import com.pawcarehub.backend.entity.User;
 import com.pawcarehub.backend.repository.BookingRepository;
 import com.pawcarehub.backend.repository.PetMedicalNoteRepository;
 import com.pawcarehub.backend.repository.PetRepository;
 import com.pawcarehub.backend.repository.UserRepository;
+import com.pawcarehub.backend.security.JwtService;
 import com.pawcarehub.backend.service.UserRoles;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -35,6 +39,9 @@ class AdminUserAccountStatusIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private JwtService jwtService;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -64,11 +71,44 @@ class AdminUserAccountStatusIntegrationTest {
     void adminCanDeactivateNormalUserAndPreserveRelatedRecords() throws Exception {
         registerUser(CUSTOMER_EMAIL);
         User customer = userRepository.findByEmail(CUSTOMER_EMAIL).orElseThrow();
+        petRepository.save(new Pet(
+            "Milo",
+            "Dog",
+            "Corgi",
+            "3 years",
+            "28 lb",
+            "Friendly during checkups",
+            "Male",
+            null,
+            "Golden and white",
+            null,
+            null,
+            null,
+            null,
+            "Core vaccines current",
+            "No active concerns",
+            "Healthy",
+            customer
+        ));
+        bookingRepository.save(new Booking(
+            "Milo",
+            "Annual wellness exam",
+            "August 10, 2026",
+            "10:30 AM",
+            "Upcoming",
+            "PawCare Hub Clinic",
+            "Care Team",
+            null,
+            null,
+            customer
+        ));
         int petCount = petRepository.findByOwnerEmailOrderByIdAsc(CUSTOMER_EMAIL).size();
         int bookingCount = bookingRepository.findByOwnerEmailOrderByIdAsc(CUSTOMER_EMAIL).size();
+        assertThat(petCount).isEqualTo(1);
+        assertThat(bookingCount).isEqualTo(1);
 
         mockMvc.perform(patch("/api/admin/users/{id}/deactivate", customer.getId())
-                .header("X-User-Email", ADMIN_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(customer.getId()))
             .andExpect(jsonPath("$.active").value(false))
@@ -115,7 +155,7 @@ class AdminUserAccountStatusIntegrationTest {
         deactivateUser(customer.getId());
 
         mockMvc.perform(patch("/api/admin/users/{id}/reactivate", customer.getId())
-                .header("X-User-Email", ADMIN_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(customer.getId()))
             .andExpect(jsonPath("$.active").value(true));
@@ -136,7 +176,7 @@ class AdminUserAccountStatusIntegrationTest {
         User otherUser = userRepository.findByEmail("other@example.com").orElseThrow();
 
         mockMvc.perform(patch("/api/admin/users/{id}/deactivate", otherUser.getId())
-                .header("X-User-Email", CUSTOMER_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(CUSTOMER_EMAIL)))
             .andExpect(status().isForbidden())
             .andExpect(status().reason("You do not have permission to access this action"));
     }
@@ -146,7 +186,7 @@ class AdminUserAccountStatusIntegrationTest {
         User admin = userRepository.findByEmail(ADMIN_EMAIL).orElseThrow();
 
         mockMvc.perform(patch("/api/admin/users/{id}/deactivate", admin.getId())
-                .header("X-User-Email", ADMIN_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL)))
             .andExpect(status().isBadRequest())
             .andExpect(status().reason("Admins cannot deactivate their own account"));
 
@@ -156,7 +196,7 @@ class AdminUserAccountStatusIntegrationTest {
     @Test
     void unknownUserReturnsNotFound() throws Exception {
         mockMvc.perform(patch("/api/admin/users/{id}/deactivate", 999_999L)
-                .header("X-User-Email", ADMIN_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL)))
             .andExpect(status().isNotFound())
             .andExpect(status().reason("User not found"));
     }
@@ -168,13 +208,13 @@ class AdminUserAccountStatusIntegrationTest {
 
         deactivateUser(customer.getId());
         mockMvc.perform(patch("/api/admin/users/{id}/deactivate", customer.getId())
-                .header("X-User-Email", ADMIN_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.active").value(false));
 
         reactivateUser(customer.getId());
         mockMvc.perform(patch("/api/admin/users/{id}/reactivate", customer.getId())
-                .header("X-User-Email", ADMIN_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.active").value(true));
     }
@@ -201,13 +241,13 @@ class AdminUserAccountStatusIntegrationTest {
 
     private void deactivateUser(Long userId) throws Exception {
         mockMvc.perform(patch("/api/admin/users/{id}/deactivate", userId)
-                .header("X-User-Email", ADMIN_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL)))
             .andExpect(status().isOk());
     }
 
     private void reactivateUser(Long userId) throws Exception {
         mockMvc.perform(patch("/api/admin/users/{id}/reactivate", userId)
-                .header("X-User-Email", ADMIN_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL)))
             .andExpect(status().isOk());
     }
 
@@ -229,4 +269,10 @@ class AdminUserAccountStatusIntegrationTest {
             }
             """.formatted(email, password);
     }
+
+    private String bearerToken(String email) {
+        User user = userRepository.findByEmail(email).orElseThrow();
+        return "Bearer " + jwtService.generateToken(user);
+    }
+
 }

@@ -25,19 +25,13 @@ public class AuthService {
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     private final UserRepository userRepository;
-    private final PetInitializationService petInitializationService;
-    private final BookingInitializationService bookingInitializationService;
     private final JwtService jwtService;
 
     public AuthService(
         UserRepository userRepository,
-        PetInitializationService petInitializationService,
-        BookingInitializationService bookingInitializationService,
         JwtService jwtService
     ) {
         this.userRepository = userRepository;
-        this.petInitializationService = petInitializationService;
-        this.bookingInitializationService = bookingInitializationService;
         this.jwtService = jwtService;
     }
 
@@ -54,8 +48,6 @@ public class AuthService {
         savedUser.setActive(true);
         savedUser.setRole(UserRoles.USER);
         savedUser = userRepository.save(savedUser);
-        petInitializationService.createDefaultPetsForUser(savedUser);
-        bookingInitializationService.createDefaultBookingsForUser(savedUser);
         return new AuthResponse(
             "Registration successful",
             savedUser.getEmail(),

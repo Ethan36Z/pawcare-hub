@@ -18,6 +18,7 @@ import com.pawcarehub.backend.repository.StaffAvailabilityRepository;
 import com.pawcarehub.backend.repository.StaffRepository;
 import com.pawcarehub.backend.repository.StaffScheduleExceptionRepository;
 import com.pawcarehub.backend.repository.UserRepository;
+import com.pawcarehub.backend.security.JwtService;
 import com.pawcarehub.backend.service.UserRoles;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -43,6 +45,9 @@ class AdminBookingScheduleUpdateIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private JwtService jwtService;
 
     @Autowired
     private BookingRepository bookingRepository;
@@ -239,7 +244,7 @@ class AdminBookingScheduleUpdateIntegrationTest {
         String time
     ) throws Exception {
         return mockMvc.perform(patch("/api/admin/bookings/{id}/schedule", booking.getId())
-            .header("X-User-Email", FRONT_DESK_EMAIL)
+            .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL))
             .contentType(MediaType.APPLICATION_JSON)
             .content("""
                 {
@@ -316,4 +321,10 @@ class AdminBookingScheduleUpdateIntegrationTest {
         }
         return date;
     }
+
+    private String bearerToken(String email) {
+        User user = userRepository.findByEmail(email).orElseThrow();
+        return "Bearer " + jwtService.generateToken(user);
+    }
+
 }

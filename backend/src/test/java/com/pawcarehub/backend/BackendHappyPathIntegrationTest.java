@@ -23,17 +23,21 @@ import com.pawcarehub.backend.repository.PetRepository;
 import com.pawcarehub.backend.repository.StaffAvailabilityRepository;
 import com.pawcarehub.backend.repository.StaffRepository;
 import com.pawcarehub.backend.repository.UserRepository;
+import com.pawcarehub.backend.security.JwtService;
 import com.pawcarehub.backend.service.UserRoles;
 import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAdjusters;
 import java.util.Locale;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -51,6 +55,9 @@ class BackendHappyPathIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private JwtService jwtService;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -88,7 +95,7 @@ class BackendHappyPathIntegrationTest {
     }
 
     @Test
-    void registerCreatesUserWithHashedPassword() throws Exception {
+    void registerCreatesOnlyUserWithHashedPassword() throws Exception {
         mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
@@ -108,6 +115,15 @@ class BackendHappyPathIntegrationTest {
         assertThat(savedUser.getPassword()).startsWith("$2");
         assertThat(savedUser.getPassword()).isNotEqualTo("Secret123!");
         assertThat(savedUser.isActive()).isTrue();
+        assertThat(petRepository.findByOwnerEmailOrderByIdAsc("jamie@example.com")).isEmpty();
+        assertThat(bookingRepository.findByOwnerEmailOrderByIdAsc("jamie@example.com")).isEmpty();
+    }
+
+    @Test
+    void userEmailHeaderCannotImpersonateAdminWithoutJwt() throws Exception {
+        mockMvc.perform(get("/api/admin/users")
+                .header("X-User-Email", ADMIN_EMAIL))
+            .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -184,7 +200,7 @@ class BackendHappyPathIntegrationTest {
         registerUser("jamie@example.com");
 
         mockMvc.perform(post("/api/pets")
-                .header("X-User-Email", "jamie@example.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -219,9 +235,10 @@ class BackendHappyPathIntegrationTest {
     @Test
     void updatePetPersistsMedicalRecordFieldsAndNotesCanBeAdded() throws Exception {
         registerUser("jamie@example.com");
+        LocalDate noteDate = LocalDate.now().plusDays(1);
 
         MvcResult createPetResult = mockMvc.perform(post("/api/pets")
-                .header("X-User-Email", "jamie@example.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -250,7 +267,7 @@ class BackendHappyPathIntegrationTest {
         long petId = objectMapper.readTree(createPetResult.getResponse().getContentAsString()).get("id").asLong();
 
         mockMvc.perform(patch("/api/pets/{id}", petId)
-                .header("X-User-Email", "jamie@example.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -278,24 +295,24 @@ class BackendHappyPathIntegrationTest {
             .andExpect(jsonPath("$.status").value("Needs attention"));
 
         mockMvc.perform(post("/api/pets/{id}/medical-notes", petId)
-                .header("X-User-Email", "jamie@example.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "date": "2026-04-04",
+                      "date": "%s",
                       "author": "Dr. Rivera",
                       "noteText": "Follow-up exam showed stable breathing."
                     }
-                    """))
+                    """.formatted(formatApiDate(noteDate))))
             .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.date").value("2026-04-04"))
+            .andExpect(jsonPath("$.date").value(formatApiDate(noteDate)))
             .andExpect(jsonPath("$.author").value("Dr. Rivera"))
             .andExpect(jsonPath("$.noteText").value("Follow-up exam showed stable breathing."))
             .andExpect(jsonPath("$.createdAt").isNotEmpty())
             .andExpect(jsonPath("$.updatedAt").isNotEmpty());
 
         mockMvc.perform(get("/api/pets/{id}", petId)
-                .header("X-User-Email", "jamie@example.com"))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.microchipNumber").value("MC-2222"))
             .andExpect(jsonPath("$.generalMedicalNotes").value("Monitor breathing after exercise and grooming"))
@@ -315,16 +332,17 @@ class BackendHappyPathIntegrationTest {
         Staff staff = staffRepository.findAllByOrderByActiveDescNameAsc().stream()
             .findFirst()
             .orElseThrow();
+        LocalDate appointmentDate = nextAvailableDate(staff, LocalTime.of(10, 30));
 
         MvcResult createResult = mockMvc.perform(post("/api/bookings")
-                .header("X-User-Email", "jamie@example.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "petName": "Milo",
                       "serviceId": %d,
                       "service": "%s",
-                      "date": "May 10, 2026",
+                      "date": "%s",
                       "time": "10:30 AM",
                       "status": "Upcoming",
                       "clinic": "PawCare Hub Clinic",
@@ -332,7 +350,7 @@ class BackendHappyPathIntegrationTest {
                       "staffId": %d,
                       "staff": "%s"
                     }
-                    """.formatted(service.getId(), service.getName(), staff.getId(), staff.getName())))
+                    """.formatted(service.getId(), service.getName(), formatAppointmentDate(appointmentDate), staff.getId(), staff.getName())))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.petName").value("Milo"))
             .andExpect(jsonPath("$.serviceId").value(service.getId()))
@@ -364,7 +382,7 @@ class BackendHappyPathIntegrationTest {
         LocalDateTime nearFuture = LocalDateTime.now().plusMinutes(30);
 
         mockMvc.perform(post("/api/bookings")
-                .header("X-User-Email", "jamie@example.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -396,26 +414,28 @@ class BackendHappyPathIntegrationTest {
         ClinicService service = clinicServiceRepository.findByActiveTrueOrderByCategoryAscNameAsc().stream()
             .findFirst()
             .orElseThrow();
-        Staff staff = staffRepository.findByActiveTrueOrderByNameAsc().stream()
-            .findFirst()
-            .orElseThrow();
+        Staff staff = staffRepository.save(new Staff("Dr. Availability", "Veterinarian", true));
+        staffAvailabilityRepository.save(new StaffAvailability(
+            staff, DayOfWeek.MONDAY, LocalTime.of(8, 0), LocalTime.of(17, 0), true
+        ));
+        LocalDate appointmentDate = nextWeekday(DayOfWeek.MONDAY);
 
         mockMvc.perform(post("/api/bookings")
-                .header("X-User-Email", "jamie@example.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "petName": "Milo",
                       "serviceId": %d,
                       "service": "%s",
-                      "date": "May 12, 2026",
+                      "date": "%s",
                       "time": "7:30 AM",
                       "status": "Upcoming",
                       "clinic": "PawCare Hub Clinic",
                       "staffId": %d,
                       "staff": "%s"
                     }
-                    """.formatted(service.getId(), service.getName(), staff.getId(), staff.getName())))
+                    """.formatted(service.getId(), service.getName(), formatAppointmentDate(appointmentDate), staff.getId(), staff.getName())))
             .andExpect(status().isBadRequest())
             .andExpect(status().reason("Selected appointment time is outside this staff member's availability"));
     }
@@ -425,7 +445,7 @@ class BackendHappyPathIntegrationTest {
         Staff staff = staffRepository.save(new Staff("Dr. Foster", "Veterinarian", true));
 
         MvcResult createResult = mockMvc.perform(post("/api/admin/staff/{staffId}/availability", staff.getId())
-                .header("X-User-Email", FRONT_DESK_EMAIL)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -445,7 +465,7 @@ class BackendHappyPathIntegrationTest {
         long availabilityId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
 
         mockMvc.perform(patch("/api/admin/staff/{staffId}/availability/{availabilityId}", staff.getId(), availabilityId)
-                .header("X-User-Email", FRONT_DESK_EMAIL)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -460,17 +480,17 @@ class BackendHappyPathIntegrationTest {
             .andExpect(jsonPath("$.endTime").value("18:30"));
 
         mockMvc.perform(patch("/api/admin/staff/{staffId}/availability/{availabilityId}/toggle", staff.getId(), availabilityId)
-                .header("X-User-Email", FRONT_DESK_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.active").value(false));
 
         mockMvc.perform(get("/api/admin/staff/{staffId}/availability", staff.getId())
-                .header("X-User-Email", FRONT_DESK_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].staffId").value(staff.getId()));
 
         mockMvc.perform(delete("/api/admin/staff/{staffId}/availability/{availabilityId}", staff.getId(), availabilityId)
-                .header("X-User-Email", FRONT_DESK_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL)))
             .andExpect(status().isNoContent());
     }
 
@@ -479,7 +499,7 @@ class BackendHappyPathIntegrationTest {
         Staff staff = staffRepository.save(new Staff("Dr. Stone", "Veterinarian", true));
 
         mockMvc.perform(post("/api/admin/staff/{staffId}/availability", staff.getId())
-                .header("X-User-Email", FRONT_DESK_EMAIL)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -492,7 +512,7 @@ class BackendHappyPathIntegrationTest {
             .andExpect(status().isOk());
 
         mockMvc.perform(post("/api/admin/staff/{staffId}/availability", staff.getId())
-                .header("X-User-Email", FRONT_DESK_EMAIL)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -512,74 +532,77 @@ class BackendHappyPathIntegrationTest {
             .findFirst()
             .orElseThrow();
 
+        LocalDate availableDate = nextAvailableDate(staff, LocalTime.NOON);
+
         mockMvc.perform(get("/api/staff/{staffId}/availability", staff.getId())
-                .param("date", "2026-05-12"))
+                .param("date", formatApiDate(availableDate)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].staffId").value(staff.getId()))
-            .andExpect(jsonPath("$[0].date").value("2026-05-12"))
+            .andExpect(jsonPath("$[0].date").value(formatApiDate(availableDate)))
             .andExpect(jsonPath("$[0].source").value("weekly"));
     }
 
     @Test
     void adminCanManageScheduleExceptionsAndRejectDuplicates() throws Exception {
         Staff staff = staffRepository.save(new Staff("Dr. Avery", "Veterinarian", true));
+        LocalDate exceptionDate = nextWeekday(DayOfWeek.FRIDAY);
 
         MvcResult createResult = mockMvc.perform(post("/api/admin/operations/staff/{staffId}/schedule-exceptions", staff.getId())
-                .header("X-User-Email", FRONT_DESK_EMAIL)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "date": "2026-05-15",
+                      "date": "%s",
                       "available": false,
                       "customStartTime": null,
                       "customEndTime": null
                     }
-                    """))
+                    """.formatted(formatApiDate(exceptionDate))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.staffId").value(staff.getId()))
-            .andExpect(jsonPath("$.date").value("2026-05-15"))
+            .andExpect(jsonPath("$.date").value(formatApiDate(exceptionDate)))
             .andExpect(jsonPath("$.available").value(false))
             .andReturn();
 
         long exceptionId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
 
         mockMvc.perform(post("/api/admin/operations/staff/{staffId}/schedule-exceptions", staff.getId())
-                .header("X-User-Email", FRONT_DESK_EMAIL)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "date": "2026-05-15",
+                      "date": "%s",
                       "available": true,
                       "customStartTime": "12:00",
                       "customEndTime": "16:00"
                     }
-                    """))
+                    """.formatted(formatApiDate(exceptionDate))))
             .andExpect(status().isConflict())
             .andExpect(status().reason("A schedule exception already exists for this staff member and date"));
 
         mockMvc.perform(patch("/api/admin/operations/staff/{staffId}/schedule-exceptions/{exceptionId}", staff.getId(), exceptionId)
-                .header("X-User-Email", FRONT_DESK_EMAIL)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "date": "2026-05-15",
+                      "date": "%s",
                       "available": true,
                       "customStartTime": "12:00",
                       "customEndTime": "16:00"
                     }
-                    """))
+                    """.formatted(formatApiDate(exceptionDate))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.available").value(true))
             .andExpect(jsonPath("$.customStartTime").value("12:00"))
             .andExpect(jsonPath("$.customEndTime").value("16:00"));
 
         mockMvc.perform(get("/api/admin/operations/staff/{staffId}/schedule-exceptions", staff.getId())
-                .header("X-User-Email", FRONT_DESK_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$[0].date").value("2026-05-15"));
+            .andExpect(jsonPath("$[0].date").value(formatApiDate(exceptionDate)));
 
         mockMvc.perform(delete("/api/admin/operations/staff/{staffId}/schedule-exceptions/{exceptionId}", staff.getId(), exceptionId)
-                .header("X-User-Email", FRONT_DESK_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL)))
             .andExpect(status().isNoContent());
     }
 
@@ -587,22 +610,23 @@ class BackendHappyPathIntegrationTest {
     void availabilityEndpointUsesInactiveDateOverrideBeforeWeeklyAvailability() throws Exception {
         Staff staff = staffRepository.save(new Staff("Dr. Quinn", "Veterinarian", true));
         createFullWeekAvailability(staff);
+        LocalDate exceptionDate = nextWeekday(DayOfWeek.TUESDAY);
 
         mockMvc.perform(post("/api/admin/operations/staff/{staffId}/schedule-exceptions", staff.getId())
-                .header("X-User-Email", FRONT_DESK_EMAIL)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "date": "2026-05-12",
+                      "date": "%s",
                       "available": false,
                       "customStartTime": null,
                       "customEndTime": null
                     }
-                    """))
+                    """.formatted(formatApiDate(exceptionDate))))
             .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/staff/{staffId}/availability", staff.getId())
-                .param("date", "2026-05-12"))
+                .param("date", formatApiDate(exceptionDate)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$").isEmpty());
     }
@@ -611,25 +635,26 @@ class BackendHappyPathIntegrationTest {
     void availabilityEndpointUsesCustomTimeOverrideBeforeWeeklyAvailability() throws Exception {
         Staff staff = staffRepository.save(new Staff("Dr. Blake", "Veterinarian", true));
         createFullWeekAvailability(staff);
+        LocalDate exceptionDate = nextWeekday(DayOfWeek.WEDNESDAY);
 
         mockMvc.perform(post("/api/admin/operations/staff/{staffId}/schedule-exceptions", staff.getId())
-                .header("X-User-Email", FRONT_DESK_EMAIL)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "date": "2026-05-13",
+                      "date": "%s",
                       "available": true,
                       "customStartTime": "12:00",
                       "customEndTime": "16:00"
                     }
-                    """))
+                    """.formatted(formatApiDate(exceptionDate))))
             .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/staff/{staffId}/availability", staff.getId())
-                .param("date", "2026-05-13"))
+                .param("date", formatApiDate(exceptionDate)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].staffId").value(staff.getId()))
-            .andExpect(jsonPath("$[0].date").value("2026-05-13"))
+            .andExpect(jsonPath("$[0].date").value(formatApiDate(exceptionDate)))
             .andExpect(jsonPath("$[0].startTime").value("12:00"))
             .andExpect(jsonPath("$[0].endTime").value("16:00"))
             .andExpect(jsonPath("$[0].source").value("exception"));
@@ -639,12 +664,13 @@ class BackendHappyPathIntegrationTest {
     void availabilityEndpointFallsBackToWeeklyTemplateWhenNoExceptionExists() throws Exception {
         Staff staff = staffRepository.save(new Staff("Dr. Perez", "Veterinarian", true));
         createFullWeekAvailability(staff);
+        LocalDate availableDate = nextWeekday(DayOfWeek.THURSDAY);
 
         mockMvc.perform(get("/api/staff/{staffId}/availability", staff.getId())
-                .param("date", "2026-05-14"))
+                .param("date", formatApiDate(availableDate)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].staffId").value(staff.getId()))
-            .andExpect(jsonPath("$[0].date").value("2026-05-14"))
+            .andExpect(jsonPath("$[0].date").value(formatApiDate(availableDate)))
             .andExpect(jsonPath("$[0].startTime").value("08:00"))
             .andExpect(jsonPath("$[0].endTime").value("17:00"))
             .andExpect(jsonPath("$[0].source").value("weekly"));
@@ -658,54 +684,55 @@ class BackendHappyPathIntegrationTest {
             .orElseThrow();
         Staff staff = staffRepository.save(new Staff("Dr. Reese", "Veterinarian", true));
         createFullWeekAvailability(staff);
+        LocalDate exceptionDate = nextWeekday(DayOfWeek.THURSDAY);
 
         mockMvc.perform(post("/api/admin/operations/staff/{staffId}/schedule-exceptions", staff.getId())
-                .header("X-User-Email", FRONT_DESK_EMAIL)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "date": "2026-05-14",
+                      "date": "%s",
                       "available": true,
                       "customStartTime": "12:00",
                       "customEndTime": "16:00"
                     }
-                    """))
+                    """.formatted(formatApiDate(exceptionDate))))
             .andExpect(status().isOk());
 
         mockMvc.perform(post("/api/bookings")
-                .header("X-User-Email", "jamie@example.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "petName": "Milo",
                       "serviceId": %d,
                       "service": "%s",
-                      "date": "May 14, 2026",
+                      "date": "%s",
                       "time": "1:00 PM",
                       "status": "Upcoming",
                       "clinic": "PawCare Hub Clinic",
                       "staffId": %d,
                       "staff": "%s"
                     }
-                    """.formatted(service.getId(), service.getName(), staff.getId(), staff.getName())))
+                    """.formatted(service.getId(), service.getName(), formatAppointmentDate(exceptionDate), staff.getId(), staff.getName())))
             .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/bookings")
-                .header("X-User-Email", "jamie@example.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "petName": "Milo",
                       "serviceId": %d,
                       "service": "%s",
-                      "date": "May 14, 2026",
+                      "date": "%s",
                       "time": "10:00 AM",
                       "status": "Upcoming",
                       "clinic": "PawCare Hub Clinic",
                       "staffId": %d,
                       "staff": "%s"
                     }
-                    """.formatted(service.getId(), service.getName(), staff.getId(), staff.getName())))
+                    """.formatted(service.getId(), service.getName(), formatAppointmentDate(exceptionDate), staff.getId(), staff.getName())))
             .andExpect(status().isBadRequest())
             .andExpect(status().reason("Selected appointment time is outside this staff member's availability"));
     }
@@ -713,7 +740,7 @@ class BackendHappyPathIntegrationTest {
     @Test
     void adminCanListRealStaffRecords() throws Exception {
         mockMvc.perform(get("/api/admin/staff")
-                .header("X-User-Email", ADMIN_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].id").isNumber())
             .andExpect(jsonPath("$[0].name").isNotEmpty())
@@ -724,7 +751,7 @@ class BackendHappyPathIntegrationTest {
     @Test
     void frontDeskCanLoadReadOnlyOperationsStaffList() throws Exception {
         mockMvc.perform(get("/api/admin/staff/operations-list")
-                .header("X-User-Email", FRONT_DESK_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].id").isNumber())
             .andExpect(jsonPath("$[0].name").isNotEmpty())
@@ -737,7 +764,7 @@ class BackendHappyPathIntegrationTest {
         registerUser("jamie@example.com");
 
         mockMvc.perform(post("/api/pets")
-                .header("X-User-Email", "jamie@example.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -762,30 +789,31 @@ class BackendHappyPathIntegrationTest {
         Staff staff = staffRepository.findByActiveTrueOrderByNameAsc().stream()
             .findFirst()
             .orElseThrow();
+        LocalDate appointmentDate = nextAvailableDate(staff, LocalTime.of(10, 30));
 
         MvcResult bookingResult = mockMvc.perform(post("/api/bookings")
-                .header("X-User-Email", "jamie@example.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "petName": "Milo",
                       "serviceId": %d,
                       "service": "%s",
-                      "date": "May 10, 2026",
+                      "date": "%s",
                       "time": "10:30 AM",
                       "status": "Confirmed",
                       "clinic": "PawCare Hub Clinic",
                       "staffId": %d,
                       "staff": "%s"
                     }
-                    """.formatted(service.getId(), service.getName(), staff.getId(), staff.getName())))
+                    """.formatted(service.getId(), service.getName(), formatAppointmentDate(appointmentDate), staff.getId(), staff.getName())))
             .andExpect(status().isCreated())
             .andReturn();
 
         long bookingId = objectMapper.readTree(bookingResult.getResponse().getContentAsString()).get("id").asLong();
 
         mockMvc.perform(patch("/api/admin/bookings/{id}/complete", bookingId)
-                .header("X-User-Email", DOCTOR_EMAIL)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(DOCTOR_EMAIL))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -798,10 +826,10 @@ class BackendHappyPathIntegrationTest {
             .andExpect(status().isOk());
 
         mockMvc.perform(get("/api/admin/dashboard/stats")
-                .header("X-User-Email", FRONT_DESK_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.totalUsers").value(4))
-            .andExpect(jsonPath("$.petRecords").value(3))
+            .andExpect(jsonPath("$.petRecords").value(1))
             .andExpect(jsonPath("$.activeStaff").isNumber())
             .andExpect(jsonPath("$.activeServices").isNumber())
             .andExpect(jsonPath("$.bookingsByStatus[?(@.status=='Completed')].count").value(org.hamcrest.Matchers.hasItem(1)))
@@ -821,7 +849,7 @@ class BackendHappyPathIntegrationTest {
         boolean initialActive = staff.isActive();
 
         mockMvc.perform(patch("/api/admin/staff/{id}/toggle", staff.getId())
-                .header("X-User-Email", ADMIN_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(staff.getId()))
             .andExpect(jsonPath("$.active").value(!initialActive));
@@ -833,7 +861,7 @@ class BackendHappyPathIntegrationTest {
     @Test
     void adminCanCreateStaffRecord() throws Exception {
         mockMvc.perform(post("/api/admin/staff")
-                .header("X-User-Email", ADMIN_EMAIL)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -865,7 +893,7 @@ class BackendHappyPathIntegrationTest {
             .orElseThrow();
 
         mockMvc.perform(patch("/api/admin/staff/{id}", staff.getId())
-                .header("X-User-Email", ADMIN_EMAIL)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(ADMIN_EMAIL))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -939,22 +967,23 @@ class BackendHappyPathIntegrationTest {
         ClinicService service = clinicServiceRepository.findByActiveTrueOrderByCategoryAscNameAsc().stream()
             .findFirst()
             .orElseThrow();
+        LocalDate appointmentDate = nextWeekday(DayOfWeek.MONDAY);
 
         MvcResult createResult = mockMvc.perform(post("/api/bookings")
-                .header("X-User-Email", "jamie@example.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "petName": "Milo",
                       "serviceId": %d,
                       "service": "%s",
-                      "date": "May 10, 2026",
+                      "date": "%s",
                       "time": "10:30 AM",
                       "status": "Upcoming",
                       "clinic": "PawCare Hub Clinic",
                       "staff": "Dr. Rivera"
                     }
-                    """.formatted(service.getId(), service.getName())))
+                    """.formatted(service.getId(), service.getName(), formatAppointmentDate(appointmentDate))))
             .andExpect(status().isCreated())
             .andReturn();
 
@@ -962,7 +991,7 @@ class BackendHappyPathIntegrationTest {
         long bookingId = bookingJson.get("id").asLong();
 
         mockMvc.perform(patch("/api/admin/bookings/{id}/confirm", bookingId)
-                .header("X-User-Email", FRONT_DESK_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(bookingId))
             .andExpect(jsonPath("$.status").value("Confirmed"))
@@ -979,9 +1008,10 @@ class BackendHappyPathIntegrationTest {
         ClinicService service = clinicServiceRepository.findByActiveTrueOrderByCategoryAscNameAsc().stream()
             .findFirst()
             .orElseThrow();
+        LocalDate appointmentDate = nextWeekday(DayOfWeek.MONDAY);
 
         mockMvc.perform(post("/api/pets")
-                .header("X-User-Email", "jamie@example.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -1001,27 +1031,27 @@ class BackendHappyPathIntegrationTest {
             .andExpect(status().isCreated());
 
         MvcResult createResult = mockMvc.perform(post("/api/bookings")
-                .header("X-User-Email", "jamie@example.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "petName": "Milo",
                       "serviceId": %d,
                       "service": "%s",
-                      "date": "May 10, 2026",
+                      "date": "%s",
                       "time": "10:30 AM",
                       "status": "Confirmed",
                       "clinic": "PawCare Hub Clinic",
                       "staff": "Dr. Rivera"
                     }
-                    """.formatted(service.getId(), service.getName())))
+                    """.formatted(service.getId(), service.getName(), formatAppointmentDate(appointmentDate))))
             .andExpect(status().isCreated())
             .andReturn();
 
         long bookingId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
 
         mockMvc.perform(patch("/api/admin/bookings/{id}/complete", bookingId)
-                .header("X-User-Email", DOCTOR_EMAIL)
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(DOCTOR_EMAIL))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -1039,7 +1069,7 @@ class BackendHappyPathIntegrationTest {
             .andExpect(jsonPath("$.followUpNote").value("Recheck in 4 weeks if itching continues."));
 
         mockMvc.perform(get("/api/bookings/{id}", bookingId)
-                .header("X-User-Email", "jamie@example.com"))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.status").value("Completed"))
             .andExpect(jsonPath("$.visitSummary").value("Wellness exam completed with no urgent concerns."))
@@ -1061,7 +1091,7 @@ class BackendHappyPathIntegrationTest {
             .getId();
 
         mockMvc.perform(get("/api/pets/{id}", petId)
-                .header("X-User-Email", "jamie@example.com"))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.medicalNotes[?(@.relatedBookingId==%s)].relatedVisit.bookingId".formatted(bookingId))
                 .value(org.hamcrest.Matchers.hasItem((int) bookingId)))
@@ -1087,29 +1117,30 @@ class BackendHappyPathIntegrationTest {
         ClinicService service = clinicServiceRepository.findByActiveTrueOrderByCategoryAscNameAsc().stream()
             .findFirst()
             .orElseThrow();
+        LocalDate appointmentDate = nextWeekday(DayOfWeek.MONDAY);
 
         MvcResult createResult = mockMvc.perform(post("/api/bookings")
-                .header("X-User-Email", "jamie@example.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "petName": "Milo",
                       "serviceId": %d,
                       "service": "%s",
-                      "date": "May 11, 2026",
+                      "date": "%s",
                       "time": "11:30 AM",
                       "status": "Upcoming",
                       "clinic": "PawCare Hub Clinic",
                       "staff": "Dr. Rivera"
                     }
-                    """.formatted(service.getId(), service.getName())))
+                    """.formatted(service.getId(), service.getName(), formatAppointmentDate(appointmentDate))))
             .andExpect(status().isCreated())
             .andReturn();
 
         long bookingId = objectMapper.readTree(createResult.getResponse().getContentAsString()).get("id").asLong();
 
         mockMvc.perform(patch("/api/admin/bookings/{id}/confirm", bookingId)
-                .header("X-User-Email", DOCTOR_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(DOCTOR_EMAIL)))
             .andExpect(status().isForbidden())
             .andExpect(status().reason("You do not have permission to access this action"));
     }
@@ -1117,7 +1148,7 @@ class BackendHappyPathIntegrationTest {
     @Test
     void frontDeskCannotAccessAdminOnlyStaffDirectory() throws Exception {
         mockMvc.perform(get("/api/admin/staff")
-                .header("X-User-Email", FRONT_DESK_EMAIL))
+                .header(HttpHeaders.AUTHORIZATION, bearerToken(FRONT_DESK_EMAIL)))
             .andExpect(status().isForbidden())
             .andExpect(status().reason("You do not have permission to access this action"));
     }
@@ -1132,23 +1163,25 @@ class BackendHappyPathIntegrationTest {
         Staff nextStaff = staffRepository.save(new Staff("Dr. Campbell", "Veterinarian", true));
         createFullWeekAvailability(staff);
         createFullWeekAvailability(nextStaff);
+        LocalDate appointmentDate = nextWeekday(DayOfWeek.SUNDAY);
+        LocalDate rescheduleDate = appointmentDate.plusDays(2);
 
         MvcResult createResult = mockMvc.perform(post("/api/bookings")
-                .header("X-User-Email", "jamie@example.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
                       "petName": "Milo",
                       "serviceId": %d,
                       "service": "%s",
-                      "date": "May 10, 2026",
+                      "date": "%s",
                       "time": "10:30 AM",
                       "status": "Upcoming",
                       "clinic": "PawCare Hub Clinic",
                       "staffId": %d,
                       "staff": "%s"
                     }
-                    """.formatted(service.getId(), service.getName(), staff.getId(), staff.getName())))
+                    """.formatted(service.getId(), service.getName(), formatAppointmentDate(appointmentDate), staff.getId(), staff.getName())))
             .andExpect(status().isCreated())
             .andReturn();
 
@@ -1156,19 +1189,19 @@ class BackendHappyPathIntegrationTest {
         long bookingId = bookingJson.get("id").asLong();
 
         mockMvc.perform(patch("/api/bookings/{id}/reschedule", bookingId)
-                .header("X-User-Email", "jamie@example.com")
+                .header(HttpHeaders.AUTHORIZATION, bearerToken("jamie@example.com"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
-                      "date": "May 12, 2026",
+                      "date": "%s",
                       "time": "1:15 PM",
                       "staffId": %d,
                       "staff": "%s"
                     }
-                    """.formatted(nextStaff.getId(), nextStaff.getName())))
+                    """.formatted(formatAppointmentDate(rescheduleDate), nextStaff.getId(), nextStaff.getName())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(bookingId))
-            .andExpect(jsonPath("$.date").value("May 12, 2026"))
+            .andExpect(jsonPath("$.date").value(formatAppointmentDate(rescheduleDate)))
             .andExpect(jsonPath("$.time").value("1:15 PM"))
             .andExpect(jsonPath("$.staffId").value(nextStaff.getId()))
             .andExpect(jsonPath("$.staff").value(nextStaff.getName()));
@@ -1188,6 +1221,28 @@ class BackendHappyPathIntegrationTest {
                 true
             ));
         }
+    }
+
+    private LocalDate nextAvailableDate(Staff staff, LocalTime appointmentTime) {
+        StaffAvailability availability = staffAvailabilityRepository
+            .findByStaffIdOrderByDayOfWeekAscStartTimeAsc(staff.getId()).stream()
+            .filter(StaffAvailability::isActive)
+            .filter(slot -> !appointmentTime.isBefore(slot.getStartTime()) && !appointmentTime.isAfter(slot.getEndTime()))
+            .findFirst()
+            .orElseThrow();
+        return nextWeekday(availability.getDayOfWeek());
+    }
+
+    private LocalDate nextWeekday(DayOfWeek dayOfWeek) {
+        return LocalDate.now().with(TemporalAdjusters.next(dayOfWeek));
+    }
+
+    private String formatApiDate(LocalDate date) {
+        return date.toString();
+    }
+
+    private String formatAppointmentDate(LocalDate date) {
+        return date.format(DATE_FORMATTER);
     }
 
     private void createClinicUser(String email, String name, String role) {
@@ -1224,4 +1279,10 @@ class BackendHappyPathIntegrationTest {
 
         return objectMapper.readTree(loginResult.getResponse().getContentAsString()).get("token").asText();
     }
+
+    private String bearerToken(String email) {
+        User user = userRepository.findByEmail(email).orElseThrow();
+        return "Bearer " + jwtService.generateToken(user);
+    }
+
 }

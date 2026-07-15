@@ -5,17 +5,11 @@ import com.pawcarehub.backend.service.AuthService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -32,7 +26,6 @@ import org.springframework.web.server.ResponseStatusException;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private static final String USER_EMAIL_HEADER = "X-User-Email";
     private static final String BEARER_PREFIX = "Bearer ";
     private final JwtService jwtService;
     private final AuthService authService;
@@ -48,13 +41,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         HttpServletResponse response,
         FilterChain filterChain
     ) throws ServletException, IOException {
-        HttpServletRequest requestToUse = request;
-
         try {
             String bearerToken = extractBearerToken(request);
-            String authenticatedEmail = null;
 
-            if (StringUtils.hasText(bearerToken)) {
+            if (StringUtils.hasText(bearerToken)
+                && SecurityContextHolder.getContext().getAuthentication() == null) {
                 String tokenEmail = jwtService.extractEmail(bearerToken);
                 User user = authService.getAuthenticatedUserEntity(tokenEmail);
 
@@ -63,16 +54,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
 
                 setAuthentication(user, request);
-                authenticatedEmail = user.getEmail();
-            } else if (StringUtils.hasText(request.getHeader(USER_EMAIL_HEADER))
-                && SecurityContextHolder.getContext().getAuthentication() == null) {
-                User user = authService.getAuthenticatedUserEntity(request.getHeader(USER_EMAIL_HEADER));
-                setAuthentication(user, request);
-                authenticatedEmail = user.getEmail();
-            }
-
-            if (StringUtils.hasText(authenticatedEmail)) {
-                requestToUse = new HeaderOverrideRequestWrapper(request, USER_EMAIL_HEADER, authenticatedEmail);
             }
         } catch (ResponseStatusException exception) {
             SecurityContextHolder.clearContext();
@@ -84,7 +65,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        filterChain.doFilter(requestToUse, response);
+        filterChain.doFilter(request, response);
     }
 
     private void setAuthentication(User user, HttpServletRequest request) {
@@ -109,44 +90,5 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return null;
         }
         return authorizationHeader.substring(BEARER_PREFIX.length()).trim();
-    }
-
-    private static final class HeaderOverrideRequestWrapper extends HttpServletRequestWrapper {
-
-        private final String headerName;
-        private final String headerValue;
-
-        private HeaderOverrideRequestWrapper(HttpServletRequest request, String headerName, String headerValue) {
-            super(request);
-            this.headerName = headerName;
-            this.headerValue = headerValue;
-        }
-
-        @Override
-        public String getHeader(String name) {
-            if (headerName.equalsIgnoreCase(name)) {
-                return headerValue;
-            }
-            return super.getHeader(name);
-        }
-
-        @Override
-        public Enumeration<String> getHeaders(String name) {
-            if (headerName.equalsIgnoreCase(name)) {
-                return Collections.enumeration(List.of(headerValue));
-            }
-            return super.getHeaders(name);
-        }
-
-        @Override
-        public Enumeration<String> getHeaderNames() {
-            Set<String> headerNames = new LinkedHashSet<>();
-            Enumeration<String> existingHeaderNames = super.getHeaderNames();
-            while (existingHeaderNames.hasMoreElements()) {
-                headerNames.add(existingHeaderNames.nextElement());
-            }
-            headerNames.add(headerName);
-            return Collections.enumeration(new ArrayList<>(headerNames));
-        }
     }
 }
